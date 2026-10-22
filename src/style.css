@@ -1,0 +1,85 @@
+:root {
+  --cream: #feeec5;
+  --umber: #3f2c22;
+  --ink: #1e1414;
+  --crit: #ffe14d;
+  --kill: #ff3b30;
+  --ui: #ffffff;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #120d0c;
+  font-family: ui-rounded, 'Nunito', 'Trebuchet MS', system-ui, sans-serif;
+  color: var(--ui);
+  user-select: none;
+}
+#app, canvas { display: block; width: 100vw; height: 100vh; }
+
+.hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+/* Crosshair: four ticks whose gap is set from the current spread. */
+.xhair { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+.xhair i {
+  position: absolute; background: #fff; box-shadow: 0 0 0 1px rgba(30, 20, 20, 0.55);
+  border-radius: 1px;
+}
+.xhair .t, .xhair .b { width: 2px; height: 8px; left: -1px; }
+.xhair .l, .xhair .r { width: 8px; height: 2px; top: -1px; }
+.xhair .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
+
+/* Hit markers: four diagonal ticks popping out of the centre. */
+.hitmark { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; }
+.hitmark i {
+  position: absolute; width: 3px; height: 10px; left: -1.5px; top: -5px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(30, 20, 20, 0.6); border-radius: 2px;
+}
+
+.ammo {
+  position: absolute; right: 36px; bottom: 30px; text-align: right; font-weight: 800;
+  text-shadow: 0 2px 0 var(--ink), 0 0 6px rgba(0, 0, 0, 0.6);
+}
+.ammo .mag { font-size: 42px; line-height: 1; }
+.ammo .res { font-size: 18px; opacity: 0.8; }
+.ammo .wname { font-size: 14px; opacity: 0.85; letter-spacing: 0.04em; }
+.ammo .reload { font-size: 14px; color: var(--crit); }
+
+.stats {
+  position: absolute; left: 10px; top: 8px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  color: #fff; text-shadow: 0 1px 0 #000; white-space: pre; opacity: 0.85;
+}
+.range {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; background: rgba(30, 20, 20, 0.55);
+  padding: 6px 12px; border-radius: 8px; white-space: pre; text-align: center;
+}
+.toast {
+  position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%);
+  background: #fff; color: var(--ink); padding: 4px 12px; font-weight: 800; border-radius: 4px; opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.overlay {
+  position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 14px; background: radial-gradient(ellipse at center, rgba(63, 44, 34, 0.75), rgba(18, 13, 12, 0.95));
+}
+.overlay.hidden { display: none; }
+.overlay h1 {
+  margin: 0; font-size: 64px; color: var(--cream); letter-spacing: 0.02em;
+  text-shadow: 0 4px 0 var(--ink);
+}
+.overlay h1 span { color: #ff6a3d; }
+.overlay p { margin: 0; opacity: 0.85; max-width: 560px; text-align: center; }
+.overlay button {
+  pointer-events: auto; font: inherit; font-size: 20px; font-weight: 800; padding: 10px 26px; border: 0;
+  border-radius: 8px; background: var(--cream); color: var(--ink); cursor: pointer; min-width: 260px;
+  box-shadow: 0 4px 0 var(--ink);
+}
+.overlay button:hover { background: #fff; transform: translateY(-1px); }
+.keys {
+  display: grid; grid-template-columns: auto auto; gap: 2px 18px; font-size: 13px; opacity: 0.85; margin-top: 8px;
+}
+.keys b { color: var(--cream); text-align: right; }
+.seed { font-size: 12px; opacity: 0.6; }
