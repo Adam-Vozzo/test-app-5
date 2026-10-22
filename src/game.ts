@@ -83,6 +83,8 @@ export class Game {
       if (!locked && this.mode === 'playing' && !this.panel.open) this.pause();
     };
     this.input.onKey = (code) => this.onKey(code);
+    this.input.onSoftFallback = () =>
+      this.hud.toast('Pointer lock blocked here: mouse look works while the cursor is in the window · Esc pauses', 5);
     this.panel.onVisibility = (open) => {
       if (open) this.input.exitLock();
       else if (this.mode === 'playing') this.input.requestLock();
