@@ -41,7 +41,7 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - **Seeded RNG everywhere**: never call `Math.random()` in game code. Use `rng()` from `src/core/rng.ts`, seeded
   from `?seed=` (shown in the debug overlay). FX jitter uses a separate stream so gameplay generation stays
   deterministic regardless of what effects ran.
-- **Tuning**: every feel number lives in `src/tuning.ts` as plain data and is exposed in the lil-gui panel (backtick).
+- **Tuning**: every feel number lives in `src/tuning.ts` as plain data. `src/ui/panel.ts` builds the lil-gui panel (backtick) from it automatically, so a new number appears in the panel without extra code.
   Never hard-code a feel number in a system. Read it from the tuning object each frame so live edits apply.
 - **Weapons are data** (`src/weapons/defs.ts`). Systems read from the def, and new weapons must not need new code
   paths unless they add a genuinely new verb.
@@ -62,7 +62,8 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 ```
 src/
   main.ts          bootstrap, menus, game loop
-  tuning.ts        all feel numbers + lil-gui panel + presets
+  game.ts          modes + per-frame system order
+  tuning.ts        all feel numbers (weapons reference src/weapons/defs.ts)
   core/            rng, math/springs, input, time (slow-mo, hitstop)
   physics/         Rapier world wrapper, collision groups
   render/          renderer, palette, geometry helpers, toon materials
@@ -71,7 +72,7 @@ src/
   weapons/         weapon defs, firing, recoil
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
-  ui/              HUD, crosshair, hit markers, menus, debug overlay
+  ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
   world/           arenas, dummy range, props, (later) zone generator
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)

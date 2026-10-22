@@ -19,7 +19,34 @@ function addNumber(folder: GUI, obj: Obj, key: string): Controller {
   return folder.add(obj, key);
 }
 
+/** Weapon defs are long and flat; present them in sub-folders. Unlisted keys land in "other". */
+const WEAPON_GROUPS: Record<string, string[]> = {
+  damage: ['damage', 'critMultiplier', 'falloffStart', 'falloffEnd', 'falloffMinMul', 'pellets', 'pierce', 'stagger', 'knockback', 'range'],
+  handling: ['rpm', 'auto', 'magSize', 'reserve', 'reloadTime', 'hitscan', 'projectileSpeed', 'projectileGravity'],
+  spread: ['hipSpread', 'adsSpread', 'moveSpreadMul', 'airSpreadMul', 'bloomPerShot', 'bloomMax', 'bloomRecovery'],
+  recoil: ['recoilVertical', 'recoilHorizontal', 'recoilHorizontalFreq', 'recoilHorizontalBias', 'recoilRandom', 'recoilRampShots', 'recoilRamp', 'adsRecoilMul', 'kickReturn', 'cameraKickMul', 'cameraKickStiffness', 'cameraKickDamping'],
+  'weapon kick / fov / shake': ['weaponKickBack', 'weaponKickPitch', 'weaponKickRoll', 'weaponKickStiffness', 'weaponKickDamping', 'fovPunch', 'fovPunchStiffness', 'fovPunchDamping', 'trauma'],
+  fx: ['tracerColor', 'tracerSpeed', 'tracerLength', 'tracerWidth', 'flashScale', 'flashFrames', 'flashLight', 'flashColor', 'impactParticles', 'impactSpeed', 'casingSpeed'],
+  audio: ['pitchJitter', 'volume', 'layers'],
+};
+
+function buildWeapon(folder: GUI, obj: Obj, skip: Set<string>) {
+  const used = new Set<string>(skip);
+  for (const [name, keys] of Object.entries(WEAPON_GROUPS)) {
+    const sub = folder.addFolder(name);
+    for (const k of keys) if (k in obj) used.add(k);
+    build(sub, obj, new Set([...Object.keys(obj).filter((k) => !keys.includes(k)), '__flat']));
+    sub.close();
+  }
+  const rest = Object.keys(obj).filter((k) => !used.has(k));
+  if (rest.length) build(folder.addFolder('other'), obj, new Set([...Object.keys(obj).filter((k) => !rest.includes(k)), '__flat']));
+}
+
 function build(folder: GUI, obj: Obj, skip: Set<string>) {
+  if ('rpm' in obj && 'layers' in obj && !skip.has('__flat')) {
+    buildWeapon(folder, obj, new Set([...skip, 'id', 'name']));
+    return;
+  }
   for (const key of Object.keys(obj)) {
     if (skip.has(key)) continue;
     const v = obj[key];

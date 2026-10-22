@@ -82,7 +82,6 @@ const DECAL_LIFE = 6;
 export class Fx {
   private flash: THREE.Sprite;
   private flashFrames = 0;
-  private flashLight = 0;
   private tracerMesh: THREE.InstancedMesh;
   private tracers: Tracer[] = [];
   private dustMesh: THREE.InstancedMesh;
@@ -144,7 +143,6 @@ export class Fx {
     this.flash.material.color.setHex(color);
     this.flash.visible = true;
     this.flashFrames = Math.max(1, Math.round(frames));
-    this.flashLight = light;
     this.r.muzzleLight.color.setHex(color);
     this.r.muzzleLight.position.copy(pos);
     this.r.muzzleLight.intensity = light;
@@ -212,7 +210,6 @@ export class Fx {
       this.flash.visible = false;
       this.r.muzzleLight.intensity = 0;
     }
-    void this.flashLight;
 
     // Tracers
     let n = 0;

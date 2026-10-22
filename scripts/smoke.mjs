@@ -17,7 +17,8 @@ await new Promise((res) => {
 
 const errors = [];
 const browser = await chromium.launch({
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
+  // Autoplay allowed so the WebAudio synth actually runs (and can throw) headless.
+  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', (m) => {
@@ -34,7 +35,11 @@ const shot = async (name) => {
 const g = (fn, arg) => page.evaluate(fn, arg);
 const hold = (code) => g((c) => window.__game.input.virtual.add(c), code);
 const release = (code) => g((c) => window.__game.input.virtual.delete(c), code);
-const press = (code) => g((c) => { window.__game.input.press(c); }, code);
+const press = async (code) => {
+  await g((c) => window.__game.input.press(c), code);
+  await wait(40);
+  await g((c) => window.__game.input.release(c), code);
+};
 const look = (dx, dy) => g(([x, y]) => window.__game.camera.look(x, y), [dx, dy]);
 
 try {
@@ -72,6 +77,20 @@ try {
   await wait(300);
   await shot('06-arena-colliders');
   await g(() => window.__game.input.onKey('KeyH'));
+  // Tuning panel open, with the repeater folder expanded.
+  await g(() => {
+    const gm = window.__game;
+    gm.input.onKey('Backquote');
+    const f = gm.panel.gui.foldersRecursive().find((x) => x._title === 'weapons');
+    f?.open();
+    f?.folders[0]?.open();
+    f?.folders[0]?.folders.find((x) => x._title === 'recoil')?.open();
+  });
+  await wait(300);
+  await shot('07-tuning-panel');
+  await g(() => window.__game.input.onKey('Backquote'));
+  const audio = await g(() => window.__game.synth.ctx?.state ?? 'none');
+  console.log('  audio context', audio);
   const stats = await g(() => {
     const gm = window.__game;
     return { pos: gm.player.pos.toArray().map((v) => +v.toFixed(2)), draws: gm.renderer.renderer.info.render.calls };

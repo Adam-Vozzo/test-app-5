@@ -44,7 +44,7 @@ export class Renderer {
     this.sun.shadow.radius = 3;
     this.scene.add(this.sun, this.sun.target);
 
-    this.muzzleLight = new THREE.PointLight(0xfff0c8, 0, 7, 1.6);
+    this.muzzleLight = new THREE.PointLight(0xfff0c8, 0, 3.5, 2);
     this.scene.add(this.muzzleLight);
 
     window.addEventListener('resize', () => this.resize());

@@ -14,16 +14,18 @@ const _v = new THREE.Vector3();
 const _aim = new THREE.Vector3();
 const _e = new THREE.Euler();
 const _up = new THREE.Vector3(0, 1, 0);
+const _hand = new THREE.Vector3();
 
 /** Per-frame pose overrides from the weapon system (recoil, reload choreography). */
 export interface WeaponPose {
   /** Weapon-local kick: position (x,y,z) and rotation (pitch, yaw, roll) springs. */
   kickPos: Spring3;
   kickRot: Spring3;
-  /** Reload: extra weapon tilt (radians) and drop (units), plus left-hand override. */
+  /** Reload: extra weapon tilt (radians) and drop (units). */
   tilt: number;
   drop: number;
-  leftHand: THREE.Vector3 | null;
+  /** Left-hand override, evaluated after the weapon is placed (reload choreography). */
+  leftHand: ((weapon: THREE.Object3D, biped: Biped, out: THREE.Vector3) => THREE.Vector3) | null;
 }
 
 export class Player {
@@ -131,7 +133,7 @@ export class Player {
     root.updateMatrixWorld(true);
 
     const gripW = model.grip.clone().applyMatrix4(root.matrixWorld);
-    const foreW = pose.leftHand ?? model.fore.clone().applyMatrix4(root.matrixWorld);
+    const foreW = pose.leftHand ? pose.leftHand(root, b, _hand) : model.fore.clone().applyMatrix4(root.matrixWorld);
     b.solveArms(gripW, foreW);
 
     this.muzzleWorld.copy(model.muzzle).applyMatrix4(root.matrixWorld);

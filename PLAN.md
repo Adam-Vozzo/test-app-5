@@ -10,7 +10,7 @@ with screenshots checked against `STYLE.md`.
 - Study the White Lavender store screenshots. Write `STYLE.md` (palette, lighting, shading, silhouettes), `CLAUDE.md`
   (pillars + conventions) and this plan.
 
-## M1: Greybox
+## M1: Greybox ✅
 - Vite + TS + Three + Rapier scaffold, relative `base` for GitHub Pages.
 - Seeded RNG from `?seed=` and debug overlay (seed, FPS, draw calls).
 - Input: pointer lock, key/mouse state, wheel.
@@ -27,7 +27,7 @@ with screenshots checked against `STYLE.md`.
 - Unit tests: two-bone IK solver, gait step selection, RNG determinism.
 - lil-gui skeleton (backtick) with player/camera numbers, presets and Copy JSON.
 
-## M2: Gun-feel (heart of the project). Don't move on until the user says it feels good
+## M2: Gun-feel (heart of the project) ✅ built, ⏸ awaiting the user's playtest. Don't move on until they say it feels good
 - Weapon data object with every number in the brief, exposed in the tuning panel.
 - Rubber-band repeater fully juiced:
   - hitscan on the input frame (RPM accumulator, so frame rate doesn't eat shots)
