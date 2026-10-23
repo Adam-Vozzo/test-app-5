@@ -3,6 +3,31 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## M6: Style pass, performance pass, GitHub Pages deploy
+**Performance** (measured headless, so treat these as counts, not frame rates):
+| Scene | Draw calls | Triangles | Before M6 |
+|---|---|---|---|
+| Garden Bed (seed 42, spawn view) | 58 | 151k | 56 / 256k |
+| Kitchen Floor (seed 42, spawn view) | 70 | 140k | 90 / 140k |
+| Test arena | ~62 | ~150k | |
+
+What changed:
+- boundary grass uses a 9-row low-detail blade
+- crumbs are instanced
+- far idle enemies sleep
+- the level's matrices are frozen after build
+- the pixel ratio is capped at 1.5×
+
+All limb segments for the player and every enemy are still two instanced draw calls, and there is one shadow-casting light.
+**I can't measure real FPS here** (SwiftShader runs about 20fps whatever the scene), so please check the overlay's `fps` on your integrated-GPU laptop. If it's short of 60:
+- try **P** (pixel mode)
+- lower `debug.pixelScale`
+- shrink the shadow map in `src/render/renderer.ts`
+
+**Style:** the STYLE.md checklist is reviewed against the screenshots. One addition: a soft screen-edge falloff for the reference's lamp-lit stage. Not done: the painterly posterise post-pass. It's a full-screen cost, and I'd rather you judge whether the look needs it.
+
+**Deploy:** `.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` to GitHub Pages on push to `main` or from the Actions tab. One-time setup: **Settings → Pages → Source: GitHub Actions**. The repo has no `main` branch yet (all work is on `claude/confident-faraday-skgvuh`), so either merge into a new `main` or run the workflow manually against this branch.
+
 ## M5: Procedural zones, two themes, checkpoint + pollen loop
 **Run:** pick **Play: Garden Bed** or **Play: Kitchen Floor** (or `?mode=garden` / `?mode=kitchen`, with `&seed=…`).
 **N** rolls the next seed, **M** shows the graph minimap, **O** gives a top-down overview of the whole zone.

@@ -64,7 +64,7 @@ with screenshots checked against `STYLE.md`.
 - Sugar-cube checkpoint: rest refills heals and ammo and respawns non-elites. Pollen counter, dropped-pollen recovery.
 - Debug: regenerate with a new seed, draw the graph overlay. Unit test: same seed → same zone.
 
-## M6: Style, performance, deploy
+## M6: Style, performance, deploy ✅ (real-hardware FPS still to be checked)
 - Compare against STYLE.md; optional posterise pass; low-res toggle check.
 - Performance: instancing audit, draw-call budget (<150), shadow frustum tuning.
 - GitHub Pages workflow.
