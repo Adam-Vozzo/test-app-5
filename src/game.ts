@@ -163,6 +163,10 @@ export class Game {
       setActiveBiome(GARDEN);
     }
     this.renderer.scene.add(this.world.group);
+    // The level never moves: freeze its matrices (the cache flower animates, so it stays live).
+    this.world.group.updateMatrixWorld(true);
+    this.world.group.traverse((o) => (o.matrixAutoUpdate = false));
+    this.zone?.cache.group.traverse((o) => (o.matrixAutoUpdate = true));
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.player.biped.onFootstep = () => {

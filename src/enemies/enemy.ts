@@ -254,6 +254,8 @@ export class Enemy implements Damageable {
     // ---- perception (throttled)
     _to.subVectors(w.playerPos, this.ground).setY(0);
     this.dist = _to.length();
+    // Asleep: idle and far beyond notice. Skip moving and animating (they're lost in the fog anyway).
+    if (this.state === 'idle' && this.dist > c.aggroRange * 2 + 10) return;
     this.perceiveT -= dt;
     if (this.perceiveT <= 0) {
       this.perceiveT = 0.2;

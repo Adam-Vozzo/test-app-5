@@ -206,7 +206,7 @@ function buildWalls(b: Builder, L: ZoneLayout, theme: ThemeDef, rng: Rng) {
       }
     }
   }
-  if (grass.length) b.grass(grass);
+  if (grass.length) b.grass(grass, true);
   if (legs.length) chairLegs(b, legs, rng);
   if (boxes.length) cardboard(b, boxes, rng);
 }
@@ -294,24 +294,31 @@ function buildDecor(b: Builder, L: ZoneLayout, rng: Rng) {
 
 function crumbField(b: Builder, crumbs: { x: number; z: number; s: number; rot: number }[], rng: Rng) {
   const variants = [0, 1, 2].map(() => crumbGeo(rng));
-  crumbs.forEach((c, i) => {
-    const geo = variants[i % 3];
-    const m = meshOf(geo, b.mat);
-    const y = b.heightAt(c.x, c.z);
-    m.position.set(c.x, y + 0.45 * c.s, c.z);
-    m.rotation.set(0, c.rot, 0);
-    m.scale.setScalar(c.s);
-    m.updateMatrixWorld();
-    b.group.add(m);
+  const buckets: (typeof crumbs)[] = [[], [], []];
+  crumbs.forEach((c, i) => buckets[i % 3].push(c));
+  const v = new THREE.Vector3();
+  buckets.forEach((list, vi) => {
+    if (!list.length) return;
+    const geo = variants[vi];
+    const im = new THREE.InstancedMesh(geo, b.mat, list.length);
+    im.castShadow = true;
+    im.receiveShadow = true;
     const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-    const pts = new Float32Array(pos.count * 3);
-    const v = new THREE.Vector3();
-    for (let k = 0; k < pos.count; k++) {
-      v.fromBufferAttribute(pos, k).applyMatrix4(m.matrixWorld);
-      pts.set([v.x, v.y, v.z], k * 3);
-    }
-    const desc = RAPIER.ColliderDesc.convexHull(pts);
-    if (desc) b.physics.addStatic(desc);
+    list.forEach((c, i) => {
+      const y = b.heightAt(c.x, c.z);
+      _q.setFromEuler(_e.set(0, c.rot, 0));
+      _m.compose(_p.set(c.x, y + 0.45 * c.s, c.z), _q, _s.setScalar(c.s));
+      im.setMatrixAt(i, _m);
+      const pts = new Float32Array(pos.count * 3);
+      for (let k = 0; k < pos.count; k++) {
+        v.fromBufferAttribute(pos, k).applyMatrix4(_m);
+        pts.set([v.x, v.y, v.z], k * 3);
+      }
+      const desc = RAPIER.ColliderDesc.convexHull(pts);
+      if (desc) b.physics.addStatic(desc);
+    });
+    im.computeBoundingSphere();
+    b.group.add(im);
   });
 }
 

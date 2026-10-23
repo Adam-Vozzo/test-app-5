@@ -62,9 +62,9 @@ export class Builder {
     this.physics.addStatic(RAPIER.ColliderDesc.cuboid(radius, 1, radius).setTranslation(0, -1, 0));
   }
 
-  /** Instanced grass blades: [x, z, radius, height][] */
-  grass(spots: [number, number, number, number][]) {
-    const variants = [0, 1, 2].map((i) => grassBladeGeo(this.pal, this.rng.fork(`grass${i}`)));
+  /** Instanced grass blades: [x, z, radius, height][]. `low` = cheap walls. */
+  grass(spots: [number, number, number, number][], low = false) {
+    const variants = [0, 1, 2].map((i) => grassBladeGeo(this.pal, this.rng.fork(`grass${i}`), low ? 9 : 20));
     const buckets: [number, number, number, number][][] = [[], [], []];
     spots.forEach((s, i) => buckets[i % 3].push(s));
     buckets.forEach((list, vi) => {
@@ -190,7 +190,7 @@ export class Builder {
       const r = this.rng.range(r0, r1);
       spots.push([Math.cos(a) * r, Math.sin(a) * r, this.rng.range(0.7, 1.8), this.rng.range(16, 42)]);
     }
-    this.grass(spots);
+    this.grass(spots, true);
   }
 }
 

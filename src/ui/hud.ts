@@ -61,6 +61,7 @@ export class Hud {
         <div class="pollen"></div>
       </div>
       <div class="boss" style="display:none"><div class="name"></div><div class="bar"><i></i></div></div>
+      <div class="stage"></div>
       <div class="vignette"></div>
       <div class="labels"></div>`;
     document.body.appendChild(this.root);

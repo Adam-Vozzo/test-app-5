@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import type { BiomePalette } from './palette';
 import { tuning } from '../tuning';
 
+/** Integrated GPUs on hi-dpi screens choke at 2×; 1.5× keeps edges clean at a fraction of the fill cost. */
+const MAX_DPR = 1.5;
+
 export class Renderer {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -17,7 +20,7 @@ export class Renderer {
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -81,7 +84,7 @@ export class Renderer {
     if (want === this.pixelMode && scale === this.pixelScale) return;
     this.pixelMode = want;
     this.pixelScale = scale;
-    this.renderer.setPixelRatio(want ? 1 / scale : Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(want ? 1 / scale : Math.min(window.devicePixelRatio, MAX_DPR));
     this.renderer.domElement.style.imageRendering = want ? 'pixelated' : 'auto';
     this.resize();
   }

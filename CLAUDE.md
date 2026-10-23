@@ -32,7 +32,9 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm run build`: typecheck and production build (relative `base`, so it deploys to GitHub Pages)
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
-  Writes screenshots to `screenshots/`.
+  Writes screenshots to `screenshots/`. Add scenarios with `npm run smoke -- --range --enemies --zones`
+  (weapons/range, M4 combat loop, M5 zones). Headless runs on SwiftShader at ~20fps and game time lags wall time,
+  so scenarios wait on game state, not on timers.
 
 ## Conventions
 

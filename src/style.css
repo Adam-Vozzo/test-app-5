@@ -81,6 +81,11 @@ html, body {
 .boss .name { font-weight: 800; font-size: 18px; text-shadow: 0 2px 0 var(--ink); margin-bottom: 4px; }
 .boss .bar { height: 10px; background: rgba(30, 20, 20, 0.75); }
 .boss .bar i { display: block; height: 100%; background: var(--kill); }
+.stage {
+  /* The reference's lamp-lit stage: a soft dark falloff toward the screen edges. */
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 75% 70% at 50% 55%, rgba(18, 13, 12, 0) 55%, rgba(18, 13, 12, 0.38) 100%);
+}
 .vignette {
   position: absolute; inset: 0; opacity: 0; pointer-events: none;
   background: radial-gradient(ellipse at center, rgba(255, 59, 48, 0) 45%, rgba(255, 59, 48, 0.55) 100%);

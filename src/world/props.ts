@@ -5,9 +5,10 @@ import { jitter, merge, paint, paintBy, place, prep, stripe } from '../render/ge
 import { PROPS, type BiomePalette } from '../render/palette';
 
 /** Grass blade "tree": tapered, gently bent, striped, with a dark root collar. Unit height, base radius 1. */
-export function grassBladeGeo(p: BiomePalette, rng: Rng): THREE.BufferGeometry {
+/** `rows` trades detail for triangles: walls far from the path use the low-detail version. */
+export function grassBladeGeo(p: BiomePalette, rng: Rng, rows = 20): THREE.BufferGeometry {
   const h = 1;
-  const g = new THREE.CylinderGeometry(0.28, 1, h, 6, 20, true).translate(0, h / 2, 0);
+  const g = new THREE.CylinderGeometry(0.28, 1, h, rows > 12 ? 6 : 5, rows, true).translate(0, h / 2, 0);
   const pos = g.getAttribute('position') as THREE.BufferAttribute;
   const bend = rng.range(0.6, 1.8);
   const bendDir = rng.range(0, Math.PI * 2);
@@ -17,7 +18,8 @@ export function grassBladeGeo(p: BiomePalette, rng: Rng): THREE.BufferGeometry {
     pos.setX(i, pos.getX(i) + Math.cos(bendDir) * k);
     pos.setZ(i, pos.getZ(i) + Math.sin(bendDir) * k);
   }
-  const stalk = stripe(g, p.stalk, p.stalkStripe, 0.1, { wobble: 0.35, phase: rng.range(0, 6), freq: 2 });
+  // One stripe band per two rows (high detail) or per row (low detail) keeps bands crisp either way.
+  const stalk = stripe(g, p.stalk, p.stalkStripe, rows > 12 ? 0.1 : 1 / rows, { wobble: rows > 12 ? 0.35 : 0.15, phase: rng.range(0, 6), freq: 2 });
   const collar = paint(new THREE.CylinderGeometry(1.15, 1.45, 0.06, 7, 1).translate(0, 0.03, 0), p.collar);
   return merge([stalk, collar]);
 }

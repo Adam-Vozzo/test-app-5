@@ -113,11 +113,14 @@ The telegraph colour is defined once (`src/render/palette.ts → SIGNAL`), and b
 | Sugar cube ("shrine") | 3 |
 | Fork ("ruin") | 90 long |
 
-## Milestone check-list
+## Milestone check-list (M6 review against the screenshots in `screenshots/`)
 
-- [ ] Clearing reads as a warm pool of light with dark falloff
-- [ ] Banded toon lighting, no smooth gradients or specular
-- [ ] Stripes on organic props
-- [ ] Player silhouette: black limbs, orange torso, round head and antennae, readable at range
-- [ ] Signal colours used for signals only, and visible in both biomes
-- [ ] One shadow-casting light, fog tinted to the biome
+- [x] Clearing reads as a warm pool of light with dark falloff: biome-tinted exp² fog toward the dark surround, plus a soft screen-edge falloff (`.stage` in the HUD).
+- [x] Banded toon lighting, no smooth gradients or specular: a 4-step generated ramp on every lit material.
+- [x] Stripes on organic props: grass, enemy shells, the player's torso, the straw barrel, the matchstick, leaves, ground bands.
+- [x] Player silhouette: black limbs, orange torso, round head and antennae, readable at range. The second eye no longer floats (M4 fix).
+- [x] Signal colours used for signals only, and visible in both biomes. A unit test checks telegraph contrast against every surface colour.
+- [x] One shadow-casting light, fog tinted to the biome.
+- [ ] Painterly posterise / soft-edge post pass. **Not done**: it costs a full-screen pass that integrated GPUs may not afford, and the toon ramp plus stripes already carry most of the look. Revisit only if you want it.
+
+Known gaps against the reference: our ground stripes are geometric (per-triangle) rather than brushy, and there's no outline or rim highlight.
