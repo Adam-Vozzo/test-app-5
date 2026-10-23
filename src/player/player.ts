@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { damp, DEG, Spring3 } from '../core/math';
 import { Biped } from '../anim/biped';
 import { Physics } from '../physics/world';
+import { tuning } from '../tuning';
 import { LimbRenderer } from '../render/limbs';
 import type { WeaponModel } from '../weapons/model';
 import { Controller, type MoveInput } from './controller';
@@ -37,6 +38,7 @@ export class Player {
   aiming = false;
   private weaponQuat = new THREE.Quaternion();
   private adsBlend = 0;
+  private swayT = 0;
   readonly muzzleWorld = new THREE.Vector3();
   readonly muzzleDir = new THREE.Vector3();
   readonly ejectWorld = new THREE.Vector3();
@@ -129,7 +131,13 @@ export class Player {
     root.quaternion.copy(this.weaponQuat);
     _q2.setFromEuler(_e.set(pose.kickRot.x.x + pose.tilt * 0.35, pose.kickRot.y.x, pose.kickRot.z.x + pose.tilt, 'XYZ'));
     root.quaternion.multiply(_q2);
-    root.position.add(_v.set(pose.kickPos.x.x, pose.kickPos.y.x - pose.drop, pose.kickPos.z.x).applyQuaternion(this.weaponQuat));
+    // Idle breathing sway (biped.armSwingIdle), damped out while moving and mostly out while aiming.
+    this.swayT += dt;
+    const still = 1 - Math.min(1, Math.hypot(c.vel.x, c.vel.z) / 2);
+    const sway = tuning.biped.armSwingIdle * still * (1 - 0.7 * this.adsBlend);
+    const sx = Math.sin(this.swayT * 0.9) * sway * 0.5;
+    const sy = Math.sin(this.swayT * 1.7) * sway;
+    root.position.add(_v.set(pose.kickPos.x.x + sx, pose.kickPos.y.x - pose.drop + sy, pose.kickPos.z.x).applyQuaternion(this.weaponQuat));
     root.updateMatrixWorld(true);
 
     const gripW = model.grip.clone().applyMatrix4(root.matrixWorld);

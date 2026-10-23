@@ -27,7 +27,7 @@ with screenshots checked against `STYLE.md`.
 - Unit tests: two-bone IK solver, gait step selection, RNG determinism.
 - lil-gui skeleton (backtick) with player/camera numbers, presets and Copy JSON.
 
-## M2: Gun-feel (heart of the project) ✅ built, ⏸ awaiting the user's playtest. Don't move on until they say it feels good
+## M2: Gun-feel (heart of the project) ✅ signed off by the user after tuning
 - Weapon data object with every number in the brief, exposed in the tuning panel.
 - Rubber-band repeater fully juiced:
   - hitscan on the input frame (RPM accumulator, so frame rate doesn't eat shots)
@@ -43,7 +43,7 @@ with screenshots checked against `STYLE.md`.
 - Debug toggles: hitboxes, IK targets, god mode, slow-mo 0.25×.
 - **Stop here for the user to playtest and send back tuning JSON.**
 
-## M3: Seed-spitter + Staple driver + weapon swap
+## M3: Seed-spitter + Staple driver + weapon swap ✅
 - Seed-spitter: pellets, big knockback impulse, close-range stagger, a chunky "pomp" sound.
 - Staple driver: visible fast projectile, bolt cycle, long reload, pierce 1, big crit, a sharp "thwack".
 - Swap via 1/2/3 and the wheel, with a short committed swap animation.

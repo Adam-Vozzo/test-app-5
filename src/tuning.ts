@@ -19,6 +19,7 @@ export const tuning = {
     snapToGround: 0.35,
     capsuleRadius: 0.28,
     capsuleHalfHeight: 0.24,
+    pushDecay: 8,
   },
   roll: {
     speed: 10,
@@ -77,7 +78,7 @@ export const tuning = {
     hitMarkerTime: 0.18,
     killMarkerTime: 0.42,
     crosshairBaseGap: 4,
-    recoilRecoverDelay: 0.06,
+    fireBuffer: 0.15,
   },
   reload: {
     weaponTiltDeg: 28,

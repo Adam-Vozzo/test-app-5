@@ -35,6 +35,8 @@ export class Controller {
   sprinting = false;
   private rollDir = new THREE.Vector3();
   private lastGood = new THREE.Vector3();
+  /** External shove (weapon self-knockback, hits) that decays over time. */
+  private pushVel = new THREE.Vector3();
   private vy = 0;
   private center = new THREE.Vector3();
   private halfH: number;
@@ -87,7 +89,13 @@ export class Controller {
     return this.state === 'roll' && this.stateTime < tuning.roll.iFrames;
   }
 
+  push(vx: number, vz: number) {
+    this.pushVel.x += vx;
+    this.pushVel.z += vz;
+  }
+
   teleport(p: THREE.Vector3, yaw: number) {
+    this.pushVel.set(0, 0, 0);
     this.pos.copy(p);
     this.vel.set(0, 0, 0);
     this.vy = 0;
@@ -174,7 +182,8 @@ export class Controller {
     if (this.grounded && this.vy <= 0) this.vy = -2;
     else this.vy -= t.gravity * dt;
 
-    const desired = { x: this.vel.x * dt, y: this.vy * dt, z: this.vel.z * dt };
+    const desired = { x: (this.vel.x + this.pushVel.x) * dt, y: this.vy * dt, z: (this.vel.z + this.pushVel.z) * dt };
+    this.pushVel.multiplyScalar(Math.exp(-t.pushDecay * dt));
     this.kcc.computeColliderMovement(this.collider, desired, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, GROUPS.player);
     const mv = this.kcc.computedMovement();
     this.grounded = this.kcc.computedGrounded();
@@ -184,8 +193,8 @@ export class Controller {
     this.center.z += mv.z;
     this.body.setNextKinematicTranslation(this.center);
     // Actual horizontal velocity after collision (so the walk cycle doesn't moonwalk into walls).
-    const actualX = mv.x / dt;
-    const actualZ = mv.z / dt;
+    const actualX = mv.x / dt - this.pushVel.x;
+    const actualZ = mv.z / dt - this.pushVel.z;
     this.vel.x = damp(this.vel.x, actualX, 30, dt);
     this.vel.z = damp(this.vel.z, actualZ, 30, dt);
     this.pos.set(this.center.x, this.center.y - this.halfH - this.radius, this.center.z);

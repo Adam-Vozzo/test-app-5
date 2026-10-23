@@ -29,6 +29,11 @@ export class Dummy implements Damageable {
   readonly base: THREE.Vector3;
   /** Time of first damage in the current life (for TTK readout). */
   firstHitTime = -1;
+  /** Poise: stagger damage within a short window breaks it. */
+  private poise: number;
+  private sincePoiseHit = 10;
+  staggered = 0;
+  onStagger: () => void = () => {};
 
   constructor(
     scene: THREE.Scene,
@@ -38,6 +43,7 @@ export class Dummy implements Damageable {
   ) {
     this.base = pos.clone();
     this.health = tuning.dummy.health;
+    this.poise = tuning.dummy.poise;
     this.mat = toonMat({ emissive: 0x000000 });
     const post = paint(new THREE.CylinderGeometry(0.1, 0.13, BODY_Y, 8).translate(0, BODY_Y / 2, 0), PROPS.cork);
     const foot = paint(new THREE.CylinderGeometry(0.32, 0.38, 0.12, 10).translate(0, 0.06, 0), PROPS.corkDark);
@@ -84,6 +90,16 @@ export class Dummy implements Damageable {
     const k = info.amount * d.flinchPerDamage * (1 + info.knockback);
     this.tiltX.impulse(-info.dir.z * k);
     this.tiltZ.impulse(info.dir.x * k);
+    // Poise break: a big lurch you can see across the range.
+    this.poise -= info.stagger;
+    this.sincePoiseHit = 0;
+    if (this.poise <= 0 && this.staggered <= 0) {
+      this.staggered = d.staggerTime;
+      this.poise = d.poise;
+      this.tiltX.impulse(-Math.sign(info.dir.z || 1) * 9);
+      this.tiltZ.impulse(Math.sign(info.dir.x) * 4);
+      this.onStagger();
+    }
     if (this.health <= 0) {
       this.alive = false;
       this.deadTime = 0;
@@ -98,10 +114,13 @@ export class Dummy implements Damageable {
   update(dt: number, camera: THREE.Camera) {
     const d = tuning.dummy;
     for (const s of [this.tiltX, this.tiltZ]) {
-      s.stiffness = this.alive ? d.flinchStiffness : 60;
-      s.damping = this.alive ? d.flinchDamping : 12;
+      s.stiffness = !this.alive ? 60 : this.staggered > 0 ? d.flinchStiffness * 0.4 : d.flinchStiffness;
+      s.damping = !this.alive ? 12 : this.staggered > 0 ? d.flinchDamping * 0.6 : d.flinchDamping;
       s.step(dt);
     }
+    this.sincePoiseHit += dt;
+    if (this.sincePoiseHit > d.poiseRegenDelay) this.poise = Math.min(d.poise, this.poise + d.poiseRegen * dt);
+    if (this.staggered > 0) this.staggered -= dt;
     if (!this.alive) {
       this.deadTime += dt;
       if (this.deadTime >= d.respawnTime) this.respawn();
@@ -126,6 +145,8 @@ export class Dummy implements Damageable {
     this.tiltX.target = 0;
     this.tiltX.impulse(-4);
     this.firstHitTime = -1;
+    this.poise = tuning.dummy.poise;
+    this.staggered = 0;
   }
 
   private syncColliders() {

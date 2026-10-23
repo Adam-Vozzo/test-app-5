@@ -114,8 +114,9 @@ try {
 
   // Optional milestone-specific scenario
   if (process.argv.includes('--range')) {
-    const { rangeScenario } = await import('./smoke-range.mjs');
+    const { rangeScenario, weaponsScenario } = await import('./smoke-range.mjs');
     await rangeScenario({ page, g, hold, release, press, look, wait, shot });
+    await weaponsScenario({ page, g, hold, release, press, look, wait, shot });
   }
 } catch (e) {
   errors.push(`script: ${e.message}`);

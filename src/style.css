@@ -46,6 +46,14 @@ html, body {
 .ammo .wname { font-size: 14px; opacity: 0.85; letter-spacing: 0.04em; }
 .ammo .reload { font-size: 14px; color: var(--crit); }
 
+.slots {
+  position: absolute; right: 36px; bottom: 112px; display: flex; flex-direction: column; align-items: flex-end;
+  gap: 3px; font-size: 13px; font-weight: 700; text-shadow: 0 1px 0 var(--ink);
+}
+.slots span { opacity: 0.45; }
+.slots span.on { opacity: 1; color: var(--cream); }
+.slots b { display: inline-block; min-width: 16px; text-align: center; border: 1px solid currentColor; border-radius: 3px; margin-right: 4px; }
+
 .stats {
   position: absolute; left: 10px; top: 8px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
   color: #fff; text-shadow: 0 1px 0 #000; white-space: pre; opacity: 0.85;

@@ -1,7 +1,8 @@
-// Weapon behaviour: fire on the input frame, spread/bloom, recoil pattern, kick springs, hit resolution,
-// feedback (flash, tracer, impacts, decals, casings, markers, hitstop, audio) and committed reload.
+// Weapon behaviour, driven entirely by a WeaponDef: fire on the input frame, spread/bloom, pellet patterns,
+// hitscan or projectile, recoil pattern + kick springs, self-knockback, pump/bolt cycling by the off hand,
+// and committed reloads (whole magazine, or one round at a time).
 import * as THREE from 'three';
-import { clamp, DEG, safeDiv, smoothstep, Spring3 } from '../core/math';
+import { clamp, damp, DEG, safeDiv, smoothstep, Spring3 } from '../core/math';
 import { makeRng } from '../core/rng';
 import type { Synth } from '../audio/synth';
 import type { Fx } from '../fx/fx';
@@ -10,17 +11,22 @@ import type { Clock } from '../core/time';
 import { GROUPS, Physics, type RayHit, type RAPIER } from '../physics/world';
 import type { OTSCamera } from '../player/camera';
 import type { Player, WeaponPose } from '../player/player';
-import { GARDEN, SIGNAL } from '../render/palette';
+import { PROPS } from '../render/palette';
 import { tuning } from '../tuning';
 import type { Hud, HitKind } from '../ui/hud';
 import type { WeaponDef } from './defs';
+import { resolveHit, ShotFeedback } from './hit';
 import type { WeaponModel } from './model';
+import type { Projectiles } from './projectiles';
+import { stepFireRate, type FireRateState } from './firerate';
 
 export interface HitEvent {
   damage: number;
   kind: HitKind;
   distance: number;
   owner: unknown;
+  /** Which trigger pull this came from (pellets share one). */
+  shotId: number;
 }
 
 export interface GunContext {
@@ -31,11 +37,13 @@ export interface GunContext {
   synth: Synth;
   hud: Hud;
   clock: Clock;
+  projectiles: Projectiles;
   onHit: (e: HitEvent) => void;
-  onShot: () => void;
+  onShot: (shotId: number) => void;
 }
 
 const _origin = new THREE.Vector3();
+const _aim = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _end = new THREE.Vector3();
 const _mz = new THREE.Vector3();
@@ -46,22 +54,36 @@ const _u = new THREE.Vector3();
 const _w = new THREE.Vector3();
 const hitA: RayHit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), distance: 0, collider: null as never, target: null };
 const hitB: RayHit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), distance: 0, collider: null as never, target: null };
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
 /** Spread uses its own stream: deterministic per seed, independent of world generation. */
 const spreadRng = makeRng(0x5eed);
+let nextShotId = 1;
 
 export class Gun {
   mag: number;
   reserve: number;
-  private cooldown = 0;
+  private fireRate: FireRateState = { cooldown: 0 };
+  private fireBuffer = 0;
   private shotIndex = 0;
   private sinceShot = 10;
   bloom = 0;
   reloading = false;
+  /** Progress through the reload (mag mode) or through the current round (single mode), 0..1. */
   reloadT = 0;
   private reloadEvents = new Set<string>();
-  /** Current total spread half-angle in degrees (for the crosshair). */
+  private reloadEnv = 0;
+  private roundsThisReload = 0;
+  /** Off-hand action cycle after a shot (pump / bolt), 0..1; 1 = idle. */
+  cycleT = 1;
+  private cycleDur = 0.3;
+  private cycleEjected = true;
+  private hammerAngle: number;
+  private pumpRestZ: number;
+  /** Aim spread half-angle in degrees (next shot). */
   spread = 0;
+  /** What the crosshair shows: aim spread + pellet cone. */
+  displaySpread = 0;
   readonly pose: WeaponPose;
 
   constructor(
@@ -71,7 +93,16 @@ export class Gun {
   ) {
     this.mag = def.magSize;
     this.reserve = infiniteReserve ? Infinity : def.reserve;
-    this.pose = { kickPos: new Spring3(420, 24), kickRot: new Spring3(420, 24), tilt: 0, drop: 0, leftHand: null };
+    this.hammerAngle = model.hammerCocked;
+    this.pumpRestZ = model.pump?.position.z ?? 0;
+    this.pose = {
+      kickPos: new Spring3(420, 24),
+      kickRot: new Spring3(420, 24),
+      tilt: 0,
+      drop: 0,
+      leftHand: (root, biped, out) => this.leftHand(root, biped, out),
+    };
+    this.syncModel();
   }
 
   refill() {
@@ -80,40 +111,38 @@ export class Gun {
     this.cancelReload(false);
   }
 
-  get canFireNow() {
-    return !this.reloading && this.mag > 0;
+  /** Progress shown in the HUD (0..1). */
+  get reloadProgress() {
+    if (!this.reloading) return 0;
+    if (this.def.reloadMode === 'single') return clamp((this.mag + this.reloadT) / this.def.magSize, 0, 1);
+    return this.reloadT;
   }
 
   startReload(ctx: GunContext) {
     if (this.reloading || this.mag >= this.def.magSize || this.reserve <= 0 || ctx.player.controller.committed) return;
     this.reloading = true;
     this.reloadT = 0;
+    this.roundsThisReload = 0;
     this.reloadEvents.clear();
     ctx.player.combatTimer = Math.max(ctx.player.combatTimer, tuning.player.combatModeTime);
-    this.pose.leftHand = (root, biped, out) => this.reloadHand(root, biped, out);
   }
 
-  /** Dodge cancels a reload and the progress is lost. */
+  /** Dodge or swap cancels a reload and its progress is lost (rounds already loaded one-by-one stay). */
   cancelReload(lost: boolean, hud?: Hud) {
     if (!this.reloading) return;
     this.reloading = false;
     this.reloadT = 0;
-    this.pose.leftHand = null;
-    this.pose.tilt = 0;
-    this.pose.drop = 0;
-    this.model.mag.position.copy(this.model.magSeat);
-    this.model.mag.visible = true;
+    this.syncModel();
     if (lost && hud) hud.toast('reload lost');
   }
 
   /**
-   * @param fireHeld trigger held this frame
-   * @param firePressed trigger went down this frame
+   * @param canAct false while swapping weapons (no firing or reloading)
    */
-  update(dt: number, ctx: GunContext, fireHeld: boolean, firePressed: boolean, reloadPressed: boolean) {
+  update(dt: number, ctx: GunContext, fireHeld: boolean, firePressed: boolean, reloadPressed: boolean, canAct = true) {
     const d = this.def;
     const p = ctx.player;
-    const committed = p.controller.committed;
+    const committed = p.controller.committed || !canAct;
 
     // Springs follow the def every frame so panel edits apply live.
     this.pose.kickPos.set(d.weaponKickStiffness, d.weaponKickDamping);
@@ -126,48 +155,40 @@ export class Gun {
     this.pose.kickRot.step(dt);
 
     if (this.reloading && p.controller.rolling) this.cancelReload(true, ctx.hud);
-    if (reloadPressed) this.startReload(ctx);
+    if (reloadPressed && canAct) this.startReload(ctx);
+    // Single-round reloads give way to the trigger instantly (responsive trigger).
+    if (this.reloading && d.reloadMode === 'single' && firePressed && this.mag > 0 && !p.controller.committed) this.cancelReload(false);
 
-    // ---- reload progress
-    if (this.reloading) {
-      this.reloadT += dt / Math.max(0.05, d.reloadTime);
-      this.reloadFoley(ctx);
-      const r = tuning.reload;
-      const env = smoothstep(0, 0.14, this.reloadT) * (1 - smoothstep(0.88, 1, this.reloadT));
-      this.pose.tilt = r.weaponTiltDeg * DEG * env;
-      this.pose.drop = r.weaponDrop * env;
-      p.combatTimer = Math.max(p.combatTimer, 0.3);
-      if (this.reloadT >= 1) {
-        const need = d.magSize - this.mag;
-        const take = Math.min(need, this.reserve);
-        this.mag += take;
-        if (this.reserve !== Infinity) this.reserve -= take;
-        this.cancelReload(false);
+    if (this.reloading) this.stepReload(dt, ctx);
+    this.reloadEnv = damp(this.reloadEnv, this.reloading ? 1 : 0, 12, dt);
+    this.pose.tilt = tuning.reload.weaponTiltDeg * DEG * this.reloadEnv;
+    this.pose.drop = tuning.reload.weaponDrop * this.reloadEnv;
+
+    // ---- action cycle (pump / bolt) after a shot
+    if (this.cycleT < 1) {
+      this.cycleT = Math.min(1, this.cycleT + dt / Math.max(0.02, this.cycleDur));
+      if (d.cycle === 'pump' && !this.cycleEjected && this.cycleT > 0.45) {
+        this.cycleEjected = true;
+        this.ejectCasing(ctx, PROPS.seedPale);
       }
     }
 
     // ---- fire: resolve on the input frame; the RPM accumulator lets low frame rates keep up.
     this.sinceShot += dt;
     const interval = 60 / Math.max(1, d.rpm);
-    this.cooldown -= dt;
     // A click shorter than one frame still fires: the press itself counts for automatics too.
-    const wants = d.auto ? fireHeld || firePressed : firePressed;
-    if (!wants && this.cooldown < 0) this.cooldown = 0;
-    if (wants && !committed && !this.reloading) {
-      if (this.mag <= 0) {
-        if (firePressed) {
-          ctx.synth.dry();
-          this.startReload(ctx);
-        }
-      } else {
-        let guard = 0;
-        while (this.cooldown <= 0 && this.mag > 0 && guard++ < 8) {
-          this.fire(ctx);
-          this.cooldown += interval;
-          if (!d.auto) break;
-        }
-      }
+    // Semi-autos buffer a press briefly, so clicking just before the pump/bolt finishes still fires.
+    if (firePressed) this.fireBuffer = tuning.feel.fireBuffer;
+    else this.fireBuffer = Math.max(0, this.fireBuffer - dt);
+    const wants = d.auto ? fireHeld || firePressed : firePressed || this.fireBuffer > 0;
+    const canShoot = !committed && !this.reloading && this.mag > 0;
+    if (wants && !committed && !this.reloading && this.mag <= 0 && firePressed) {
+      ctx.synth.dry();
+      this.startReload(ctx);
     }
+    const shots = stepFireRate(this.fireRate, dt, interval, wants, canShoot, d.auto ? 8 : 1);
+    for (let i = 0; i < shots && this.mag > 0; i++) this.fire(ctx, interval);
+    if (shots > 0) this.fireBuffer = 0;
     if (this.sinceShot > Math.max(0.25, interval * 2.5)) this.shotIndex = 0;
     if (this.sinceShot > interval * 1.5) this.bloom = Math.max(0, this.bloom - d.bloomRecovery * dt);
 
@@ -178,25 +199,77 @@ export class Gun {
     if (hspeed > 0.6) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
     if (!c.grounded) s *= d.airSpreadMul;
     this.spread = s + this.bloom;
+    this.displaySpread = this.spread + this.pelletCone(ctx);
 
-    if (this.model.loaded) this.model.loaded.visible = this.mag > 0 && !(this.reloading && this.reloadT > tuning.reload.magOutAt);
+    this.syncModel();
   }
 
-  private fire(ctx: GunContext) {
+  private pelletCone(ctx: GunContext) {
+    return this.def.pellets > 1 ? this.def.pelletSpread * THREE.MathUtils.lerp(1, this.def.adsPelletMul, ctx.camera.adsAmount) : 0;
+  }
+
+  private stepReload(dt: number, ctx: GunContext) {
     const d = this.def;
-    const { physics, player, camera, fx, synth, hud, clock } = ctx;
+    ctx.player.combatTimer = Math.max(ctx.player.combatTimer, 0.3);
+    this.reloadT += dt / Math.max(0.05, d.reloadTime);
+    if (d.reloadMode === 'single') {
+      // Per round: reach to the pouch, carry a seed to the port, push it in.
+      if (this.reloadT >= 0.4 && !this.reloadEvents.has('pouch')) {
+        this.reloadEvents.add('pouch');
+        ctx.synth.reload('pouch');
+      }
+      if (this.reloadT >= 1) {
+        this.mag++;
+        if (this.reserve !== Infinity) this.reserve--;
+        this.roundsThisReload++;
+        ctx.synth.reload('in');
+        this.pose.kickPos.z.impulse(-0.5);
+        this.reloadEvents.clear();
+        if (this.mag >= d.magSize || this.reserve <= 0) this.cancelReload(false);
+        else this.reloadT -= 1;
+      }
+      return;
+    }
+    this.magFoley(ctx);
+    if (this.reloadT >= 1) {
+      const take = Math.min(d.magSize - this.mag, this.reserve);
+      this.mag += take;
+      if (this.reserve !== Infinity) this.reserve -= take;
+      this.cancelReload(false);
+    }
+  }
+
+  private fire(ctx: GunContext, interval: number) {
+    const d = this.def;
+    const { physics, player, camera, fx, synth } = ctx;
     this.mag--;
     this.sinceShot = 0;
     player.combatTimer = tuning.player.combatModeTime;
-    ctx.onShot();
+    const shotId = nextShotId++;
+    ctx.onShot(shotId);
+    const fb = new ShotFeedback(shotId);
 
     const exclude = player.controller.collider;
     _origin.copy(camera.aimOrigin).addScaledVector(camera.aimDir, camera.aimStartOffset);
     _mz.copy(player.muzzleWorld);
-    let hitstop = 0;
+    // One aim deviation per trigger pull; pellets fan out around it in a fixed pattern.
+    this.spreadDir(camera.aimDir, this.spread, _aim);
+    const n = Math.max(1, Math.round(d.pellets));
+    const cone = this.pelletCone(ctx);
 
-    for (let pellet = 0; pellet < Math.max(1, d.pellets); pellet++) {
-      this.spreadDir(camera.aimDir, this.spread, _dir);
+    for (let i = 0; i < n; i++) {
+      if (n > 1) this.pelletDir(_aim, cone, i, n, d.pelletJitter, _dir);
+      else _dir.copy(_aim);
+
+      if (!d.hitscan) {
+        // Projectile: fly from the muzzle toward where the camera ray lands.
+        const h = physics.raycast(_origin, _dir, d.range, GROUPS.qShot, exclude, hitA);
+        const target = h ? h.point : _end.copy(_origin).addScaledVector(_dir, d.range);
+        _tmp.subVectors(target, _mz).normalize();
+        ctx.projectiles.launch(d, _mz, _tmp, fb);
+        continue;
+      }
+
       const skip = new Set<number>();
       let pierceLeft = d.pierce;
       let from = _origin;
@@ -222,56 +295,44 @@ export class Gun {
           break;
         }
         lastPoint = hit.point.clone();
-        const dist = hit.point.distanceTo(player.pos);
-        if (hit.target && hit.target.owner.alive) {
-          const crit = hit.target.part === 'weak';
-          const falloff = THREE.MathUtils.lerp(1, d.falloffMinMul, clamp((dist - d.falloffStart) / Math.max(0.01, d.falloffEnd - d.falloffStart), 0, 1));
-          let dmg = d.damage * falloff * (crit ? d.critMultiplier : 1);
-          if (hit.target.part === 'armor') dmg *= 0.2;
-          const killed = hit.target.owner.takeDamage({
-            amount: dmg,
-            crit,
-            point: hit.point,
-            dir: _dir,
-            knockback: d.knockback,
-            stagger: d.stagger,
-          });
-          const kind: HitKind = killed ? 'kill' : crit ? 'crit' : 'hit';
-          hud.hit(kind);
-          synth.hit(kind);
-          fx.sparksAt(hit.point, _dir, crit || killed ? SIGNAL.crit : 0xffffff, crit ? 10 : 6, crit ? 6 : 4);
-          if (killed) hitstop = Math.max(hitstop, tuning.feel.hitstopKill);
-          else if (crit) hitstop = Math.max(hitstop, tuning.feel.hitstopCrit);
-          ctx.onHit({ damage: dmg, kind, distance: dist, owner: hit.target.owner });
-          if (pierceLeft-- > 0) {
-            skip.add(hit.collider.handle);
-            from = hit.point.clone();
-            range -= hit.distance;
-            continue;
-          }
-        } else if (!hit.target) {
-          fx.impact(hit.point, hit.normal, GARDEN.dust, d.impactParticles, d.impactSpeed);
-          fx.decal(hit.point, hit.normal, 0.07, GARDEN.decal);
+        const struck = resolveHit(ctx, d, hit, _dir, fb);
+        if (struck && pierceLeft-- > 0) {
+          skip.add(hit.collider.handle);
+          from = hit.point.clone();
+          range -= hit.distance;
+          continue;
         }
         break;
       }
       if (lastPoint) fx.tracer(_mz, lastPoint, d.tracerColor, d.tracerSpeed, d.tracerLength, d.tracerWidth);
     }
-    if (hitstop > 0) clock.addHitstop(hitstop);
+    fb.flush(ctx);
 
     // ---- feedback
     fx.muzzleFlash(_mz, d.flashScale, d.flashFrames, d.flashLight, d.flashColor);
-    const right = _a.set(1, 0, 0).applyQuaternion(player.weaponRoot.quaternion);
-    const up = _b.set(0, 1, 0).applyQuaternion(player.weaponRoot.quaternion);
-    fx.casing(
-      player.ejectWorld,
-      _w.copy(right).multiplyScalar(d.casingSpeed).addScaledVector(up, d.casingSpeed * 0.9).add(player.controller.vel),
-      0xd9a066,
-    );
+    if (d.cycle !== 'pump' && d.casingSpeed > 0) this.ejectCasing(ctx, PROPS.wood);
     synth.shot(d);
     this.applyRecoil(ctx);
     this.bloom = Math.min(d.bloomMax, this.bloom + d.bloomPerShot);
     this.shotIndex++;
+    if (d.selfKnockback > 0) player.controller.push(-camera.aimDir.x * d.selfKnockback, -camera.aimDir.z * d.selfKnockback);
+
+    if (d.cycle !== 'none') {
+      this.cycleT = 0;
+      this.cycleDur = interval * clamp(d.cycleTime, 0.05, 1);
+      this.cycleEjected = false;
+      synth.playLayers(d.cycleLayers, 1, d.volume);
+      if (d.cycle === 'bolt') this.hammerAngle = 0;
+    }
+  }
+
+  private ejectCasing(ctx: GunContext, color: number) {
+    const d = this.def;
+    const q = ctx.player.weaponRoot.quaternion;
+    const right = _a.set(1, 0, 0).applyQuaternion(q);
+    const up = _b.set(0, 1, 0).applyQuaternion(q);
+    const speed = Math.max(0.5, d.casingSpeed);
+    ctx.fx.casing(ctx.player.ejectWorld, _w.copy(right).multiplyScalar(speed).addScaledVector(up, speed * 0.9).add(ctx.player.controller.vel), color);
   }
 
   /** Pattern + randomness → camera climb (kept) and kick (springs back), weapon spring, FOV punch, trauma. */
@@ -300,21 +361,33 @@ export class Gun {
     cam.addTrauma(d.trauma);
   }
 
-  private spreadDir(base: THREE.Vector3, spreadDeg: number, out: THREE.Vector3) {
-    out.copy(base);
-    if (spreadDeg <= 0) return out;
-    // Uniform over the cone's disc.
-    const r = Math.tan(spreadDeg * DEG) * Math.sqrt(spreadRng());
-    const th = spreadRng() * Math.PI * 2;
+  private basis(base: THREE.Vector3) {
     _u.set(0, 1, 0);
     if (Math.abs(base.y) > 0.95) _u.set(1, 0, 0);
     _a.crossVectors(base, _u).normalize();
     _b.crossVectors(_a, base).normalize();
-    out.addScaledVector(_a, Math.cos(th) * r).addScaledVector(_b, Math.sin(th) * r).normalize();
-    return out;
   }
 
-  private reloadFoley(ctx: GunContext) {
+  /** Random direction uniformly inside a cone of half-angle spreadDeg. */
+  private spreadDir(base: THREE.Vector3, spreadDeg: number, out: THREE.Vector3) {
+    out.copy(base);
+    if (spreadDeg <= 0) return out;
+    const r = Math.tan(spreadDeg * DEG) * Math.sqrt(spreadRng());
+    const th = spreadRng() * Math.PI * 2;
+    this.basis(base);
+    return out.addScaledVector(_a, Math.cos(th) * r).addScaledVector(_b, Math.sin(th) * r).normalize();
+  }
+
+  /** Pellet i of n on a sunflower pattern (even, readable spread) with a little jitter. */
+  private pelletDir(base: THREE.Vector3, coneDeg: number, i: number, n: number, jitter: number, out: THREE.Vector3) {
+    const k = Math.sqrt((i + 0.5) / n);
+    const r = Math.tan(coneDeg * DEG) * k * (1 + spreadRng.signed() * jitter * 0.5);
+    const th = i * GOLDEN + spreadRng.signed() * jitter;
+    this.basis(base);
+    return out.copy(base).addScaledVector(_a, Math.cos(th) * r).addScaledVector(_b, Math.sin(th) * r).normalize();
+  }
+
+  private magFoley(ctx: GunContext) {
     const r = tuning.reload;
     const ev = (name: string, at: number, fn: () => void) => {
       if (this.reloadT >= at && !this.reloadEvents.has(name)) {
@@ -334,16 +407,87 @@ export class Gun {
     });
   }
 
-  /** Procedural reload choreography for the off hand (and the magazine it carries). */
-  private reloadHand(root: THREE.Object3D, biped: Biped, out: THREE.Vector3): THREE.Vector3 {
+  /** Pump slide, hammer angle and magazine visibility follow the gun's state. */
+  private syncModel() {
+    const m = this.model;
+    const r = tuning.reload;
+    const c = this.cycleT;
+    if (m.pump) {
+      // Back then forward: rack-rack.
+      const k = c < 1 ? Math.sin(Math.PI * smoothstep(0.05, 0.85, c)) : 0;
+      m.pump.position.z = this.pumpRestZ + m.pumpTravel * k;
+    }
+    if (m.hammer) {
+      if (this.reloading && this.def.reloadMode === 'mag') {
+        // Hinge the arm open to swap the staple strip.
+        const t = this.reloadT;
+        const open = smoothstep(0.08, r.magOutAt, t) * (1 - smoothstep(r.magInAt, r.rackAt, t));
+        m.hammer.rotation.x = THREE.MathUtils.lerp(m.hammerCocked, 1.05, open);
+      } else {
+        if (this.cycleT < 1) this.hammerAngle = THREE.MathUtils.lerp(0, m.hammerCocked, smoothstep(0.3, 0.75, c));
+        else if (this.cycleT >= 1 && this.hammerAngle !== 0) this.hammerAngle = m.hammerCocked;
+        m.hammer.rotation.x = this.hammerAngle;
+      }
+    }
+    if (!this.reloading) {
+      m.mag.position.copy(m.magSeat);
+      m.mag.visible = !m.magHiddenAtRest;
+    }
+    if (m.loaded) m.loaded.visible = this.mag > 0 && !(this.reloading && this.reloadT > r.magOutAt);
+  }
+
+  /** Off-hand target: reload choreography, pump/bolt cycle, or resting on the fore-grip. */
+  private leftHand(root: THREE.Object3D, biped: Biped, out: THREE.Vector3): THREE.Vector3 {
+    const m = this.model;
+    if (this.reloading) return this.def.reloadMode === 'single' ? this.singleReloadHand(root, biped, out) : this.magReloadHand(root, biped, out);
+    const fore = out.copy(m.fore);
+    if (this.cycleT < 1) {
+      const c = this.cycleT;
+      if (this.def.cycle === 'pump' && m.pump) {
+        fore.z += m.pump.position.z - this.pumpRestZ;
+      } else if (this.def.cycle === 'bolt' && m.hammer) {
+        // Reach up to the arm, lift it to cocked, come back.
+        m.hammer.updateMatrix();
+        const grip = _w.copy(m.hammerGrip).applyMatrix4(m.hammer.matrix);
+        const reach = smoothstep(0, 0.3, c) * (1 - smoothstep(0.75, 1, c));
+        fore.lerp(grip, reach);
+      }
+    }
+    return fore.applyMatrix4(root.matrixWorld);
+  }
+
+  private pouchPoint(biped: Biped, out: THREE.Vector3) {
+    out.copy(biped.hips).addScaledVector(biped.right, -0.16).addScaledVector(biped.forward, 0.02);
+    out.y += 0.02;
+    return out;
+  }
+
+  /** One round per cycle: hand to pouch, seed to the port, push it in. */
+  private singleReloadHand(root: THREE.Object3D, biped: Biped, out: THREE.Vector3): THREE.Vector3 {
+    const m = this.model;
+    const t = this.reloadT;
+    const start = _a.copy(this.roundsThisReload === 0 ? m.fore : m.loadPort).applyMatrix4(root.matrixWorld);
+    const port = _b.copy(m.loadPort).applyMatrix4(root.matrixWorld);
+    const pushed = _tmp.copy(m.loadPort).add(_end.set(-0.01, 0, -0.05)).applyMatrix4(root.matrixWorld);
+    const pouch = this.pouchPoint(biped, _u);
+    if (t < 0.4) out.lerpVectors(start, pouch, smoothstep(0, 0.4, t));
+    else if (t < 0.8) out.lerpVectors(pouch, port, smoothstep(0.4, 0.8, t));
+    else out.lerpVectors(port, pushed, smoothstep(0.8, 1, t));
+    const carrying = t >= 0.4 && t < 0.95;
+    m.mag.visible = carrying || !m.magHiddenAtRest;
+    if (carrying) m.mag.position.copy(root.worldToLocal(_end.copy(out)));
+    return out;
+  }
+
+  /** Whole-magazine choreography: off the seat, to the hip, back on, then work the lever. */
+  private magReloadHand(root: THREE.Object3D, biped: Biped, out: THREE.Vector3): THREE.Vector3 {
     const r = tuning.reload;
     const m = this.model;
     const t = this.reloadT;
     const fore = _a.copy(m.fore).applyMatrix4(root.matrixWorld);
     const seat = _b.copy(m.magSeat).applyMatrix4(root.matrixWorld);
     seat.y += 0.03;
-    const pouch = _u.copy(biped.hips).addScaledVector(biped.right, -0.16).addScaledVector(biped.forward, 0.02);
-    pouch.y += 0.02;
+    const pouch = this.pouchPoint(biped, _u);
     const lever = _w.copy(m.lever).applyMatrix4(root.matrixWorld);
     const leverBack = _tmp.copy(m.lever).add(_end.set(0.02, 0, 0.09)).applyMatrix4(root.matrixWorld);
 
@@ -360,11 +504,9 @@ export class Gun {
     } else out.lerpVectors(leverBack, fore, seg(r.rackAt, 1));
 
     // The magazine rides in the hand between mag-out and mag-in.
-    if (t >= r.magOutAt && t < r.magInAt) {
-      m.mag.position.copy(root.worldToLocal(_end.copy(out)));
-    } else {
-      m.mag.position.copy(m.magSeat);
-    }
+    if (t >= r.magOutAt && t < r.magInAt) m.mag.position.copy(root.worldToLocal(_end.copy(out)));
+    else m.mag.position.copy(m.magSeat);
+    m.mag.visible = true;
     return out;
   }
 }

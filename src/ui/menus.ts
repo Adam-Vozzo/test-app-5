@@ -7,6 +7,7 @@ const KEYS: [string, string][] = [
   ['Space', 'dodge-roll'],
   ['Shift', 'sprint'],
   ['R', 'reload'],
+  ['1 / 2 / 3 · wheel', 'swap weapon'],
   ['C', 'swap shoulder'],
   ['`', 'tuning panel'],
   ['T', 'slow-mo 0.25×'],

@@ -18,8 +18,9 @@ import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
 import { Dummy } from './world/dummy';
-import { Gun, type GunContext, type HitEvent } from './weapons/gun';
-import { buildRepeater } from './weapons/model';
+import { Arsenal } from './weapons/arsenal';
+import type { Gun, GunContext, HitEvent } from './weapons/gun';
+import { Projectiles } from './weapons/projectiles';
 
 type Mode = 'menu' | 'playing' | 'paused';
 
@@ -50,13 +51,14 @@ export class Game {
   mode: Mode = 'menu';
   readonly fx: Fx;
   readonly synth = new Synth();
-  gun!: Gun;
+  arsenal!: Arsenal;
+  readonly projectiles: Projectiles;
   dummies: Dummy[] = [];
   /** Where the crosshair ray lands this frame. */
   readonly aimPoint = new THREE.Vector3();
   private gunCtx!: GunContext;
   /** Range readout stats. */
-  private stats = { shots: 0, hits: 0, crits: 0, kills: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0 };
+  private stats = this.freshStats();
   private last = performance.now();
   private fps = 60;
   private frameCount = 0;
@@ -72,6 +74,7 @@ export class Game {
     this.limbs = new LimbRenderer(this.renderer.scene);
     this.colliderDebug = new ColliderDebug(this.renderer.scene);
     this.fx = new Fx(this.renderer, this.physics);
+    this.projectiles = new Projectiles(this.renderer.scene);
     this.input = new Input(this.renderer.renderer.domElement);
     this.menus = new Menus(seed);
     this.hud.show(false);
@@ -118,13 +121,12 @@ export class Game {
     for (const d of this.dummies) d.dispose(this.renderer.scene);
     this.dummies = [];
     this.fx.clear();
+    this.projectiles.clear();
     this.physics.reset();
     this.world = buildWorld(this.layout, this.physics, GARDEN, this.rng.fork(`world-${this.layout}`));
     this.renderer.scene.add(this.world.group);
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
-    const model = buildRepeater();
-    this.player.setWeapon(model);
-    this.gun = new Gun(tuning.weapons.repeater, model, this.layout === 'range');
+    this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.player.biped.onFootstep = () => {
       if (this.player.controller.grounded) this.synth.footstep();
     };
@@ -136,7 +138,8 @@ export class Game {
       this.dummies.push(new Dummy(this.renderer.scene, this.physics, new THREE.Vector3(3, 0, -9), false));
       this.dummies.push(new Dummy(this.renderer.scene, this.physics, new THREE.Vector3(-4, 0, -14), false));
     }
-    this.stats = { shots: 0, hits: 0, crits: 0, kills: 0, last: '', hitLog: [], lastTTK: 0 };
+    this.stats = this.freshStats();
+    for (const d of this.dummies) d.onStagger = () => this.stats.staggers++;
     this.gunCtx = {
       physics: this.physics,
       player: this.player,
@@ -145,6 +148,7 @@ export class Game {
       synth: this.synth,
       hud: this.hud,
       clock: this.clock,
+      projectiles: this.projectiles,
       onHit: (e) => this.recordHit(e),
       onShot: () => this.stats.shots++,
     };
@@ -158,9 +162,24 @@ export class Game {
     });
   }
 
+  private freshStats() {
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+  }
+
+  /** The weapon in hand. */
+  get gun(): Gun {
+    return this.arsenal.current;
+  }
+
   private recordHit(e: HitEvent) {
     const st = this.stats;
-    st.hits++;
+    // Pellets share a shot: count the shot as a hit once and sum its damage for the readout.
+    if (st.lastShotHit !== e.shotId) {
+      st.hits++;
+      st.lastShotHit = e.shotId;
+      st.shotDamage = 0;
+    }
+    st.shotDamage += e.damage;
     if (e.kind === 'crit') st.crits++;
     const now = this.clock.elapsed;
     st.hitLog.push({ t: now, d: e.damage });
@@ -172,7 +191,7 @@ export class Game {
         st.lastTTK = now - dummy.firstHitTime;
       }
     }
-    st.last = `${e.damage.toFixed(1)}${e.kind === 'crit' ? ' CRIT' : e.kind === 'kill' ? ' KILL' : ''} @ ${e.distance.toFixed(1)}u`;
+    st.last = `${st.shotDamage.toFixed(1)}${e.kind === 'crit' ? ' CRIT' : e.kind === 'kill' ? ' KILL' : ''} @ ${e.distance.toFixed(1)}u`;
   }
 
   /** Point the camera at a world position (used by automated tests). */
@@ -218,6 +237,7 @@ export class Game {
       this.hud.toast(d.godMode ? 'god mode' : 'god mode off');
     }
     if (code === 'KeyP') d.pixelMode = !d.pixelMode;
+    if (code === 'Digit1' || code === 'Digit2' || code === 'Digit3') this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
 
@@ -248,7 +268,7 @@ export class Game {
     const acc = st.shots ? Math.round((st.hits / st.shots) * 100) : 0;
     return (
       `last ${st.last || '-'}   dps(3s) ${(dmg / span).toFixed(0)}   ttk ${st.lastTTK ? st.lastTTK.toFixed(2) + 's' : '-'}\n` +
-      `shots ${st.shots}  hits ${st.hits} (${acc}%)  crits ${st.crits}  kills ${st.kills}   spread ${this.gun.spread.toFixed(2)}°`
+      `shots ${st.shots}  hits ${st.hits} (${acc}%)  crits ${st.crits}  staggers ${st.staggers}  kills ${st.kills}   spread ${this.gun.displaySpread.toFixed(2)}°`
     );
   }
 
@@ -263,6 +283,7 @@ export class Game {
     if (playing) cam.look(inp.mouseDX, inp.mouseDY);
     const ads = playing && inp.held('Mouse2') && !player.controller.committed;
     player.aiming = ads;
+    if (playing && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
     const gun = this.gun;
 
     // 2. Move.
@@ -292,11 +313,12 @@ export class Game {
     // Muzzle position comes from last frame's rig; the shot ray itself starts at the camera.
     const fireHeld = playing && inp.held('Mouse0');
     const firePressed = playing && inp.justPressed('Mouse0');
-    gun.update(simDt, this.gunCtx, fireHeld, firePressed, playing && inp.justPressed('KeyR'));
+    this.arsenal.update(simDt, this.gunCtx, fireHeld, firePressed, playing && inp.justPressed('KeyR'));
+    this.projectiles.update(simDt, this.gunCtx);
 
     // 6. Animate rig + weapon.
     this.limbs.begin();
-    player.animate(simDt, this.aimPoint, cam.aimOrigin, cam.adsAmount, gun.pose);
+    player.animate(simDt, this.aimPoint, cam.aimOrigin, cam.adsAmount, this.gun.pose);
     player.draw(this.limbs, simDt);
     this.limbs.end();
 
@@ -306,8 +328,10 @@ export class Game {
     this.fx.update(simDt);
 
     // 7. HUD.
-    this.hud.setSpread(gun.spread, this.renderer.camera.fov, !player.controller.committed && !gun.reloading);
-    this.hud.setAmmo(gun.def.name, gun.mag, gun.def.magSize, gun.reserve, gun.reloading ? gun.reloadT : 0);
+    const held = this.gun;
+    this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, !player.controller.committed && !held.reloading && !this.arsenal.isSwapping);
+    this.hud.setAmmo(held.def.name, held.mag, held.def.magSize, held.reserve, held.reloadProgress);
+    this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
     this.hud.update(realDt);
     this.hud.setRange(this.layout === 'range' ? this.rangeText() : null);
     const info = this.renderer.renderer.info;

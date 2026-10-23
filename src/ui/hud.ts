@@ -13,6 +13,9 @@ export class Hud {
   private hitmark: HTMLDivElement;
   private hitTicks: HTMLElement[];
   private ammo: HTMLDivElement;
+  private slots: HTMLDivElement;
+  private slotsKey = '';
+  private ammoKey = '';
   private stats: HTMLDivElement;
   private range: HTMLDivElement;
   private toastEl: HTMLDivElement;
@@ -27,6 +30,7 @@ export class Hud {
     this.root.innerHTML = `
       <div class="xhair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
       <div class="hitmark"><i></i><i></i><i></i><i></i></div>
+      <div class="slots"></div>
       <div class="ammo"></div>
       <div class="stats"></div>
       <div class="range" style="display:none"></div>
@@ -37,6 +41,7 @@ export class Hud {
     this.hitmark = this.root.querySelector('.hitmark')!;
     this.hitTicks = [...this.hitmark.querySelectorAll('i')] as HTMLElement[];
     this.ammo = this.root.querySelector('.ammo')!;
+    this.slots = this.root.querySelector('.slots')!;
     this.stats = this.root.querySelector('.stats')!;
     this.range = this.root.querySelector('.range')!;
     this.toastEl = this.root.querySelector('.toast')!;
@@ -69,7 +74,18 @@ export class Hud {
     for (const t of this.hitTicks) t.style.background = color;
   }
 
+  /** Weapon slots (1/2/3) with the held one highlighted. */
+  setSlots(names: string[], current: number) {
+    const key = `${current}|${names.join()}`;
+    if (key === this.slotsKey) return;
+    this.slotsKey = key;
+    this.slots.innerHTML = names.map((n, i) => `<span class="${i === current ? 'on' : ''}"><b>${i + 1}</b> ${n}</span>`).join('');
+  }
+
   setAmmo(name: string, mag: number, magSize: number, reserve: number, reloading: number) {
+    const key = `${name}|${mag}|${reserve}|${Math.round(reloading * 100)}`;
+    if (key === this.ammoKey) return;
+    this.ammoKey = key;
     const low = mag <= Math.ceil(magSize * 0.2);
     this.ammo.innerHTML =
       `<div class="wname">${name}</div>` +

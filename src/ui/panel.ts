@@ -21,13 +21,13 @@ function addNumber(folder: GUI, obj: Obj, key: string): Controller {
 
 /** Weapon defs are long and flat; present them in sub-folders. Unlisted keys land in "other". */
 const WEAPON_GROUPS: Record<string, string[]> = {
-  damage: ['damage', 'critMultiplier', 'falloffStart', 'falloffEnd', 'falloffMinMul', 'pellets', 'pierce', 'stagger', 'knockback', 'range'],
-  handling: ['rpm', 'auto', 'magSize', 'reserve', 'reloadTime', 'hitscan', 'projectileSpeed', 'projectileGravity'],
-  spread: ['hipSpread', 'adsSpread', 'moveSpreadMul', 'airSpreadMul', 'bloomPerShot', 'bloomMax', 'bloomRecovery'],
+  damage: ['damage', 'critMultiplier', 'falloffStart', 'falloffEnd', 'falloffMinMul', 'pellets', 'pierce', 'stagger', 'knockback', 'selfKnockback', 'range'],
+  handling: ['rpm', 'auto', 'magSize', 'reserve', 'reloadMode', 'reloadTime', 'cycle', 'cycleTime', 'hitscan', 'projectileSpeed', 'projectileGravity'],
+  spread: ['hipSpread', 'adsSpread', 'moveSpreadMul', 'airSpreadMul', 'bloomPerShot', 'bloomMax', 'bloomRecovery', 'pelletSpread', 'adsPelletMul', 'pelletJitter'],
   recoil: ['recoilVertical', 'recoilHorizontal', 'recoilHorizontalFreq', 'recoilHorizontalBias', 'recoilRandom', 'recoilRampShots', 'recoilRamp', 'adsRecoilMul', 'kickReturn', 'cameraKickMul', 'cameraKickStiffness', 'cameraKickDamping'],
   'weapon kick / fov / shake': ['weaponKickBack', 'weaponKickPitch', 'weaponKickRoll', 'weaponKickStiffness', 'weaponKickDamping', 'fovPunch', 'fovPunchStiffness', 'fovPunchDamping', 'trauma'],
   fx: ['tracerColor', 'tracerSpeed', 'tracerLength', 'tracerWidth', 'flashScale', 'flashFrames', 'flashLight', 'flashColor', 'impactParticles', 'impactSpeed', 'casingSpeed'],
-  audio: ['pitchJitter', 'volume', 'layers'],
+  audio: ['pitchJitter', 'volume', 'layers', 'cycleLayers'],
 };
 
 function buildWeapon(folder: GUI, obj: Obj, skip: Set<string>) {
@@ -44,7 +44,7 @@ function buildWeapon(folder: GUI, obj: Obj, skip: Set<string>) {
 
 function build(folder: GUI, obj: Obj, skip: Set<string>) {
   if ('rpm' in obj && 'layers' in obj && !skip.has('__flat')) {
-    buildWeapon(folder, obj, new Set([...skip, 'id', 'name']));
+    buildWeapon(folder, obj, new Set([...skip, 'id', 'name', 'slot']));
     return;
   }
   for (const key of Object.keys(obj)) {
@@ -55,6 +55,8 @@ function build(folder: GUI, obj: Obj, skip: Set<string>) {
     else if (typeof v === 'string' && key === 'wave') folder.add(obj, key, ['sine', 'triangle', 'square', 'sawtooth']);
     else if (typeof v === 'string' && key === 'filter') folder.add(obj, key, ['lowpass', 'highpass', 'bandpass']);
     else if (typeof v === 'string' && key === 'kind') folder.add(obj, key, ['osc', 'noise']);
+    else if (typeof v === 'string' && key === 'reloadMode') folder.add(obj, key, ['mag', 'single']);
+    else if (typeof v === 'string' && key === 'cycle') folder.add(obj, key, ['none', 'pump', 'bolt']);
     else if (v && typeof v === 'object' && !Array.isArray(v)) {
       const sub = folder.addFolder(key);
       build(sub, v as Obj, skip);

@@ -120,3 +120,93 @@ export async function rangeScenario({ g, hold, release, wait, shot }) {
   console.log('  final', JSON.stringify(await state()));
   if (!killed) throw new Error('could not kill the 5u dummy');
 }
+
+// M3 scenario: swap weapons, spitter pellets + pump + single-round reload, staple projectile.
+export async function weaponsScenario({ g, hold, release, wait, shot }) {
+  const tap = async (code) => {
+    await g((c) => window.__game.input.press(c), code);
+    await wait(40);
+    await g((c) => window.__game.input.release(c), code);
+  };
+  const aim = async (p) => {
+    for (let i = 0; i < 4; i++) {
+      await g((pt) => window.__game.aimAt(pt), p);
+      await wait(100);
+    }
+  };
+  const until = async (fn, timeout = 15000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn)) return true;
+      await wait(100);
+    }
+    return false;
+  };
+  const st = () =>
+    g(() => {
+      const gm = window.__game;
+      return { gun: gm.gun.def.id, mag: gm.gun.mag, reloading: gm.gun.reloading, dummies: gm.dummies.map((d) => Math.round(d.health)), swapping: gm.arsenal.isSwapping };
+    });
+  const key = (code) => g((c) => window.__game.input.onKey(c), code);
+
+  await g(() => window.__game.start('range'));
+  await wait(1000);
+
+  // ---- Seed-spitter
+  await key('Digit2');
+  if (!(await until(() => window.__game.gun.def.id === 'spitter' && !window.__game.arsenal.isSwapping))) throw new Error('swap to spitter failed');
+  await shot('20-spitter-held');
+  await aim([1.5, 0.9, -5]);
+  const b0 = await st();
+  await key('KeyT');
+  await tap('Mouse0');
+  await wait(90);
+  await shot('21-spitter-blast-slowmo');
+  await wait(500);
+  await shot('22-spitter-pump-slowmo');
+  await key('KeyT');
+  await until(() => window.__game.gun.cycleT >= 1, 5000);
+  const b1 = await st();
+  console.log('  spitter', JSON.stringify({ b0, b1 }));
+  if (b1.mag !== b0.mag - 1) throw new Error('spitter did not fire');
+  if (b0.dummies[0] - b1.dummies[0] < 12) throw new Error(`spitter blast too weak at 5u: ${b0.dummies[0] - b1.dummies[0]}`);
+  // Single-round reload: one seed at a time.
+  await wait(900);
+  await tap('Mouse0');
+  await until(() => window.__game.gun.cycleT >= 1, 5000);
+  await wait(300); // keep the fire tap and the reload tap in different frames
+  await tap('KeyR');
+  await g(() => { window.__smokeMag = window.__game.gun.mag; });
+  if (!(await until(() => window.__game.gun.mag === window.__smokeMag + 1, 8000))) {
+    const dbg = await g(() => ({ smokeMag: window.__smokeMag, mag: window.__game.gun.mag, reloading: window.__game.gun.reloading, t: window.__game.gun.reloadT, state: window.__game.player.controller.state }));
+    throw new Error('single-round reload did not add a round ' + JSON.stringify(dbg));
+  }
+  await shot('23-spitter-reload');
+  // Firing interrupts a single-round reload.
+  await tap('Mouse0');
+  await until(() => !window.__game.gun.reloading, 3000);
+  console.log('  spitter after reload+interrupt', JSON.stringify(await st()));
+
+  // ---- Staple driver
+  await key('Digit3');
+  if (!(await until(() => window.__game.gun.def.id === 'stapler' && !window.__game.arsenal.isSwapping))) throw new Error('swap to stapler failed');
+  await hold('Mouse2');
+  await wait(500);
+  await aim([-1.5, 0.9, -10]);
+  const s0 = await st();
+  await key('KeyT');
+  await tap('Mouse0');
+  await wait(150);
+  await shot('24-stapler-projectile-slowmo');
+  await wait(450);
+  await shot('25-stapler-cycle-slowmo');
+  await key('KeyT');
+  await release('Mouse2');
+  const hitOk = await until(() => window.__game.dummies[1].health < 220, 5000);
+  const s1 = await st();
+  console.log('  stapler', JSON.stringify({ s0, s1 }));
+  if (!hitOk) throw new Error('staple projectile did not hit the 10u dummy');
+  // Wheel cycles back to the repeater (3 → 1).
+  await g(() => { window.__game.input.wheel = 1; });
+  if (!(await until(() => window.__game.gun.def.id === 'repeater' && !window.__game.arsenal.isSwapping))) throw new Error('wheel swap failed');
+}
