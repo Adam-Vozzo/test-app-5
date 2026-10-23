@@ -124,6 +124,8 @@ html, body {
   box-shadow: 0 4px 0 var(--ink);
 }
 .overlay button:hover { background: #fff; transform: translateY(-1px); }
+.overlay .row { display: flex; gap: 12px; }
+.overlay button.small { min-width: 124px; font-size: 15px; padding: 8px 14px; opacity: 0.9; }
 .keys {
   display: grid; grid-template-columns: auto auto; gap: 2px 18px; font-size: 13px; opacity: 0.85; margin-top: 8px;
 }

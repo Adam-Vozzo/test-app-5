@@ -50,9 +50,9 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
-  applyBiome(p: BiomePalette) {
+  applyBiome(p: BiomePalette, fogDensity = 0.018) {
     this.scene.background = new THREE.Color(p.fog);
-    this.scene.fog = new THREE.FogExp2(p.fog, 0.018);
+    this.scene.fog = new THREE.FogExp2(p.fog, fogDensity);
     this.hemi.color.setHex(p.hemiSky);
     this.hemi.groundColor.setHex(p.hemiGround);
     this.sun.color.setHex(p.sun);

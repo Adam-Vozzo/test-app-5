@@ -3,6 +3,27 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## M5: Procedural zones, two themes, checkpoint + pollen loop
+**Run:** pick **Play: Garden Bed** or **Play: Kitchen Floor** (or `?mode=garden` / `?mode=kitchen`, with `&seed=…`).
+**N** rolls the next seed, **M** shows the graph minimap, **O** gives a top-down overview of the whole zone.
+
+**What's generated (all seeded, so the same seed and theme always give the same zone):**
+- A graph of **6–10 clearings** joined by paths over a noise heightfield. The ground is flattened under clearings and paths, so the hills stay at the edges.
+- The **start** clearing holds the sugar-cube checkpoint. The **farthest** clearing holds the **brute**; in the kitchen it sits inside a bottle-cap arena whose entrance faces the way in. **Encounters** sit in between and ramp from 2 to 5 enemies with depth. Spitters hang at the back of each clearing.
+- **One optional side branch** (a dead end off a middle clearing) holds a **pollen cache**: a closed bud that blooms when you touch it (+40 ✿, once per zone; resting doesn't reset it). Sometimes a spitter guards it.
+- **Themes are data** (`src/world/themes.ts`): palette, fog, ground (stripes vs a generated tile texture), boundary walls, decor and enemy weights.
+  - **Garden Bed**: grass-blade forest walls, pebbles, fallen leaves, a dropped trowel as the landmark; more skitterers.
+  - **Kitchen Floor**: tile grid with slate grout, cardboard-box and chair-leg walls, bread crumbs, a fallen fork, the bottle-cap arena; more spitters.
+- **Loop**: rest at the sugar cube (E) to refill heals and ammo and respawn every enemy except a slain brute. Die and your pollen stays where you fell.
+
+**Tests:** `npm test` checks that generation is deterministic per seed, the graph is connected, the boss is in the farthest clearing, the cache is a dead end off the main path, clearings don't overlap, and spawns are walkable. Another test checks that telegraph magenta stands out against every surface colour in both biome palettes.
+
+**Unsure about:**
+- **Zone size and pacing.** A 6-clearing garden is a short run and a 10-clearing kitchen with ~20 enemies is long. Is that roughly the 10 minutes we want?
+- **Walls have small gaps.** You can sometimes squeeze between grass blades into the dark band; a fence at the zone edge stops you leaving the world. Tell me if it breaks immersion.
+- **Kitchen density.** Chair legs and boxes are dense, which reads as clutter but may block too many sight lines for the spitters.
+- **Performance** (judged in M6): the garden walls are about 250k triangles at roughly 56 draw calls, and the kitchen has more draw calls (crumbs aren't instanced yet).
+
 ## M4: Stamina, dodge, heal, death, and three IK enemies
 **Run:** **Play: test arena** (or `?mode=arena`). Seven enemies are placed around the arena:
 - four **skitterers** in the middle distance

@@ -8,7 +8,7 @@ import type { BiomePalette } from '../render/palette';
 import type { SpawnSpec } from '../enemies/manager';
 import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleGeo, sugarCubeGeo } from './props';
 
-export type LayoutKind = 'arena' | 'range';
+export type LayoutKind = 'arena' | 'range' | 'garden' | 'kitchen';
 
 export interface BuiltWorld {
   group: THREE.Group;
@@ -26,9 +26,11 @@ const _e = new THREE.Euler();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
 
-class Builder {
+export class Builder {
   readonly group = new THREE.Group();
   readonly mat = toonMat();
+  /** Ground height for placing props (flat arenas use 0). */
+  heightAt: (x: number, z: number) => number = () => 0;
   constructor(
     readonly physics: Physics,
     readonly pal: BiomePalette,
@@ -71,9 +73,10 @@ class Builder {
       im.castShadow = true;
       im.receiveShadow = true;
       list.forEach(([x, z, r, h], i) => {
-        _m.compose(_p.set(x, 0, z), _q.setFromEuler(_e.set(0, this.rng.range(0, 6.28), 0)), _s.set(r, h, r));
+        const y = this.heightAt(x, z) - 0.3;
+        _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(0, this.rng.range(0, 6.28), 0)), _s.set(r, h, r));
         im.setMatrixAt(i, _m);
-        this.physics.addStatic(RAPIER.ColliderDesc.cylinder(h * 0.3, r * 0.9).setTranslation(x, h * 0.3, z));
+        this.physics.addStatic(RAPIER.ColliderDesc.cylinder(h * 0.3, r * 0.9).setTranslation(x, y + h * 0.3, z));
       });
       im.computeBoundingSphere();
       this.group.add(im);
@@ -93,7 +96,7 @@ class Builder {
       im.receiveShadow = true;
       const pos = geo.getAttribute('position') as THREE.BufferAttribute;
       list.forEach(([x, z, sx, sy, sz], i) => {
-        _m.compose(_p.set(x, sy * 0.35, z), _q.setFromEuler(_e.set(0, this.rng.range(0, 6.28), 0)), _s.set(sx, sy, sz));
+        _m.compose(_p.set(x, this.heightAt(x, z) + sy * 0.35, z), _q.setFromEuler(_e.set(0, this.rng.range(0, 6.28), 0)), _s.set(sx, sy, sz));
         im.setMatrixAt(i, _m);
         const pts = new Float32Array(pos.count * 3);
         const v = new THREE.Vector3();
@@ -156,7 +159,8 @@ class Builder {
   bottleCap(x: number, z: number, yaw: number, radius = 14) {
     const { geo, walls } = bottleCapGeo(radius, 3, 36, 3);
     const m = this.add(geo);
-    m.position.set(x, 0, z);
+    const y0 = this.heightAt(x, z);
+    m.position.set(x, y0, z);
     m.rotation.y = yaw;
     const q = new THREE.Quaternion();
     const v = new THREE.Vector3();
@@ -165,16 +169,17 @@ class Builder {
       v.set(w.x, w.h / 2, w.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw).add(m.position);
       this.physics.addStatic(RAPIER.ColliderDesc.cuboid(w.w / 2, w.h / 2, w.d / 2).setTranslation(v.x, v.y, v.z).setRotation(q));
     }
-    this.physics.addStatic(RAPIER.ColliderDesc.cylinder(0.06, radius).setTranslation(x, 0.06, z));
+    this.physics.addStatic(RAPIER.ColliderDesc.cylinder(0.06, radius).setTranslation(x, y0 + 0.06, z));
   }
 
   sugarCube(x: number, z: number, size: number, yaw: number) {
     const m = this.add(sugarCubeGeo(this.rng.fork(`sugar${x},${z}`)));
-    m.position.set(x, 0, z);
+    const y0 = this.heightAt(x, z) - 0.1;
+    m.position.set(x, y0, z);
     m.scale.setScalar(size);
     m.rotation.y = yaw;
     const q = new THREE.Quaternion().setFromEuler(_e.set(0, yaw, 0));
-    this.physics.addStatic(RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2).setTranslation(x, size / 2, z).setRotation(q));
+    this.physics.addStatic(RAPIER.ColliderDesc.cuboid(size / 2, size / 2, size / 2).setTranslation(x, y0 + size / 2, z).setRotation(q));
   }
 
   /** Dense ring of tall blades: the dark "forest wall" that frames the stage. */
@@ -189,7 +194,7 @@ class Builder {
   }
 }
 
-export function buildWorld(kind: LayoutKind, physics: Physics, pal: BiomePalette, rng: Rng): BuiltWorld {
+export function buildWorld(kind: 'arena' | 'range', physics: Physics, pal: BiomePalette, rng: Rng): BuiltWorld {
   const b = new Builder(physics, pal, rng);
   return kind === 'arena' ? buildArena(b) : buildRange(b);
 }

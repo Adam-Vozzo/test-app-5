@@ -16,7 +16,7 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { GARDEN } from './render/palette';
+import { GARDEN, setActiveBiome } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
@@ -24,6 +24,8 @@ import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
 import { Dummy } from './world/dummy';
+import { buildZone, type ZoneWorld } from './world/zone';
+import { Minimap } from './ui/minimap';
 import { Arsenal } from './weapons/arsenal';
 import type { Gun, GunContext, HitEvent } from './weapons/gun';
 import { Projectiles } from './weapons/projectiles';
@@ -64,6 +66,9 @@ export class Game {
   readonly hazards: Hazards;
   readonly enemies: EnemyManager;
   readonly vitals = new Vitals();
+  readonly minimap = new Minimap();
+  /** Seed of the current zone (N rolls a new one). */
+  zoneSeed: number;
   pollenDrop!: PollenDrop;
   private enemyWorld!: EnemyWorld;
   private deathT = -1;
@@ -86,6 +91,7 @@ export class Game {
     readonly seed: number,
   ) {
     this.rng = makeRng(seed);
+    this.zoneSeed = seed;
     this.renderer = new Renderer(container);
     this.renderer.applyBiome(GARDEN);
     this.limbs = new LimbRenderer(this.renderer.scene);
@@ -146,7 +152,16 @@ export class Game {
     this.fx.clear();
     this.projectiles.clear();
     this.physics.reset();
-    this.world = buildWorld(this.layout, this.physics, GARDEN, this.rng.fork(`world-${this.layout}`));
+    if (this.layout === 'garden' || this.layout === 'kitchen') {
+      const z = buildZone(this.zoneSeed, this.layout, this.physics);
+      this.world = z;
+      this.renderer.applyBiome(z.theme.palette, z.theme.fogDensity);
+      setActiveBiome(z.theme.palette);
+    } else {
+      this.world = buildWorld(this.layout, this.physics, GARDEN, this.rng.fork(`world-${this.layout}`));
+      this.renderer.applyBiome(GARDEN);
+      setActiveBiome(GARDEN);
+    }
     this.renderer.scene.add(this.world.group);
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
@@ -216,6 +231,18 @@ export class Game {
 
   private freshStats() {
     return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+  }
+
+  /** The current zone, if playing one. */
+  get zone(): ZoneWorld | null {
+    return this.world && 'layout' in this.world ? (this.world as ZoneWorld) : null;
+  }
+
+  /** Rebuild the current zone from a new seed (debug key N). */
+  regenerate(seed: number) {
+    this.zoneSeed = seed >>> 0;
+    this.buildLevel();
+    this.hud.toast(`zone seed ${this.zoneSeed}`, 2);
   }
 
   /** The weapon in hand. */
@@ -372,6 +399,9 @@ export class Game {
       this.hud.toast(d.godMode ? 'god mode' : 'god mode off');
     }
     if (code === 'KeyP') d.pixelMode = !d.pixelMode;
+    if (code === 'KeyM') d.showGraph = !d.showGraph;
+    if (code === 'KeyO') d.overview = !d.overview;
+    if (code === 'KeyN' && this.zone) this.regenerate(this.zoneSeed + 1);
     if ((code === 'Digit1' || code === 'Digit2' || code === 'Digit3') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
@@ -484,6 +514,24 @@ export class Game {
 
     // 4. Camera + crosshair ray.
     cam.update(player.pos, ads, realDt, simDt, this.clock.realElapsed);
+    if (tuning.debug.overview && this.zone) {
+      // Debug: look straight down on the whole zone.
+      const b = this.zone.layout.bounds;
+      const cx = (b.minX + b.maxX) / 2;
+      const cz = (b.minZ + b.maxZ) / 2;
+      const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
+      const rc = this.renderer.camera;
+      rc.position.set(cx, span * 0.95, cz + 0.01);
+      rc.lookAt(cx, 0, cz);
+      rc.far = Math.max(400, span * 2);
+      rc.updateProjectionMatrix();
+      this.renderer.scene.fog = null;
+    } else if (!this.renderer.scene.fog && this.world) {
+      const theme = this.zone?.theme;
+      this.renderer.applyBiome(theme?.palette ?? GARDEN, theme?.fogDensity);
+      this.renderer.camera.far = 400;
+      this.renderer.camera.updateProjectionMatrix();
+    }
     _o.copy(cam.aimOrigin).addScaledVector(cam.aimDir, cam.aimStartOffset);
     const hit = this.physics.raycast(_o, cam.aimDir, 300, GROUPS.qShot, c.collider, _aimHit);
     if (hit) this.aimPoint.copy(hit.point);
@@ -505,6 +553,14 @@ export class Game {
       v.pollen += recovered;
       this.synth.sfx('pollen');
       this.hud.toast(`pollen recovered  ✿ +${recovered}`, 2);
+    }
+    const zone = this.zone;
+    const cached = zone && !v.dead ? zone.cache.update(simDt, c.pos) : 0;
+    if (cached > 0) {
+      v.pollen += cached;
+      this.synth.sfx('pollen');
+      this.synth.sfx('rest', 0.6);
+      this.hud.toast(`pollen cache  ✿ +${cached}`, 2.5);
     }
 
     // 6. Animate rig + weapon.
@@ -530,11 +586,12 @@ export class Game {
     if (nearCheckpoint && !c.committed) this.hud.prompt('E: rest at the sugar cube');
     else this.hud.prompt(null);
     this.hud.setLabels(tuning.debug.showAI ? this.aiLabels() : null);
+    this.minimap.draw(this.zone?.layout ?? null, tuning.debug.showGraph, c.pos, this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })));
     this.hud.update(realDt);
     this.hud.setRange(this.layout === 'range' ? this.rangeText() : null);
     const info = this.renderer.renderer.info;
     this.hud.setStats(
-      `seed ${this.seed}  ${this.layout}\n` +
+      `seed ${this.zone ? this.zoneSeed : this.seed}  ${this.layout}\n` +
         `fps ${this.fps.toFixed(0)}  draws ${info.render.calls}  tris ${(info.render.triangles / 1000).toFixed(1)}k\n` +
         `state ${c.state}${c.grounded ? '' : ' (air)'}${c.invulnerable ? ' i-frames' : ''}  ` +
         `speed ${Math.hypot(c.vel.x, c.vel.z).toFixed(1)}` +

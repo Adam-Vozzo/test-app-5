@@ -217,6 +217,8 @@ export const tuning = {
     showIK: false,
     showHitboxes: false,
     showAI: false,
+    showGraph: false,
+    overview: false,
     showStats: true,
     pixelMode: false,
     pixelScale: 3,

@@ -17,7 +17,7 @@ async function boot() {
   window.__game = game;
   window.__tuning = tuning;
   const mode = new URLSearchParams(location.search).get('mode');
-  if (mode === 'arena' || mode === 'range') game.start(mode);
+  if (mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
 }
 
 boot().catch((e) => {

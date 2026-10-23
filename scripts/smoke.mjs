@@ -112,6 +112,10 @@ try {
   });
   console.log('  arena stats', JSON.stringify(stats));
 
+  if (process.argv.includes('--zones')) {
+    const { zonesScenario } = await import('./smoke-m5.mjs');
+    await zonesScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--enemies')) {
     const { enemiesScenario } = await import('./smoke-m4.mjs');
     await enemiesScenario({ page, g, hold, release, press, look, wait, shot });

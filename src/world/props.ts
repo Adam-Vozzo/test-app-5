@@ -115,3 +115,80 @@ export function sugarCubeGeo(rng: Rng): THREE.BufferGeometry {
   const b = new THREE.Color(PROPS.sugarShade);
   return paintBy(prep(g, true), (v, out) => out.copy((Math.floor(v.x * 6) + Math.floor(v.y * 6) + Math.floor(v.z * 6)) % 3 === 0 ? b : a));
 }
+
+/** Bread crumb: chunky jittered lump, crust outside and pale crumb on the broken face. Unit size. */
+export function crumbGeo(rng: Rng): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(1, 0).scale(1.2, 0.75, 0.9);
+  jitter(g, rng, 0.22);
+  const crust = new THREE.Color(0xb5834f);
+  const inner = new THREE.Color(0xfcd985);
+  const cut = rng.range(-0.2, 0.3);
+  return paintBy(prep(g, true), (v, out) => out.copy(v.y > cut && v.x > -0.2 ? inner : crust));
+}
+
+/** Cardboard box with a printed band: a wall block for the kitchen. Unit cube, bottom at 0. */
+export function boxGeo(rng: Rng): THREE.BufferGeometry {
+  const card = 0xb48a5a;
+  const band = rng.pick([0x5a7fa8, 0xc9a24e, 0x7a9a5a]);
+  const g = new THREE.BoxGeometry(1, 1, 1, 1, 6, 1).translate(0, 0.5, 0);
+  const a = new THREE.Color(card);
+  const b = new THREE.Color(band);
+  const lo = rng.range(0.3, 0.5);
+  return paintBy(prep(g, true), (v, out) => out.copy(v.y > lo && v.y < lo + 0.25 ? b : a));
+}
+
+/** Chair / table leg: a tall wooden post rising into the dark, with a felt foot. Unit radius, given height. */
+export function chairLegGeo(h: number): THREE.BufferGeometry {
+  const post = stripe(new THREE.CylinderGeometry(0.85, 1, h, 10, Math.max(2, Math.round(h / 3))).translate(0, h / 2, 0), PROPS.woodDark, 0x93613a, 2.2, {
+    wobble: 0.1,
+  });
+  const foot = paint(new THREE.CylinderGeometry(1.15, 1.2, 0.35, 12).translate(0, 0.17, 0), 0x4f4a58);
+  return merge([post, foot]);
+}
+
+/** A dropped garden trowel: steel blade with a raised spine and a wooden handle. Length along +X. */
+export function trowelGeo(): THREE.BufferGeometry {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, -4.2);
+  shape.quadraticCurveTo(9, -4.6, 17, 0);
+  shape.quadraticCurveTo(9, 4.6, 0, 4.2);
+  shape.lineTo(0, -4.2);
+  const blade = new THREE.ExtrudeGeometry(shape, { depth: 0.35, bevelEnabled: false, curveSegments: 8 }).rotateX(Math.PI / 2).translate(0, 0.35, 0);
+  const steel = paintBy(prep(blade, true), (v, out) => out.setHex(Math.floor(v.x / 2.2) % 2 === 0 ? PROPS.metal : 0xc2c8bd));
+  const spine = paint(new THREE.BoxGeometry(15, 0.5, 0.7).translate(7.5, 0.55, 0), PROPS.metalDark);
+  const neck = paint(new THREE.CylinderGeometry(0.45, 0.6, 3, 8).rotateZ(Math.PI / 2).translate(-1.5, 0.7, 0), PROPS.metalDark);
+  const handle = stripe(new THREE.CylinderGeometry(1.1, 1.3, 11, 10, 6).rotateZ(Math.PI / 2).translate(-8.5, 1.2, 0), PROPS.wood, PROPS.woodDark, 1.8, {
+    axis: 'x',
+  });
+  return merge([steel, spine, neck, handle]);
+}
+
+/** A fallen fork: flat handle and four tines, lying on the tiles. Length along +X, ~52 units. */
+export function forkGeo(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const steel = (g: THREE.BufferGeometry) => stripe(g, PROPS.metal, 0xc2c8bd, 2.5, { axis: 'x' });
+  parts.push(steel(new THREE.BoxGeometry(30, 0.8, 3.2, 12, 1, 1).translate(-15, 0.4, 0)));
+  parts.push(steel(new THREE.BoxGeometry(6, 0.8, 4.4, 3, 1, 1).translate(3, 0.4, 0)));
+  for (let i = 0; i < 4; i++) {
+    const z = -1.65 + i * 1.1;
+    parts.push(steel(new THREE.BoxGeometry(15, 0.8, 0.6, 6, 1, 1).translate(13.5, 0.4, z)));
+  }
+  return merge(parts);
+}
+
+/** Pollen cache: a closed bud that blooms open; returns petals + gold centre separately. */
+export function flowerParts(): { petals: THREE.BufferGeometry; heart: THREE.BufferGeometry; stem: THREE.BufferGeometry } {
+  const petal = new THREE.SphereGeometry(1, 8, 6).scale(0.7, 0.15, 1.6).translate(0, 0, 1.4);
+  const petals: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 7; i++) {
+    const g = paint(petal.clone(), i % 2 ? 0xf3c6d9 : 0xf7d9e6);
+    petals.push(transformedRot(g, (i / 7) * Math.PI * 2));
+  }
+  const heart = paint(new THREE.IcosahedronGeometry(0.9, 1), 0xffe14d);
+  const stem = paint(new THREE.CylinderGeometry(0.25, 0.35, 2.2, 6).translate(0, 1.1, 0), 0x7fa65a);
+  return { petals: merge(petals), heart: prep(heart), stem };
+}
+
+function transformedRot(g: THREE.BufferGeometry, yaw: number) {
+  return place(g, 0, 0, 0, 0, yaw, 0);
+}

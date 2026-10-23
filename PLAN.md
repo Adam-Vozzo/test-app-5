@@ -57,7 +57,7 @@ with screenshots checked against `STYLE.md`.
 - AI FSM (idle → alert → approach → wind-up → attack → recover → stagger), steering + avoidance, poise.
 - Skitterer, Spitter (lob + ground marker), Brute (armoured front, cyan abdomen weak spot, long charge telegraph).
 
-## M5: Zones + loop
+## M5: Zones + loop ✅
 - Seeded clearing graph (6–10 nodes) over a noise heightfield. Start = checkpoint, farthest = Brute,
   one side branch = pollen cache.
 - Theme data: Garden Bed and Kitchen Floor (palette, fog, ground noise, prop generators, enemy weights).

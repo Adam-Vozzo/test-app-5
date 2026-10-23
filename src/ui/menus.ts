@@ -16,6 +16,7 @@ const KEYS: [string, string][] = [
   ['I / H / L', 'IK / hitbox / AI debug'],
   ['G', 'god mode'],
   ['P', 'pixel mode'],
+  ['N / M / O', 'new zone seed / graph map / overview'],
   ['Esc', 'pause'],
 ];
 
@@ -25,7 +26,7 @@ export class Menus {
   private death: HTMLDivElement;
   private deathNote: HTMLElement;
   onRise: () => void = () => {};
-  onPlay: (mode: 'arena' | 'range') => void = () => {};
+  onPlay: (mode: 'garden' | 'kitchen' | 'arena' | 'range') => void = () => {};
   onResume: () => void = () => {};
   onQuit: () => void = () => {};
 
@@ -34,10 +35,11 @@ export class Menus {
     this.start = this.make(`
       <h1>A bug<span>s</span> death</h1>
       <p>A tiny beetle with an improvised gun. Everything here is generated in code.</p>
-      <button data-a="arena">Play: test arena</button>
-      <button data-a="range">Target-dummy range</button>
+      <button data-a="garden">Play: Garden Bed</button>
+      <button data-a="kitchen">Play: Kitchen Floor</button>
+      <div class="row"><button data-a="arena" class="small">Test arena</button><button data-a="range" class="small">Target range</button></div>
       <div class="keys">${keys}</div>
-      <div class="seed">seed ${seed} · add ?seed=… to the URL to change it</div>`);
+      <div class="seed">seed ${seed} · add ?seed=… to the URL to change it · N in a zone rolls a new one</div>`);
     this.pause = this.make(`
       <h1>Paused</h1>
       <button data-a="resume">Resume</button>
@@ -53,7 +55,7 @@ export class Menus {
     for (const el of [this.start, this.pause, this.death]) {
       el.addEventListener('click', (e) => {
         const a = (e.target as HTMLElement).dataset.a;
-        if (a === 'arena' || a === 'range') this.onPlay(a);
+        if (a === 'arena' || a === 'range' || a === 'garden' || a === 'kitchen') this.onPlay(a);
         else if (a === 'resume') this.onResume();
         else if (a === 'quit') this.onQuit();
         else if (a === 'rise') this.onRise();
