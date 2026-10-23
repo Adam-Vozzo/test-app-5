@@ -89,6 +89,21 @@ try {
   await wait(300);
   await shot('07-tuning-panel');
   await g(() => window.__game.input.onKey('Backquote'));
+  // Regression: dragging walkSpeed / roll duration to 0 once made the beetle vanish for good (NaN state).
+  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 0; tu.roll.duration = 0; });
+  await press('Space');
+  await hold('KeyW');
+  await wait(500);
+  await release('KeyW');
+  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 3; tu.roll.duration = 0.5; });
+  await wait(600);
+  const finiteRig = await g(() => {
+    const p = window.__game.player;
+    const v = [...p.biped.hips.toArray(), ...p.pos.toArray(), ...p.biped.chest.toArray()];
+    return v.every(Number.isFinite);
+  });
+  console.log('  rig finite after zeroed tuning:', finiteRig);
+  if (!finiteRig) throw new Error('player rig went NaN after zeroed tuning values');
   const audio = await g(() => window.__game.synth.ctx?.state ?? 'none');
   console.log('  audio context', audio);
   const stats = await g(() => {

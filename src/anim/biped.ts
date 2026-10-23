@@ -1,7 +1,7 @@
 // Procedural biped beetle: planted feet with arcing steps, hip bob/lean, two-bone IK arms and legs,
 // head + antennae that look at the aim point. No keyframes.
 import * as THREE from 'three';
-import { clamp, damp, DEG, Spring3 } from '../core/math';
+import { clamp, damp, DEG, finite, safeDiv, Spring3 } from '../core/math';
 import { Physics } from '../physics/world';
 import { merge, meshOf, paint, place, stripe, toonMat } from '../render/geo';
 import { LimbRenderer } from '../render/limbs';
@@ -155,7 +155,7 @@ export class Biped {
 
     // ---- feet
     const hspeed = Math.hypot(inp.vel.x, inp.vel.z);
-    const stepDur = THREE.MathUtils.lerp(b.stepDuration, b.stepDurationSprint, clamp((hspeed - tuning.player.walkSpeed) / 2.5, 0, 1));
+    const stepDur = Math.max(0.02, THREE.MathUtils.lerp(b.stepDuration, b.stepDurationSprint, clamp((hspeed - tuning.player.walkSpeed) / 2.5, 0, 1)));
     if (inp.rolling) {
       for (const f of this.feet) f.stepping = false;
     } else if (!inp.grounded) {
@@ -224,8 +224,8 @@ export class Biped {
     // ---- hips: bob with step lift, drop toward the lower foot on uneven ground
     let lift = 0;
     for (const f of this.feet) if (f.stepping) lift = Math.max(lift, Math.sin(Math.PI * clamp(f.t, 0, 1)));
-    const moving = clamp(hspeed / tuning.player.walkSpeed, 0, 1.4);
-    this.bob = damp(this.bob, (lift - 0.5) * b.bobAmount * moving, 25, dt);
+    const moving = clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1.4);
+    this.bob = finite(damp(this.bob, (lift - 0.5) * b.bobAmount * moving, 25, dt));
     const lowFoot = Math.min(this.feet[0].pos.y, this.feet[1].pos.y);
     const drop = inp.grounded && !inp.rolling ? clamp(lowFoot - inp.root.y, -0.25, 0) : 0;
 
@@ -237,8 +237,8 @@ export class Biped {
     const maxLean = b.leanMaxDeg * DEG;
     const wantPitch = clamp(-(fwdVel * b.leanPerSpeed + fwdAcc * b.leanAccel), -maxLean, maxLean);
     const wantRoll = clamp(-(sideVel * b.leanPerSpeed + sideAcc * b.leanAccel), -maxLean, maxLean);
-    this.leanPitch = damp(this.leanPitch, inp.rolling ? 0 : wantPitch, 10, dt);
-    this.leanRoll = damp(this.leanRoll, inp.rolling ? 0 : wantRoll, 10, dt);
+    this.leanPitch = finite(damp(this.leanPitch, inp.rolling ? 0 : wantPitch, 10, dt));
+    this.leanRoll = finite(damp(this.leanRoll, inp.rolling ? 0 : wantRoll, 10, dt));
 
     // Tumble for the dodge roll: curl into a ball and flip forward.
     const tumble = inp.rolling ? -Math.PI * 2 * tuning.roll.tumbleTurns * stepEase(inp.rollT) : 0;
@@ -278,8 +278,8 @@ export class Biped {
       const dYaw = Math.atan2(-_v2.x, -_v2.z) - inp.yaw;
       const relYaw = Math.atan2(Math.sin(dYaw), Math.cos(dYaw));
       const pitch = Math.atan2(_v2.y, Math.hypot(_v2.x, _v2.z));
-      this.headYaw = damp(this.headYaw, clamp(relYaw, -75 * DEG, 75 * DEG), b.headLookRate, dt);
-      this.headPitch = damp(this.headPitch, clamp(pitch, -50 * DEG, 50 * DEG), b.headLookRate, dt);
+      this.headYaw = finite(damp(this.headYaw, clamp(relYaw, -75 * DEG, 75 * DEG), b.headLookRate, dt));
+      this.headPitch = finite(damp(this.headPitch, clamp(pitch, -50 * DEG, 50 * DEG), b.headLookRate, dt));
       _e.set(this.headPitch, inp.yaw + this.headYaw, 0, 'YXZ');
       this.head.quaternion.setFromEuler(_e);
     }

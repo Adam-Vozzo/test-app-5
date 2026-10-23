@@ -34,6 +34,7 @@ export class Controller {
   stateTime = 0;
   sprinting = false;
   private rollDir = new THREE.Vector3();
+  private lastGood = new THREE.Vector3();
   private vy = 0;
   private center = new THREE.Vector3();
   private halfH: number;
@@ -49,6 +50,7 @@ export class Controller {
     this.radius = t.capsuleRadius;
     const w = physics.world;
     this.pos.copy(spawn);
+    this.lastGood.copy(spawn);
     this.yaw = yaw;
     this.center.set(spawn.x, spawn.y + this.halfH + this.radius, spawn.z);
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.center.x, this.center.y, this.center.z));
@@ -79,7 +81,7 @@ export class Controller {
     return this.state !== 'move';
   }
   get rollT() {
-    return this.state === 'roll' ? Math.min(1, this.stateTime / tuning.roll.duration) : 0;
+    return this.state === 'roll' ? Math.min(1, this.stateTime / Math.max(0.05, tuning.roll.duration)) : 0;
   }
   get invulnerable() {
     return this.state === 'roll' && this.stateTime < tuning.roll.iFrames;
@@ -132,7 +134,7 @@ export class Controller {
     let tx = 0;
     let tz = 0;
     if (this.state === 'roll') {
-      const k = this.stateTime / r.duration;
+      const k = Math.min(1, this.stateTime / Math.max(0.05, r.duration));
       const sp = r.speed * (1 - (1 - r.endSpeedMul) * k * k);
       tx = this.rollDir.x * sp;
       tz = this.rollDir.z * sp;
@@ -191,6 +193,12 @@ export class Controller {
     this.accel.subVectors(this.vel, this.prevVel).divideScalar(dt);
     this.prevVel.copy(this.vel);
 
+    // A bad tuning value must never leave the player at NaN (invisible forever): restore the last good spot.
+    if (!Number.isFinite(this.pos.x + this.pos.y + this.pos.z + this.vel.x + this.vel.z)) {
+      this.vel.set(0, 0, 0);
+      this.teleport(this.lastGood, this.yaw);
+    } else if (this.grounded) this.lastGood.copy(this.pos);
+    if (!Number.isFinite(this.yaw)) this.yaw = 0;
     // Fell out of the world: put back at origin.
     if (this.pos.y < -30) this.teleport(new THREE.Vector3(0, 2, 0), this.yaw);
   }

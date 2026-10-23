@@ -31,6 +31,14 @@ export const PROPS = {
   cork: 0xc9a377,
   corkDark: 0x9a7a55,
   paper: 0xeee3cf,
+  seed: 0x9a7b45,
+  seedPale: 0xd8c08a,
+  strawA: 0xf2ece0,
+  strawB: 0x5aa6c8,
+  bulb: 0x7fa65a,
+  bulbDark: 0x5c7f3f,
+  staplerBody: 0x3c4252,
+  staplerArm: 0x4f7ca8,
 } as const;
 
 export interface BiomePalette {

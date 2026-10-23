@@ -1,11 +1,11 @@
 // Every feel number in the game. Systems read from here each frame so panel edits apply live.
 // Angles suffixed `Deg` are degrees; everything else is SI-ish (units, seconds).
-import { REPEATER } from './weapons/defs';
+import { REPEATER, SPITTER, STAPLER } from './weapons/defs';
 
 export const tuning = {
   player: {
-    walkSpeed: 4.2,
-    sprintSpeed: 6.8,
+    walkSpeed: 3,
+    sprintSpeed: 5.5,
     adsSpeedMul: 0.55,
     reloadSpeedMul: 0.75,
     accel: 38,
@@ -21,30 +21,30 @@ export const tuning = {
     capsuleHalfHeight: 0.24,
   },
   roll: {
-    speed: 9.5,
+    speed: 10,
     duration: 0.5,
-    recovery: 0.16,
-    endSpeedMul: 0.25,
-    iFrames: 0.3,
-    tumbleTurns: 1,
+    recovery: 0.08,
+    endSpeedMul: 0.8,
+    iFrames: 0.2568,
+    tumbleTurns: 2,
   },
   biped: {
-    stepThreshold: 0.24,
-    stepDuration: 0.15,
-    stepDurationSprint: 0.11,
-    stepHeight: 0.13,
-    velocityLead: 0.11,
-    panicFactor: 3,
-    stanceWidth: 0.13,
-    hipHeight: 0.4,
-    bobAmount: 0.035,
-    leanPerSpeed: 0.035,
-    leanAccel: 0.012,
-    leanMaxDeg: 16,
-    headLookRate: 14,
-    antennaSpring: 120,
-    antennaDamping: 8,
-    armSwingIdle: 0.02,
+    stepThreshold: 0.49056,
+    stepDuration: 0.1116,
+    stepDurationSprint: 0.1496,
+    stepHeight: 0.11804,
+    velocityLead: 0.14256,
+    panicFactor: 4,
+    stanceWidth: 0.11804,
+    hipHeight: 0.4144,
+    bobAmount: 0.0602,
+    leanPerSpeed: 0.09422,
+    leanAccel: 0.018672,
+    leanMaxDeg: 23.872,
+    headLookRate: 6,
+    antennaSpring: 330.72,
+    antennaDamping: 13,
+    armSwingIdle: 0.02336,
   },
   camera: {
     height: 1.05,
@@ -66,8 +66,8 @@ export const tuning = {
     followRate: 30,
   },
   feel: {
-    hitstopCrit: 0.05,
-    hitstopKill: 0.07,
+    hitstopCrit: 0,
+    hitstopKill: 0,
     hitFlashTime: 0.07,
     traumaDecay: 1.7,
     shakeMaxAngleDeg: 2.6,
@@ -96,6 +96,10 @@ export const tuning = {
     flinchPerDamage: 0.12,
     slideSpeed: 3.5,
     slideRange: 6,
+    poise: 40,
+    poiseRegenDelay: 1,
+    poiseRegen: 30,
+    staggerTime: 0.9,
   },
   audio: {
     master: 0.7,
@@ -116,8 +120,16 @@ export const tuning = {
     pixelMode: false,
     pixelScale: 3,
   },
+  swap: {
+    lowerTime: 0.16,
+    raiseTime: 0.2,
+    dropDistance: 0.25,
+    tiltDeg: 50,
+  },
   weapons: {
     repeater: REPEATER,
+    spitter: SPITTER,
+    stapler: STAPLER,
   },
 };
 

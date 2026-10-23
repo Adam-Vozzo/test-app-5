@@ -1,7 +1,7 @@
 // Weapon behaviour: fire on the input frame, spread/bloom, recoil pattern, kick springs, hit resolution,
 // feedback (flash, tracer, impacts, decals, casings, markers, hitstop, audio) and committed reload.
 import * as THREE from 'three';
-import { clamp, DEG, smoothstep, Spring3 } from '../core/math';
+import { clamp, DEG, safeDiv, smoothstep, Spring3 } from '../core/math';
 import { makeRng } from '../core/rng';
 import type { Synth } from '../audio/synth';
 import type { Fx } from '../fx/fx';
@@ -175,7 +175,7 @@ export class Gun {
     const c = p.controller;
     const hspeed = Math.hypot(c.vel.x, c.vel.z);
     let s = THREE.MathUtils.lerp(d.hipSpread, d.adsSpread, ctx.camera.adsAmount);
-    if (hspeed > 0.6) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(hspeed / tuning.player.walkSpeed, 0, 1));
+    if (hspeed > 0.6) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
     if (!c.grounded) s *= d.airSpreadMul;
     this.spread = s + this.bloom;
 

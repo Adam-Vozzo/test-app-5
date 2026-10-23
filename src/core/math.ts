@@ -3,6 +3,11 @@
 export const TAU = Math.PI * 2;
 export const DEG = Math.PI / 180;
 
+/** Replace NaN/Infinity (e.g. from a tuning slider dragged to 0) with a fallback so state can't get stuck. */
+export const finite = (v: number, fallback = 0) => (Number.isFinite(v) ? v : fallback);
+/** Divide safely: tuning values can be dragged to 0 in the panel. */
+export const safeDiv = (a: number, b: number, eps = 1e-3) => a / (Math.abs(b) < eps ? (b < 0 ? -eps : eps) : b);
+
 export const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 export const invLerp = (a: number, b: number, v: number) => (b === a ? 0 : (v - a) / (b - a));
@@ -44,6 +49,7 @@ export class Spring {
       this.v += a * h;
       this.x += this.v * h;
     }
+    if (!Number.isFinite(this.x) || !Number.isFinite(this.v)) this.reset(Number.isFinite(this.target) ? this.target : 0);
     return this.x;
   }
   reset(x = 0) {
