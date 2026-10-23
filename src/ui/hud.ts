@@ -19,6 +19,24 @@ export class Hud {
   private stats: HTMLDivElement;
   private range: HTMLDivElement;
   private toastEl: HTMLDivElement;
+  private hp: HTMLElement;
+  private hpLag: HTMLElement;
+  private st: HTMLElement;
+  private stBar: HTMLElement;
+  private heals: HTMLElement;
+  private pollenEl: HTMLElement;
+  private boss: HTMLElement;
+  private bossName: HTMLElement;
+  private bossFill: HTMLElement;
+  private vignette: HTMLElement;
+  private labelsEl: HTMLElement;
+  private labelPool: HTMLElement[] = [];
+  private vignetteT = 0;
+  private promptEl!: HTMLElement;
+  private promptText: string | null = null;
+  private hpLagValue = 1;
+  private healsKey = '';
+  private pollenKey = -1;
   private hitTime = 0;
   private hitDur = 0.2;
   private hitKind: HitKind = 'hit';
@@ -34,7 +52,17 @@ export class Hud {
       <div class="ammo"></div>
       <div class="stats"></div>
       <div class="range" style="display:none"></div>
-      <div class="toast"></div>`;
+      <div class="toast"></div>
+      <div class="prompt" style="display:none"></div>
+      <div class="vitals">
+        <div class="bar hp"><i></i><b></b></div>
+        <div class="bar st"><i></i></div>
+        <div class="heals"></div>
+        <div class="pollen"></div>
+      </div>
+      <div class="boss" style="display:none"><div class="name"></div><div class="bar"><i></i></div></div>
+      <div class="vignette"></div>
+      <div class="labels"></div>`;
     document.body.appendChild(this.root);
     this.xhair = this.root.querySelector('.xhair')!;
     this.ticks = [...this.xhair.querySelectorAll('i')] as HTMLElement[];
@@ -45,6 +73,18 @@ export class Hud {
     this.stats = this.root.querySelector('.stats')!;
     this.range = this.root.querySelector('.range')!;
     this.toastEl = this.root.querySelector('.toast')!;
+    this.hp = this.root.querySelector('.bar.hp i')!;
+    this.hpLag = this.root.querySelector('.bar.hp b')!;
+    this.st = this.root.querySelector('.bar.st i')!;
+    this.stBar = this.root.querySelector('.bar.st')!;
+    this.heals = this.root.querySelector('.heals')!;
+    this.pollenEl = this.root.querySelector('.pollen')!;
+    this.boss = this.root.querySelector('.boss')!;
+    this.bossName = this.root.querySelector('.boss .name')!;
+    this.bossFill = this.root.querySelector('.boss .bar i')!;
+    this.vignette = this.root.querySelector('.vignette')!;
+    this.labelsEl = this.root.querySelector('.labels')!;
+    this.promptEl = this.root.querySelector('.prompt')!;
   }
 
   show(v: boolean) {
@@ -103,6 +143,62 @@ export class Hud {
     if (text) this.range.textContent = text;
   }
 
+  /** Health / stamina / heal charges / pollen. */
+  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, pollen: number) {
+    const h = Math.max(0, hp / maxHp);
+    this.hp.style.width = `${h * 100}%`;
+    this.hpLagValue = Math.max(h, this.hpLagValue);
+    this.hpLag.style.width = `${this.hpLagValue * 100}%`;
+    this.st.style.width = `${Math.max(0, st / maxSt) * 100}%`;
+    this.stBar.classList.toggle('exhausted', exhausted);
+    const hk = `${heals}/${maxHeals}`;
+    if (hk !== this.healsKey) {
+      this.healsKey = hk;
+      this.heals.innerHTML = Array.from({ length: maxHeals }, (_, i) => `<span class="${i < heals ? 'on' : ''}"></span>`).join('') + '<em>Q</em>';
+    }
+    if (pollen !== this.pollenKey) {
+      this.pollenKey = pollen;
+      this.pollenEl.textContent = `✿ ${pollen}`;
+    }
+  }
+
+  setBoss(name: string | null, frac = 0) {
+    this.boss.style.display = name ? '' : 'none';
+    if (!name) return;
+    this.bossName.textContent = name;
+    this.bossFill.style.width = `${Math.max(0, frac) * 100}%`;
+  }
+
+  /** Contextual interaction prompt (white box, like the reference's button prompts). */
+  prompt(text: string | null) {
+    if (text === this.promptText) return;
+    this.promptText = text;
+    this.promptEl.style.display = text ? '' : 'none';
+    if (text) this.promptEl.textContent = text;
+  }
+
+  hurt() {
+    this.vignetteT = tuning.feel.hurtVignetteTime;
+  }
+
+  /** Debug labels at screen positions (x,y in px), or hidden when null. */
+  setLabels(items: { x: number; y: number; text: string }[] | null) {
+    const list = items ?? [];
+    while (this.labelPool.length < list.length) {
+      const d = document.createElement('div');
+      this.labelsEl.appendChild(d);
+      this.labelPool.push(d);
+    }
+    this.labelPool.forEach((el, i) => {
+      const it = list[i];
+      el.style.display = it ? '' : 'none';
+      if (it) {
+        el.textContent = it.text;
+        el.style.transform = `translate(${it.x}px, ${it.y}px) translate(-50%, -100%)`;
+      }
+    });
+  }
+
   toast(text: string, seconds = 1.2) {
     this.toastEl.textContent = text;
     this.toastEl.style.opacity = '1';
@@ -124,6 +220,11 @@ export class Hud {
     } else {
       this.hitmark.style.opacity = '0';
     }
+    // Lagging health chunk drains after a beat.
+    const real = parseFloat(this.hp.style.width) / 100 || 0;
+    if (this.hpLagValue > real) this.hpLagValue = Math.max(real, this.hpLagValue - realDt * 0.6);
+    this.vignetteT = Math.max(0, this.vignetteT - realDt);
+    this.vignette.style.opacity = String(Math.min(1, this.vignetteT / Math.max(0.01, tuning.feel.hurtVignetteTime)) * 0.9);
     if (this.toastTime > 0) {
       this.toastTime -= realDt;
       if (this.toastTime <= 0) this.toastEl.style.opacity = '0';

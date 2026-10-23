@@ -123,6 +123,11 @@ export class Synth {
   dry() {
     this.playLayers(RELOAD.dry, 1, tuning.audio.reloadGain);
   }
+
+  /** One-shot effect by name, with optional stereo pan (-1..1) and gain (distance attenuation). */
+  sfx(name: SfxName, gain = 1, pan = 0, pitch = 1) {
+    this.playLayers(SFX[name], pitch * (1 + (this.rand() - 0.5) * 0.06), gain * tuning.audio.sfxGain, pan);
+  }
 }
 
 const L = (p: Partial<SoundLayer>): SoundLayer => ({
@@ -178,3 +183,82 @@ const RELOAD: Record<'out' | 'in' | 'rack' | 'pouch' | 'dry', Record<string, Sou
 const STEP = {
   tap: L({ kind: 'noise', filter: 'lowpass', f0: 900, f1: 400, dur: 0.03, gain: 0.6 }),
 };
+
+// Enemy telegraphs are pitched so each attack is identifiable by ear before it lands:
+// skitterer = rising chirp, spitter = gurgling swell, brute = low growl + stomps.
+const SFX = {
+  alert: { chirp: L({ kind: 'osc', wave: 'triangle', f0: 900, f1: 1500, dur: 0.12, gain: 0.3 }) },
+  windupSkitter: {
+    chirp: L({ kind: 'osc', wave: 'square', f0: 1300, f1: 2600, dur: 0.3, gain: 0.08 }),
+    click: L({ kind: 'noise', filter: 'highpass', f0: 4000, f1: 4000, dur: 0.02, gain: 0.3, delay: 0.25 }),
+  },
+  windupSpit: {
+    gurgle: L({ kind: 'noise', filter: 'bandpass', f0: 300, f1: 1400, q: 4, dur: 0.75, gain: 0.5 }),
+    swell: L({ kind: 'osc', wave: 'sine', f0: 140, f1: 420, dur: 0.75, gain: 0.25 }),
+  },
+  windupCharge: {
+    growl: L({ kind: 'osc', wave: 'sawtooth', f0: 70, f1: 110, dur: 1.15, gain: 0.16, attack: 0.15 }),
+    rumble: L({ kind: 'noise', filter: 'lowpass', f0: 300, f1: 500, dur: 1.15, gain: 0.35, attack: 0.2 }),
+    stomp1: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.18, gain: 0.7, delay: 0.3 }),
+    stomp2: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.18, gain: 0.8, delay: 0.75 }),
+  },
+  windupButt: {
+    growl: L({ kind: 'osc', wave: 'sawtooth', f0: 95, f1: 60, dur: 0.6, gain: 0.16 }),
+    huff: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 250, q: 1, dur: 0.5, gain: 0.35 }),
+  },
+  spit: {
+    pop: L({ kind: 'osc', wave: 'sine', f0: 500, f1: 160, dur: 0.12, gain: 0.5 }),
+    splat: L({ kind: 'noise', filter: 'bandpass', f0: 1200, f1: 600, q: 1.5, dur: 0.12, gain: 0.4 }),
+  },
+  splash: {
+    splat: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 300, dur: 0.3, gain: 0.7 }),
+    blub: L({ kind: 'osc', wave: 'sine', f0: 260, f1: 90, dur: 0.2, gain: 0.4 }),
+  },
+  lunge: { hiss: L({ kind: 'noise', filter: 'highpass', f0: 2500, f1: 4000, dur: 0.18, gain: 0.35 }) },
+  charge: {
+    roar: L({ kind: 'osc', wave: 'sawtooth', f0: 120, f1: 70, dur: 0.7, gain: 0.2 }),
+    gallop: L({ kind: 'noise', filter: 'lowpass', f0: 400, f1: 200, dur: 1.1, gain: 0.4 }),
+  },
+  wallhit: {
+    crash: L({ kind: 'noise', filter: 'lowpass', f0: 1200, f1: 150, dur: 0.5, gain: 0.9 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 80, f1: 30, dur: 0.4, gain: 0.9 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1400, f1: 1300, dur: 0.6, gain: 0.08, delay: 0.05 }),
+  },
+  hurt: { squeak: L({ kind: 'osc', wave: 'triangle', f0: 1200, f1: 700, dur: 0.1, gain: 0.25 }) },
+  die: {
+    crunch: L({ kind: 'noise', filter: 'bandpass', f0: 1500, f1: 400, q: 1.2, dur: 0.25, gain: 0.6 }),
+    squeal: L({ kind: 'osc', wave: 'triangle', f0: 1500, f1: 300, dur: 0.35, gain: 0.2 }),
+  },
+  armor: {
+    tink: L({ kind: 'osc', wave: 'square', f0: 2800, f1: 2700, dur: 0.06, gain: 0.08 }),
+    tick: L({ kind: 'noise', filter: 'highpass', f0: 5000, f1: 5000, dur: 0.015, gain: 0.35 }),
+  },
+  playerHurt: {
+    thud: L({ kind: 'osc', wave: 'sine', f0: 180, f1: 60, dur: 0.18, gain: 0.8 }),
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 400, q: 1, dur: 0.14, gain: 0.6 }),
+    yelp: L({ kind: 'osc', wave: 'triangle', f0: 700, f1: 420, dur: 0.12, gain: 0.18, delay: 0.02 }),
+  },
+  playerDie: {
+    thud: L({ kind: 'osc', wave: 'sine', f0: 140, f1: 35, dur: 0.6, gain: 0.9 }),
+    fall: L({ kind: 'osc', wave: 'triangle', f0: 600, f1: 90, dur: 0.9, gain: 0.25 }),
+  },
+  dodge: { whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 2400, q: 1.2, dur: 0.22, gain: 0.4 }) },
+  roll: { whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 500, f1: 1100, q: 0.9, dur: 0.3, gain: 0.18 }) },
+  healStart: { slosh: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 1100, q: 2, dur: 0.25, gain: 0.3 }) },
+  heal: {
+    gulp: L({ kind: 'osc', wave: 'sine', f0: 300, f1: 520, dur: 0.12, gain: 0.45 }),
+    shimmer: L({ kind: 'osc', wave: 'sine', f0: 1320, f1: 1980, dur: 0.4, gain: 0.12, delay: 0.08 }),
+  },
+  pollen: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 1046, f1: 1046, dur: 0.12, gain: 0.25 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 1568, f1: 1568, dur: 0.18, gain: 0.22, delay: 0.08 }),
+  },
+  exhausted: { pant: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 1.5, dur: 0.25, gain: 0.25 }) },
+  rest: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),
+    c: L({ kind: 'osc', wave: 'sine', f0: 784, f1: 784, dur: 0.8, gain: 0.16, delay: 0.3 }),
+  },
+} satisfies Record<string, Record<string, SoundLayer>>;
+
+export type SfxName = keyof typeof SFX;

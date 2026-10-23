@@ -48,7 +48,7 @@ with screenshots checked against `STYLE.md`.
 - Staple driver: visible fast projectile, bolt cycle, long reload, pierce 1, big crit, a sharp "thwack".
 - Swap via 1/2/3 and the wheel, with a short committed swap animation.
 
-## M4: Souls-like body + enemies
+## M4: Souls-like body + enemies ✅
 - Stamina (dodge/sprint gates, regen delay), roll i-frames (~0.3s) + recovery, no shooting mid-roll.
 - 3 heal charges, 1.2s committed heal that slows movement and is interrupted by damage.
 - Death: drop pollen at the death spot, death screen, respawn at the checkpoint.

@@ -53,7 +53,8 @@ export class Arsenal {
     for (const g of this.guns) g.refill();
   }
 
-  update(dt: number, ctx: GunContext, fireHeld: boolean, firePressed: boolean, reloadPressed: boolean) {
+  /** @param canAct false while healing, stunned or dead (no fire, reload or swap). */
+  update(dt: number, ctx: GunContext, fireHeld: boolean, firePressed: boolean, reloadPressed: boolean, canAct = true) {
     const s = tuning.swap;
     let lowered = 0;
     if (this.swapping) {
@@ -72,7 +73,7 @@ export class Arsenal {
       if (this.swapT >= s.lowerTime + s.raiseTime) this.swapping = false;
     }
     const gun = this.current;
-    gun.update(dt, ctx, fireHeld, firePressed, reloadPressed, !this.swapping);
+    gun.update(dt, ctx, fireHeld, firePressed, reloadPressed, canAct && !this.swapping);
     gun.pose.drop += lowered * s.dropDistance;
     gun.pose.tilt += lowered * s.tiltDeg * DEG;
   }

@@ -3,6 +3,44 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## M4: Stamina, dodge, heal, death, and three IK enemies
+**Run:** **Play: test arena** (or `?mode=arena`). Seven enemies are placed around the arena:
+- four **skitterers** in the middle distance
+- two **spitters** further back
+- the **brute beetle** (elite) inside the bottle cap. It shows a boss bar when it engages.
+
+The sugar cube behind the spawn is the checkpoint (**E** to rest).
+
+**Souls-like rules:**
+- **Stamina** (green bar) pays for rolls (28) and sprinting (18/s), and regenerates after 0.7s. Emptying it exhausts you: no roll or sprint until it's back to 25.
+- **Roll i-frames**: the first 0.26s of the roll (your tuned value). The status line shows `i-frames`, and a dodged hit plays a whoosh.
+- **Heal (Q)**: 3 dewdrop charges. It takes 1.2s, you move at 35% speed, and the gun is lowered while the off hand brings a dewdrop to your mouth. It lands at 70%. Getting hit before then interrupts it, and the charge is wasted.
+- **Damage**: enemies take 3–4 hits to kill you (25 / 30 / 32 / 40 damage). A hit gives knockback, a red vignette, a short stun and a lagging health chunk.
+- **Death**: the beetle flips onto its back, legs flailing, and the gun drops. You get "Squished" and rise at the sugar cube (button, E or Space). Heals and ammo refill, and every enemy except a slain elite respawns.
+  Your **pollen** (✿, from kills: 4 / 8 / 60) stays where you fell, marked by a gold puff with a beam. Walk back to it to recover it. Die again first and it's gone.
+- **Rest (E)** at the sugar cube refills heals and ammo and respawns the non-elite enemies.
+
+**Enemies** (all procedural: tripod gait, feet raycast to the ground, body rides the feet plane, spring hit reactions, belly-up death with curled legs):
+| | Telegraph (pose + magenta glow + sound) | Active | Punish window | Weak spot |
+|---|---|---|---|---|
+| **Skitterer** (low, wide, fast, 40hp) | crouches 0.38s + rising chirp | lunge bite | 0.75s | head (2× crit) |
+| **Spitter** (tall, keeps 12u away, 70hp) | rears up 0.85s + gurgle | lobs a glob; a **magenta ring marks where it lands** and fills until impact (1.15s) | 1.1s | glowing cyan sac on the abdomen |
+| **Brute beetle** (elite, 480hp) | charge: 1.25s of stomping, growl and a **magenta lane on the ground** showing the exact path. Headbutt up close: 0.75s head-down | charge at 13u/s, or headbutt | 1.4s, or **2.2s dazed if it charges into a wall** | glowing seam on the top-back of the abdomen. The domed front and head are **armour** (20% damage, dull sparks, "tink") |
+
+Poise is live too: enough stagger in a short window staggers an enemy, and the seed-spitter up close is the fastest way.
+Debug: **L** shows AI state labels, **G** is god mode, **I** shows enemy foot plants, **H** shows hitboxes and armour.
+
+**Fixes from your playtest:**
+- **The beetle's eyes floated in front of its head.** The geometry helper `place()` mutated its input, so the second eye (built from a clone of the moved first eye) was translated twice. It's fixed at the source, with a regression test. The same bug had displaced the second mandible.
+- Also caught in testing: the killing blow could let you instantly re-collect the pollen you dropped. A drop now only becomes collectible once you've been away from it.
+
+**Unsure about (needs your hands):**
+- **Difficulty.** Four skitterers rushing together might be overwhelming at 25 damage per bite, or trivial with the seed-spitter. Tune `enemies.skitterer.damage`, `windup` and `speed`.
+- **Spitter lead.** Globs aim at where you're heading (half lead). Strafing in a straight line gets you hit; changing direction or rolling dodges.
+- **The brute's charge** tracks you for the first 70% of the wind-up, then locks. Is the lane readable soon enough at 1.25s? Baiting it into the bottle-cap wall should give a long punish.
+- **Perception.** Enemies need line of sight (from just above their body to your chest or head) or have to be within hearing range. Low cover like the matchstick ramp can hide you.
+- All of this was verified headless at about 20fps (bites land, heals heal, i-frames dodge, death drops pollen and rise restores). Whether the fights *feel* fair can only be judged by playing.
+
 ## M3: Seed-spitter, staple driver, weapon swap
 **Run:** the target range (`?mode=range`). Press **1 / 2 / 3** or scroll the **mouse wheel** to swap.
 The swap is committed (about 0.36s to lower and raise, with no firing in between), and swapping away loses a reload in progress.

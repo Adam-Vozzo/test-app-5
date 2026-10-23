@@ -7,6 +7,12 @@ import { Clock } from './core/time';
 import { Physics, GROUPS, type RayHit } from './physics/world';
 import { OTSCamera } from './player/camera';
 import { Fx } from './fx/fx';
+import type { Enemy, EnemyWorld } from './enemies/enemy';
+import { Hazards } from './enemies/hazards';
+import { EnemyManager } from './enemies/manager';
+import { Vitals } from './player/vitals';
+import { PollenDrop } from './world/pollen';
+import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
@@ -23,6 +29,8 @@ import type { Gun, GunContext, HitEvent } from './weapons/gun';
 import { Projectiles } from './weapons/projectiles';
 
 type Mode = 'menu' | 'playing' | 'paused';
+
+const ELITE_NAMES: Record<string, string> = { brute: 'Brute beetle' };
 
 const _aimHit: RayHit = {
   point: new THREE.Vector3(),
@@ -53,6 +61,15 @@ export class Game {
   readonly synth = new Synth();
   arsenal!: Arsenal;
   readonly projectiles: Projectiles;
+  readonly hazards: Hazards;
+  readonly enemies: EnemyManager;
+  readonly vitals = new Vitals();
+  pollenDrop!: PollenDrop;
+  private enemyWorld!: EnemyWorld;
+  private deathT = -1;
+  private healEnv = 0;
+  private lastDodgeSfx = -1;
+  private readonly chest = new THREE.Vector3();
   dummies: Dummy[] = [];
   /** Where the crosshair ray lands this frame. */
   readonly aimPoint = new THREE.Vector3();
@@ -75,6 +92,9 @@ export class Game {
     this.colliderDebug = new ColliderDebug(this.renderer.scene);
     this.fx = new Fx(this.renderer, this.physics);
     this.projectiles = new Projectiles(this.renderer.scene);
+    this.hazards = new Hazards(this.renderer.scene);
+    this.enemies = new EnemyManager(this.renderer.scene, this.hazards);
+    this.enemies.onKilled = (e) => this.onEnemyKilled(e);
     this.input = new Input(this.renderer.renderer.domElement);
     this.menus = new Menus(seed);
     this.hud.show(false);
@@ -82,8 +102,9 @@ export class Game {
     this.menus.onPlay = (m) => this.start(m);
     this.menus.onResume = () => this.resume();
     this.menus.onQuit = () => this.quitToMenu();
+    this.menus.onRise = () => this.rise();
     this.input.onLockChange = (locked) => {
-      if (!locked && this.mode === 'playing' && !this.panel.open) this.pause();
+      if (!locked && this.mode === 'playing' && !this.panel.open && !this.vitals.dead) this.pause();
     };
     this.input.onKey = (code) => this.onKey(code);
     this.input.onSoftFallback = () =>
@@ -116,8 +137,10 @@ export class Game {
       this.disposeGroup(this.world.group);
     }
     if (this.player) {
-      this.renderer.scene.remove(this.player.biped.group, this.player.weaponRoot);
+      this.renderer.scene.remove(this.player.biped.group, this.player.weaponRoot, this.player.drop);
     }
+    if (this.pollenDrop) this.renderer.scene.remove(this.pollenDrop.group);
+    this.enemies.clear();
     for (const d of this.dummies) d.dispose(this.renderer.scene);
     this.dummies = [];
     this.fx.clear();
@@ -140,6 +163,35 @@ export class Game {
     }
     this.stats = this.freshStats();
     for (const d of this.dummies) d.onStagger = () => this.stats.staggers++;
+    this.vitals.restore();
+    this.vitals.pollen = 0;
+    this.deathT = -1;
+    this.menus.showDeath(false);
+    this.pollenDrop = new PollenDrop(this.renderer.scene);
+    // Enemies stand on whatever is below their spawn point.
+    for (const sp of this.world.enemySpots) {
+      const g = this.physics.groundY(sp.pos.x, sp.pos.z, 40, 80);
+      if (g) sp.pos.y = g.y + 0.02;
+    }
+    this.enemies.spawnAll(this.world.enemySpots, this.physics);
+    const game = this;
+    this.enemyWorld = {
+      physics: this.physics,
+      playerPos: this.player.controller.pos,
+      playerChest: this.chest,
+      playerVel: this.player.controller.vel,
+      get playerAlive() {
+        return !game.vitals.dead;
+      },
+      enemies: this.enemies.enemies,
+      hazards: this.hazards,
+      hurtPlayer: (amount, from, knockback) => this.hurtPlayer(amount, from, knockback),
+      sound: (name, at) => this.sfxAt(name, at),
+      shake: (trauma, at) => {
+        const d = at.distanceTo(this.player.pos);
+        this.camera.addTrauma(trauma / (1 + d * 0.15));
+      },
+    };
     this.gunCtx = {
       physics: this.physics,
       player: this.player,
@@ -203,6 +255,87 @@ export class Game {
     this.camera.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
   }
 
+  /** Positional one-shot: pan from the camera's right vector, fade with distance. */
+  private sfxAt(name: Parameters<Synth['sfx']>[0], at: THREE.Vector3) {
+    const cam = this.renderer.camera;
+    const rel = _o.subVectors(at, cam.position);
+    const d = rel.length();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion);
+    const pan = d > 0.01 ? Math.max(-0.8, Math.min(0.8, rel.dot(right) / d)) : 0;
+    this.synth.sfx(name, 1 / (1 + d * 0.06), pan);
+  }
+
+  /** Enemy damage to the player. Rolling i-frames and god mode make it miss. */
+  hurtPlayer(amount: number, from: THREE.Vector3, knockback: number): boolean {
+    const c = this.player.controller;
+    if (this.vitals.dead) return false;
+    if (c.invulnerable) {
+      if (this.clock.elapsed - this.lastDodgeSfx > 0.3) {
+        this.lastDodgeSfx = this.clock.elapsed;
+        this.synth.sfx('dodge');
+      }
+      return false;
+    }
+    const r = this.vitals.damage(amount, false, tuning.debug.godMode);
+    if (!r.applied) return false;
+    const dir = _o.subVectors(c.pos, from).setY(0);
+    if (dir.lengthSq() < 1e-4) dir.set(0, 0, 1);
+    dir.normalize().multiplyScalar(knockback * tuning.vitals.hurtKnockbackMul);
+    c.push(dir.x, dir.z);
+    this.camera.addTrauma(tuning.vitals.hurtTrauma);
+    this.hud.hurt();
+    this.synth.sfx('playerHurt');
+    if (r.interruptedHeal) this.hud.toast('heal interrupted');
+    if (r.died) this.die();
+    return true;
+  }
+
+  private die() {
+    this.deathT = 0;
+    this.player.dead = true;
+    this.player.healT = -1;
+    this.arsenal.current.cancelReload(false);
+    this.synth.sfx('playerDie');
+    // Your pollen stays where you fell. A previous unrecovered drop is gone.
+    if (this.vitals.pollen > 0) this.pollenDrop.place(this.player.pos.clone(), this.vitals.pollen);
+    else this.pollenDrop.clear();
+    this.vitals.pollen = 0;
+  }
+
+  /** Respawn at the checkpoint: full heals and ammo, non-elite enemies return. */
+  rise() {
+    if (!this.world || this.deathT < 0) return;
+    this.deathT = -1;
+    this.menus.showDeath(false);
+    const at = this.world.checkpoint ? this.world.checkpoint.clone().add(new THREE.Vector3(0, 0.05, -2.2)) : this.world.spawn;
+    this.player.controller.teleport(at, this.world.spawnYaw);
+    this.player.dead = false;
+    this.camera.snap(at, this.world.spawnYaw);
+    this.vitals.restore();
+    this.arsenal.refillAll();
+    this.enemies.reset();
+    this.projectiles.clear();
+    this.mode = 'playing';
+    this.input.requestLock();
+  }
+
+  /** Rest at the sugar cube: refill heals + ammo, respawn non-elite enemies. */
+  private rest() {
+    this.vitals.restore();
+    this.arsenal.refillAll();
+    this.enemies.reset();
+    this.synth.sfx('rest');
+    this.hud.toast('Rested. Heals and ammo refilled; the garden stirs…', 2.4);
+  }
+
+  private onEnemyKilled(e: Enemy) {
+    const reward = e.cfg.pollen;
+    this.vitals.pollen += reward;
+    this.sfxAt('die', e.center);
+    this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
+    if (e.elite) this.hud.toast(`${ELITE_NAMES[e.kind] ?? e.kind} defeated  ✿ +${reward}`, 3);
+  }
+
   pause() {
     this.mode = 'paused';
     this.menus.showPause(true);
@@ -216,6 +349,7 @@ export class Game {
   quitToMenu() {
     this.mode = 'menu';
     this.menus.showPause(false);
+    this.menus.showDeath(false);
     this.menus.showStart(true);
     this.hud.show(false);
     this.input.exitLock();
@@ -232,12 +366,13 @@ export class Game {
     }
     if (code === 'KeyI') d.showIK = !d.showIK;
     if (code === 'KeyH') d.showHitboxes = !d.showHitboxes;
+    if (code === 'KeyL') d.showAI = !d.showAI;
     if (code === 'KeyG') {
       d.godMode = !d.godMode;
       this.hud.toast(d.godMode ? 'god mode' : 'god mode off');
     }
     if (code === 'KeyP') d.pixelMode = !d.pixelMode;
-    if (code === 'Digit1' || code === 'Digit2' || code === 'Digit3') this.arsenal.request(Number(code.slice(5)) - 1);
+    if ((code === 'Digit1' || code === 'Digit2' || code === 'Digit3') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
 
@@ -278,48 +413,105 @@ export class Game {
     const inp = this.input;
     const cam = this.camera;
     const player = this.player;
+    const v = this.vitals;
+    const c = player.controller;
+    const alive = !v.dead;
+    const control = playing && alive;
 
     // 1. Look (real time: stays responsive in hitstop and slow-mo).
-    if (playing) cam.look(inp.mouseDX, inp.mouseDY);
-    const ads = playing && inp.held('Mouse2') && !player.controller.committed;
+    if (control) cam.look(inp.mouseDX, inp.mouseDY);
+    const ads = control && inp.held('Mouse2') && !c.committed && !v.busy;
     player.aiming = ads;
-    if (playing && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
+    if (control && !v.busy && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
     const gun = this.gun;
 
-    // 2. Move.
-    const ax = (inp.held('KeyD') ? 1 : 0) - (inp.held('KeyA') ? 1 : 0);
-    const ay = (inp.held('KeyW') ? 1 : 0) - (inp.held('KeyS') ? 1 : 0);
+    // Heal (Q): committed, slow, interrupted by damage.
+    if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.isSwapping) {
+      if (v.startHeal()) this.synth.sfx('healStart');
+      else if (v.healCharges <= 0) this.hud.toast('no heals left: rest at the sugar cube');
+    }
+    // Rest (E) at the checkpoint.
+    const cp = this.world?.checkpoint;
+    const nearCheckpoint = !!cp && alive && Math.hypot(c.pos.x - cp.x, c.pos.z - cp.z) < 3.2;
+    if (control && nearCheckpoint && inp.justPressed('KeyE') && !c.committed) this.rest();
+    if (!playing || !alive) {
+      // Death screen: E / Space also rise.
+      if (this.deathT >= 1.4 && (inp.justPressed('KeyE') || inp.justPressed('Space'))) this.rise();
+    }
+
+    // 2. Move. Stamina gates sprint and roll.
+    const ax = control ? (inp.held('KeyD') ? 1 : 0) - (inp.held('KeyA') ? 1 : 0) : 0;
+    const ay = control ? (inp.held('KeyW') ? 1 : 0) - (inp.held('KeyS') ? 1 : 0) : 0;
+    const wasState = c.state;
+    const wantsRoll = control && inp.justPressed('Space') && !v.busy;
+    if (wantsRoll && !v.canRoll() && c.state === 'move') this.synth.sfx('exhausted', 0.6);
     player.move(simDt, {
       x: ax,
       y: ay,
-      sprint: inp.held('ShiftLeft') || inp.held('ShiftRight'),
-      rollPressed: playing && inp.justPressed('Space'),
-      speedMul: (ads ? tuning.player.adsSpeedMul : 1) * (gun.reloading ? tuning.player.reloadSpeedMul : 1),
+      sprint: control && (inp.held('ShiftLeft') || inp.held('ShiftRight')) && v.canSprint(),
+      rollPressed: wantsRoll && v.canRoll(),
+      speedMul:
+        (ads ? tuning.player.adsSpeedMul : 1) *
+        (gun.reloading ? tuning.player.reloadSpeedMul : 1) *
+        (v.healing ? tuning.vitals.healMoveMul : 1) *
+        (alive ? 1 : 0),
       camYaw: cam.yaw,
     });
+    if (wasState !== 'roll' && c.state === 'roll') {
+      v.spendRoll();
+      this.synth.sfx('roll');
+    }
+    if (simDt > 0 && v.tick(simDt, c.sprinting) === 'healed') {
+      this.synth.sfx('heal');
+      this.fx.sparksAt(player.biped.chest, new THREE.Vector3(0, -1, 0), 0xcfeaff, 12, 2.5);
+    }
+    player.healT = v.healing ? v.healT : -1;
+    player.healApplyAt = tuning.vitals.healApplyAt;
+    if (!alive && this.deathT >= 0) {
+      this.deathT += realDt;
+      if (this.deathT >= 1.4 && this.deathT - realDt < 1.4) {
+        const note = this.pollenDrop.amount > 0 ? `Your ${this.pollenDrop.amount} pollen lies where you fell. Reach it before you die again.` : 'You had no pollen to lose.';
+        this.menus.showDeath(true, note);
+        this.input.exitLock();
+      }
+    }
 
     // 3. Targets move, then the broad-phase updates so this frame's shots see them where they're drawn.
+    this.chest.copy(player.biped.chest);
     for (const d of this.dummies) d.update(simDt, this.renderer.camera);
+    this.enemies.update(simDt, this.enemyWorld);
     if (simDt > 0) this.physics.step();
 
     // 4. Camera + crosshair ray.
     cam.update(player.pos, ads, realDt, simDt, this.clock.realElapsed);
     _o.copy(cam.aimOrigin).addScaledVector(cam.aimDir, cam.aimStartOffset);
-    const hit = this.physics.raycast(_o, cam.aimDir, 300, GROUPS.qShot, player.controller.collider, _aimHit);
+    const hit = this.physics.raycast(_o, cam.aimDir, 300, GROUPS.qShot, c.collider, _aimHit);
     if (hit) this.aimPoint.copy(hit.point);
     else this.aimPoint.copy(_o).addScaledVector(cam.aimDir, 300);
 
     // 5. Weapon: shots resolve this frame, on the frame of input.
     // Muzzle position comes from last frame's rig; the shot ray itself starts at the camera.
-    const fireHeld = playing && inp.held('Mouse0');
-    const firePressed = playing && inp.justPressed('Mouse0');
-    this.arsenal.update(simDt, this.gunCtx, fireHeld, firePressed, playing && inp.justPressed('KeyR'));
+    const fireHeld = control && inp.held('Mouse0');
+    const firePressed = control && inp.justPressed('Mouse0');
+    this.arsenal.update(simDt, this.gunCtx, fireHeld, firePressed, control && inp.justPressed('KeyR'), !v.busy);
+    // Healing lowers the weapon.
+    this.healEnv = damp(this.healEnv, v.healing ? 1 : 0, 14, simDt);
+    this.gun.pose.drop += this.healEnv * 0.18;
+    this.gun.pose.tilt += this.healEnv * 0.5;
     this.projectiles.update(simDt, this.gunCtx);
+    // Not collectible while dead (the killing blow can land the same frame the drop appears).
+    const recovered = v.dead ? 0 : this.pollenDrop.update(simDt, c.pos, tuning.vitals.pollenPickupRadius);
+    if (recovered > 0) {
+      v.pollen += recovered;
+      this.synth.sfx('pollen');
+      this.hud.toast(`pollen recovered  ✿ +${recovered}`, 2);
+    }
 
     // 6. Animate rig + weapon.
     this.limbs.begin();
     player.animate(simDt, this.aimPoint, cam.aimOrigin, cam.adsAmount, this.gun.pose);
     player.draw(this.limbs, simDt);
+    this.enemies.draw(this.limbs);
     this.limbs.end();
 
     this.renderer.followShadow(player.pos);
@@ -329,19 +521,39 @@ export class Game {
 
     // 7. HUD.
     const held = this.gun;
-    this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, !player.controller.committed && !held.reloading && !this.arsenal.isSwapping);
+    this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, alive && !c.committed && !held.reloading && !this.arsenal.isSwapping && !v.busy);
     this.hud.setAmmo(held.def.name, held.mag, held.def.magSize, held.reserve, held.reloadProgress);
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
+    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.pollen);
+    const elite = this.enemies.activeElite;
+    this.hud.setBoss(elite ? ELITE_NAMES[elite.kind] ?? elite.kind : null, elite ? elite.health / elite.maxHealth : 0);
+    if (nearCheckpoint && !c.committed) this.hud.prompt('E: rest at the sugar cube');
+    else this.hud.prompt(null);
+    this.hud.setLabels(tuning.debug.showAI ? this.aiLabels() : null);
     this.hud.update(realDt);
     this.hud.setRange(this.layout === 'range' ? this.rangeText() : null);
     const info = this.renderer.renderer.info;
     this.hud.setStats(
       `seed ${this.seed}  ${this.layout}\n` +
         `fps ${this.fps.toFixed(0)}  draws ${info.render.calls}  tris ${(info.render.triangles / 1000).toFixed(1)}k\n` +
-        `state ${player.controller.state}${player.controller.grounded ? '' : ' (air)'}  ` +
-        `speed ${Math.hypot(player.controller.vel.x, player.controller.vel.z).toFixed(1)}` +
+        `state ${c.state}${c.grounded ? '' : ' (air)'}${c.invulnerable ? ' i-frames' : ''}  ` +
+        `speed ${Math.hypot(c.vel.x, c.vel.z).toFixed(1)}` +
         (tuning.debug.slowmo ? `\nSLOW-MO ${tuning.debug.slowmoScale}×` : '') +
         (tuning.debug.godMode ? '\nGOD MODE' : ''),
     );
+  }
+
+  private aiLabels() {
+    const cam = this.renderer.camera;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const out: { x: number; y: number; text: string }[] = [];
+    for (const e of this.enemies.enemies) {
+      if (!e.group.visible) continue;
+      const p = _o.copy(e.rig.pos).addScaledVector(new THREE.Vector3(0, 1, 0), e.plan.radius * 1.6 + 0.3).project(cam);
+      if (p.z > 1) continue;
+      out.push({ x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, text: e.label });
+    }
+    return out;
   }
 }

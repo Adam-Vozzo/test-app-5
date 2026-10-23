@@ -84,3 +84,31 @@ export const GARDEN: BiomePalette = {
   dust: 0xe8cfa6,
   decal: 0x5a4030,
 };
+
+export const KITCHEN: BiomePalette = {
+  name: 'Kitchen Floor',
+  groundLit: 0xe6dccb,
+  groundLight: 0xf0e8da,
+  groundShade: 0xa9a2a0,
+  groundShadow: 0x6a7f9d,
+  stalk: 0xc9a377,
+  stalkStripe: 0xa8834f,
+  collar: 0x4f4a58,
+  pebbleA: 0xb59777,
+  pebbleB: 0xfcd985,
+  leafA: 0xacb2a7,
+  leafB: 0x868482,
+  fog: 0x302f38,
+  fogDeep: 0x0a0f17,
+  hemiSky: 0xd7e3f4,
+  hemiGround: 0x3b3a48,
+  sun: 0xfff0dc,
+  dust: 0xe8e2d6,
+  decal: 0x4a4650,
+};
+
+/** The biome currently loaded (FX read dust/decal colours from it). */
+export let activeBiome: BiomePalette = GARDEN;
+export function setActiveBiome(p: BiomePalette) {
+  activeBiome = p;
+}

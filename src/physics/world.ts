@@ -44,6 +44,8 @@ export interface DamageInfo {
 
 export interface Damageable {
   alive: boolean;
+  /** Damage multiplier on 'armor' hitboxes (default 0.2). */
+  armorMul?: number;
   /** Returns true if this damage killed it. */
   takeDamage(info: DamageInfo): boolean;
 }

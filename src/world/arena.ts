@@ -5,6 +5,7 @@ import type { Rng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { meshOf, paintBy, prep, toonMat } from '../render/geo';
 import type { BiomePalette } from '../render/palette';
+import type { SpawnSpec } from '../enemies/manager';
 import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleGeo, sugarCubeGeo } from './props';
 
 export type LayoutKind = 'arena' | 'range';
@@ -14,6 +15,9 @@ export interface BuiltWorld {
   spawn: THREE.Vector3;
   spawnYaw: number;
   dummySpots: { pos: THREE.Vector3; slide: boolean }[];
+  enemySpots: SpawnSpec[];
+  /** Sugar-cube shrine: rest here (E). */
+  checkpoint: THREE.Vector3 | null;
 }
 
 const _m = new THREE.Matrix4();
@@ -224,7 +228,17 @@ function buildArena(b: Builder): BuiltWorld {
   // Sugar-cube shrine behind the spawn (the future checkpoint).
   b.sugarCube(0, 6, 2.2, 0.3);
 
-  return { group: b.group, spawn: new THREE.Vector3(0, 0.05, 0), spawnYaw: 0, dummySpots: [] };
+  const V = (x: number, z: number) => new THREE.Vector3(x, 0, z);
+  const enemySpots: SpawnSpec[] = [
+    { kind: 'skitterer', pos: V(8, -15), yaw: 0.4 },
+    { kind: 'skitterer', pos: V(10.5, -17), yaw: 0.6 },
+    { kind: 'skitterer', pos: V(-7, -21), yaw: -0.3 },
+    { kind: 'skitterer', pos: V(-9.5, -19), yaw: -0.2 },
+    { kind: 'spitter', pos: V(12, -27), yaw: 0.5 },
+    { kind: 'spitter', pos: V(-15, -28), yaw: -0.5 },
+    { kind: 'brute', pos: V(-22, 16), yaw: -2.4 },
+  ];
+  return { group: b.group, spawn: new THREE.Vector3(0, 0.05, 0), spawnYaw: 0, dummySpots: [], enemySpots, checkpoint: new THREE.Vector3(0, 0, 6) };
 }
 
 function buildRange(b: Builder): BuiltWorld {
@@ -254,5 +268,5 @@ function buildRange(b: Builder): BuiltWorld {
     { pos: new THREE.Vector3(2, 0, -20), slide: false },
     { pos: new THREE.Vector3(0, 0, -40), slide: false },
   ];
-  return { group: b.group, spawn: new THREE.Vector3(0, 0.05, 2), spawnYaw: 0, dummySpots: spots };
+  return { group: b.group, spawn: new THREE.Vector3(0, 0.05, 2), spawnYaw: 0, dummySpots: spots, enemySpots: [], checkpoint: null };
 }

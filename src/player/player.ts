@@ -16,6 +16,11 @@ const _aim = new THREE.Vector3();
 const _e = new THREE.Euler();
 const _up = new THREE.Vector3(0, 1, 0);
 const _hand = new THREE.Vector3();
+const _mouth = new THREE.Vector3();
+const _pouch = new THREE.Vector3();
+const _healHand = new THREE.Vector3();
+const _hr = new THREE.Vector3();
+const _hl = new THREE.Vector3();
 
 /** Per-frame pose overrides from the weapon system (recoil, reload choreography). */
 export interface WeaponPose {
@@ -36,6 +41,12 @@ export class Player {
   model: WeaponModel | null = null;
   combatTimer = 0;
   aiming = false;
+  dead = false;
+  /** Heal progress 0..1 while drinking, or -1. Drives the off hand to the mouth. */
+  healT = -1;
+  /** Heal lands at this progress (the drop disappears). */
+  healApplyAt = 0.7;
+  readonly drop: THREE.Mesh;
   private weaponQuat = new THREE.Quaternion();
   private adsBlend = 0;
   private swayT = 0;
@@ -52,6 +63,13 @@ export class Player {
     this.controller = new Controller(physics, spawn, yaw);
     this.biped = new Biped(scene, physics);
     scene.add(this.weaponRoot);
+    // The heal: a dewdrop carried to the mouth.
+    this.drop = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 10, 8).scale(1, 1.25, 1),
+      new THREE.MeshToonMaterial({ color: 0xcfeaff, emissive: 0x2a4a5a }),
+    );
+    this.drop.visible = false;
+    scene.add(this.drop);
   }
 
   get pos() {
@@ -90,9 +108,14 @@ export class Player {
         rollT: c.rollT,
         aimPoint,
         sprinting: c.sprinting,
+        dead: this.dead,
       },
       dt,
     );
+    if (this.dead) {
+      this.animateDead();
+      return;
+    }
 
     this.adsBlend = damp(this.adsBlend, ads, 18, dt);
     const model = this.model;
@@ -141,12 +164,42 @@ export class Player {
     root.updateMatrixWorld(true);
 
     const gripW = model.grip.clone().applyMatrix4(root.matrixWorld);
-    const foreW = pose.leftHand ? pose.leftHand(root, b, _hand) : model.fore.clone().applyMatrix4(root.matrixWorld);
+    let foreW = pose.leftHand ? pose.leftHand(root, b, _hand) : model.fore.clone().applyMatrix4(root.matrixWorld);
+    this.drop.visible = false;
+    if (this.healT >= 0) {
+      // Off hand leaves the gun, brings the dewdrop to the mouth, holds, then returns.
+      const t = this.healT;
+      const mouth = _mouth.copy(b.head.position).addScaledVector(b.forward, 0.16).addScaledVector(_up, -0.05);
+      const pouch = _pouch.copy(b.hips).addScaledVector(b.right, -0.15);
+      const toMouth = THREE.MathUtils.smoothstep(t, 0.15, 0.45);
+      const back = THREE.MathUtils.smoothstep(t, this.healApplyAt + 0.05, 1);
+      const p = _healHand.copy(foreW).lerp(pouch, THREE.MathUtils.smoothstep(t, 0, 0.15) * (1 - toMouth)).lerp(mouth, toMouth * (1 - back));
+      foreW = p.lerp(foreW, back);
+      if (t > 0.08 && t < this.healApplyAt) {
+        this.drop.visible = true;
+        this.drop.position.copy(foreW).addScaledVector(_up, 0.04);
+      }
+    }
     b.solveArms(gripW, foreW);
 
     this.muzzleWorld.copy(model.muzzle).applyMatrix4(root.matrixWorld);
     this.muzzleDir.set(0, 0, -1).applyQuaternion(root.quaternion);
     this.ejectWorld.copy(model.eject).applyMatrix4(root.matrixWorld);
+  }
+
+  /** Dead: the gun lies on the ground beside the flailing beetle. */
+  private animateDead() {
+    const b = this.biped;
+    const c = this.controller;
+    this.drop.visible = false;
+    this.weaponRoot.position.copy(c.pos).addScaledVector(b.right, 0.5).addScaledVector(b.forward, 0.2);
+    this.weaponRoot.position.y += 0.04;
+    _q.copy(b.yawQuat);
+    _q2.setFromEuler(_e.set(0, 0.6, Math.PI / 2));
+    this.weaponRoot.quaternion.copy(_q).multiply(_q2);
+    this.weaponRoot.updateMatrixWorld(true);
+    b.deadHands(_hr, _hl);
+    b.solveArms(_hr, _hl);
   }
 
   draw(limbs: LimbRenderer, dt: number) {

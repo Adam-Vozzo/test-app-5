@@ -7,11 +7,13 @@ const KEYS: [string, string][] = [
   ['Space', 'dodge-roll'],
   ['Shift', 'sprint'],
   ['R', 'reload'],
+  ['Q', 'heal (3 charges)'],
+  ['E', 'rest at sugar cube'],
   ['1 / 2 / 3 · wheel', 'swap weapon'],
   ['C', 'swap shoulder'],
   ['`', 'tuning panel'],
   ['T', 'slow-mo 0.25×'],
-  ['I / H', 'IK / hitbox debug'],
+  ['I / H / L', 'IK / hitbox / AI debug'],
   ['G', 'god mode'],
   ['P', 'pixel mode'],
   ['Esc', 'pause'],
@@ -20,6 +22,9 @@ const KEYS: [string, string][] = [
 export class Menus {
   private start: HTMLDivElement;
   private pause: HTMLDivElement;
+  private death: HTMLDivElement;
+  private deathNote: HTMLElement;
+  onRise: () => void = () => {};
   onPlay: (mode: 'arena' | 'range') => void = () => {};
   onResume: () => void = () => {};
   onQuit: () => void = () => {};
@@ -39,12 +44,19 @@ export class Menus {
       <button data-a="quit">Quit to menu</button>
       <div class="keys">${keys}</div>`);
     this.pause.classList.add('hidden');
-    for (const el of [this.start, this.pause]) {
+    this.death = this.make(`
+      <h1>Squished</h1>
+      <p class="note"></p>
+      <button data-a="rise">Rise at the sugar cube</button>`);
+    this.death.classList.add('death', 'hidden');
+    this.deathNote = this.death.querySelector('.note')!;
+    for (const el of [this.start, this.pause, this.death]) {
       el.addEventListener('click', (e) => {
         const a = (e.target as HTMLElement).dataset.a;
         if (a === 'arena' || a === 'range') this.onPlay(a);
         else if (a === 'resume') this.onResume();
         else if (a === 'quit') this.onQuit();
+        else if (a === 'rise') this.onRise();
       });
     }
   }
@@ -62,5 +74,9 @@ export class Menus {
   }
   showPause(v: boolean) {
     this.pause.classList.toggle('hidden', !v);
+  }
+  showDeath(v: boolean, note = '') {
+    this.death.classList.toggle('hidden', !v);
+    this.deathNote.textContent = note;
   }
 }

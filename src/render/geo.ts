@@ -71,8 +71,10 @@ export function merge(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return g;
 }
 
+/** Returns a transformed copy. Never mutates `geo` (callers reuse a part via `place(part.clone(), …)`). */
 export function transformed(geo: THREE.BufferGeometry, m: THREE.Matrix4): THREE.BufferGeometry {
-  return prep(geo).applyMatrix4(m);
+  const g = prep(geo);
+  return (g === geo ? g.clone() : g).applyMatrix4(m);
 }
 
 const _m = new THREE.Matrix4();

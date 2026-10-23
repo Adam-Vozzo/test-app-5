@@ -54,8 +54,44 @@ html, body {
 .slots span.on { opacity: 1; color: var(--cream); }
 .slots b { display: inline-block; min-width: 16px; text-align: center; border: 1px solid currentColor; border-radius: 3px; margin-right: 4px; }
 
+.prompt {
+  position: absolute; left: 50%; bottom: 160px; transform: translateX(-50%); background: #fff; color: var(--ink);
+  padding: 4px 12px; font-weight: 800; border-radius: 3px; box-shadow: 0 3px 0 var(--ink);
+}
+.vitals { position: absolute; left: 24px; top: 20px; display: flex; flex-direction: column; gap: 6px; }
+.vitals .bar {
+  position: relative; height: 12px; background: rgba(30, 20, 20, 0.7); border-radius: 2px; overflow: hidden;
+  transform: skewX(-12deg); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.vitals .bar i, .vitals .bar b { position: absolute; left: 0; top: 0; bottom: 0; }
+.vitals .hp { width: 220px; }
+.vitals .hp i { background: var(--kill); z-index: 1; }
+.vitals .hp b { background: #ffd2b0; }
+.vitals .st { width: 160px; height: 9px; }
+.vitals .st i { background: #8fd86a; }
+.vitals .st.exhausted i { background: #6d8a5c; }
+.heals { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.heals span {
+  width: 13px; height: 16px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; border: 2px solid #cfeaff; opacity: 0.35;
+}
+.heals span.on { background: #cfeaff; opacity: 1; }
+.heals em { font-style: normal; font-size: 11px; opacity: 0.7; margin-left: 2px; }
+.pollen { font-weight: 800; color: var(--crit); text-shadow: 0 2px 0 var(--ink); font-size: 18px; }
+.boss { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); width: min(560px, 70vw); text-align: left; }
+.boss .name { font-weight: 800; font-size: 18px; text-shadow: 0 2px 0 var(--ink); margin-bottom: 4px; }
+.boss .bar { height: 10px; background: rgba(30, 20, 20, 0.75); }
+.boss .bar i { display: block; height: 100%; background: var(--kill); }
+.vignette {
+  position: absolute; inset: 0; opacity: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 59, 48, 0) 45%, rgba(255, 59, 48, 0.55) 100%);
+}
+.labels div {
+  position: absolute; left: 0; top: 0; font: 11px ui-monospace, Menlo, monospace; color: #fff; background: rgba(30, 20, 20, 0.7);
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+}
+
 .stats {
-  position: absolute; left: 10px; top: 8px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
+  position: absolute; left: 10px; bottom: 8px; font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace;
   color: #fff; text-shadow: 0 1px 0 #000; white-space: pre; opacity: 0.85;
 }
 .range {
@@ -79,6 +115,8 @@ html, body {
   text-shadow: 0 4px 0 var(--ink);
 }
 .overlay h1 span { color: #ff6a3d; }
+.overlay.death { background: radial-gradient(ellipse at center, rgba(40, 10, 10, 0.55), rgba(18, 13, 12, 0.92)); }
+.overlay.death h1 { color: #ff6a3d; font-size: 72px; letter-spacing: 0.08em; }
 .overlay p { margin: 0; opacity: 0.85; max-width: 560px; text-align: center; }
 .overlay button {
   pointer-events: auto; font: inherit; font-size: 20px; font-weight: 800; padding: 10px 26px; border: 0;

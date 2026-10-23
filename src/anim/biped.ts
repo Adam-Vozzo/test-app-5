@@ -20,6 +20,8 @@ export interface BipedInput {
   rollT: number;
   aimPoint: THREE.Vector3;
   sprinting: boolean;
+  /** On its back, legs in the air. */
+  dead?: boolean;
 }
 
 interface Foot {
@@ -144,6 +146,12 @@ export class Biped {
     this.yawQuat.copy(_qYaw);
     this.forward.set(0, 0, -1).applyQuaternion(_qYaw);
     this.right.set(1, 0, 0).applyQuaternion(_qYaw);
+
+    if (inp.dead) {
+      this.updateDead(inp, dt);
+      return;
+    }
+    this.deadT = 0;
 
     if (!this.initialized) {
       this.initialized = true;
@@ -283,6 +291,42 @@ export class Biped {
       _e.set(this.headPitch, inp.yaw + this.headYaw, 0, 'YXZ');
       this.head.quaternion.setFromEuler(_e);
     }
+  }
+
+  private deadT = 0;
+
+  /** Flipped onto its back with legs flailing, then slowing (the cute death). */
+  private updateDead(inp: BipedInput, dt: number) {
+    this.deadT += dt;
+    const flipK = stepEase(Math.min(1, this.deadT / 0.4));
+    const flail = Math.max(0.15, 1 - this.deadT * 0.35);
+    _e.set((Math.PI / 2) * flipK, 0, Math.sin(this.deadT * 7) * 0.08 * flail, 'YXZ');
+    _q.setFromEuler(_e);
+    this.bodyQuat.copy(this.yawQuat).multiply(_q);
+    this.hips.copy(inp.root).addScaledVector(_up, 0.4 - 0.22 * flipK + Math.sin(Math.PI * Math.min(1, this.deadT / 0.4)) * 0.25);
+    const local = (x: number, y: number, z: number, out: THREE.Vector3) => out.set(x, y, z).applyQuaternion(this.bodyQuat).add(this.hips);
+    local(0, 0.2, 0, this.chest);
+    this.torso.position.copy(this.chest);
+    this.torso.quaternion.copy(this.bodyQuat);
+    local(0.15, 0.33, -0.02, this.shoulderR);
+    local(-0.15, 0.33, -0.02, this.shoulderL);
+    for (const f of this.feet) {
+      const w = Math.sin(this.deadT * 11 + f.side * 1.7) * 0.09 * flail;
+      local(f.side * 0.12, -0.28, -0.14 + w, f.pos);
+      f.planted.copy(f.pos);
+      f.stepping = false;
+    }
+    local(0, 0.52, -0.02, this.head.position);
+    this.head.quaternion.copy(this.bodyQuat);
+    this.wasRolling = true; // replant cleanly when revived
+  }
+
+  /** Arm targets while flailing on its back. */
+  deadHands(outR: THREE.Vector3, outL: THREE.Vector3) {
+    const flail = Math.max(0.15, 1 - this.deadT * 0.35);
+    const a = Math.sin(this.deadT * 9) * 0.1 * flail;
+    outR.set(0.25, 0.25 + a, -0.2).applyQuaternion(this.bodyQuat).add(this.hips);
+    outL.set(-0.25, 0.25 - a, -0.2).applyQuaternion(this.bodyQuat).add(this.hips);
   }
 
   /** Phase 2: arm IK to the given hand targets. */

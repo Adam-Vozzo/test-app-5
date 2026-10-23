@@ -112,6 +112,11 @@ try {
   });
   console.log('  arena stats', JSON.stringify(stats));
 
+  if (process.argv.includes('--enemies')) {
+    const { enemiesScenario } = await import('./smoke-m4.mjs');
+    await enemiesScenario({ page, g, hold, release, press, look, wait, shot });
+  }
+
   // Optional milestone-specific scenario
   if (process.argv.includes('--range')) {
     const { rangeScenario, weaponsScenario } = await import('./smoke-range.mjs');

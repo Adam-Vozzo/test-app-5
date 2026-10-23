@@ -68,12 +68,13 @@ src/
   physics/         Rapier world wrapper, collision groups
   render/          renderer, palette, geometry helpers, toon materials
   anim/            pure IK + gait logic, biped rig
-  player/          controller, camera, player state
+  player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
   weapons/         weapon defs, firing, recoil
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
-  world/           arenas, dummy range, props, (later) zone generator
+  enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
+  world/           arenas, dummy range, props, pollen drop, (later) zone generator
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)
 ```

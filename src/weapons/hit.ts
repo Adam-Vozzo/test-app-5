@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { clamp } from '../core/math';
 import type { RayHit } from '../physics/world';
-import { GARDEN, SIGNAL } from '../render/palette';
+import { activeBiome, SIGNAL } from '../render/palette';
 import { tuning } from '../tuning';
 import type { HitKind } from '../ui/hud';
 import type { WeaponDef } from './defs';
@@ -47,7 +47,11 @@ export function resolveHit(ctx: GunContext, d: WeaponDef, hit: RayHit, dir: THRE
     const crit = t.part === 'weak';
     const fall = falloffMul(d, dist);
     let dmg = d.damage * fall * (crit ? d.critMultiplier : 1);
-    if (t.part === 'armor') dmg *= 0.2;
+    const armor = t.part === 'armor';
+    if (armor) {
+      dmg *= t.owner.armorMul ?? 0.2;
+      ctx.synth.sfx('armor', 0.8);
+    }
     const killed = t.owner.takeDamage({
       amount: dmg,
       crit,
@@ -58,13 +62,14 @@ export function resolveHit(ctx: GunContext, d: WeaponDef, hit: RayHit, dir: THRE
     });
     const kind: HitKind = killed ? 'kill' : crit ? 'crit' : 'hit';
     fb.add(kind);
-    ctx.fx.sparksAt(hit.point, dir, crit || killed ? SIGNAL.crit : 0xffffff, crit ? 10 : 5, crit ? 6 : 4);
+    // Armour throws dull sparks: you can see you're wasting shots.
+    ctx.fx.sparksAt(hit.point, dir, crit || killed ? SIGNAL.crit : armor ? 0x9a9aa8 : 0xffffff, crit ? 10 : 5, crit ? 6 : 4);
     ctx.onHit({ damage: dmg, kind, distance: dist, owner: t.owner, shotId: fb.shotId });
     return true;
   }
   if (!t) {
-    ctx.fx.impact(hit.point, hit.normal, GARDEN.dust, d.impactParticles, d.impactSpeed);
-    ctx.fx.decal(hit.point, hit.normal, 0.07, GARDEN.decal);
+    ctx.fx.impact(hit.point, hit.normal, activeBiome.dust, d.impactParticles, d.impactSpeed);
+    ctx.fx.decal(hit.point, hit.normal, 0.07, activeBiome.decal);
   }
   return false;
 }
