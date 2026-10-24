@@ -28,6 +28,8 @@ uniform float edgeWidth;
 uniform float saturation;
 uniform float grain;
 uniform float keepSignals;
+uniform float snap;
+uniform vec2 res;
 uniform float signalSat;
 uniform float time;
 uniform float cameraNear;
@@ -73,8 +75,11 @@ vec3 kuwahara(vec2 uv) {
 }
 
 void main() {
-  vec3 orig = toGamma(texture2D(tColor, vUv).rgb);
-  vec3 col = radius > 0 ? kuwahara(vUv) : orig;
+  // Pixel mode: every screen pixel inside a block samples exactly that block's centre, so blocks are
+  // perfectly crisp (no stretched-canvas blur, no antialiasing smear).
+  vec2 uv = snap > 0.5 ? (floor(vUv * res) + 0.5) / res : vUv;
+  vec3 orig = toGamma(texture2D(tColor, uv).rgb);
+  vec3 col = radius > 0 ? kuwahara(uv) : orig;
 
   // Readability first: the smear must not eat thin bright FX (tracers, sparks, flashes) or small
   // saturated signals (telegraph magenta, weak-spot cyan, globs). Keep those pixels crisp.
@@ -97,16 +102,16 @@ void main() {
   // Soft edges where depth jumps (relative to distance), like a brush lifting at a silhouette.
   if (edgeStrength > 0.0) {
     vec2 o = texel * edgeWidth;
-    float dc = viewDepth(vUv);
-    float dx = abs(viewDepth(vUv + vec2(o.x, 0.0)) - viewDepth(vUv - vec2(o.x, 0.0)));
-    float dy = abs(viewDepth(vUv + vec2(0.0, o.y)) - viewDepth(vUv - vec2(0.0, o.y)));
+    float dc = viewDepth(uv);
+    float dx = abs(viewDepth(uv + vec2(o.x, 0.0)) - viewDepth(uv - vec2(o.x, 0.0)));
+    float dy = abs(viewDepth(uv + vec2(0.0, o.y)) - viewDepth(uv - vec2(0.0, o.y)));
     float g = (dx + dy) / max(dc, 1e-3);
     float edge = smoothstep(edgeThreshold, edgeThreshold * 3.0, g);
     col *= 1.0 - edge * edgeStrength;
   }
 
   // Paper grain.
-  col += (rand(vUv * 911.0 + time) - 0.5) * grain;
+  col += (rand(uv * 911.0 + time) - 0.5) * grain;
 
   gl_FragColor = vec4(toLinear(clamp(col, 0.0, 1.0)), 1.0);
   #include <colorspace_fragment>
@@ -142,6 +147,8 @@ export class PostPass {
         saturation: { value: 1.1 },
         grain: { value: 0.02 },
         keepSignals: { value: 1 },
+        snap: { value: 0 },
+        res: { value: new THREE.Vector2(1, 1) },
         signalSat: { value: 0.6 },
         time: { value: 0 },
         cameraNear: { value: 0.05 },
@@ -153,12 +160,27 @@ export class PostPass {
     this.quadScene.add(this.quad);
   }
 
-  render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera) {
+  /**
+   * @param pixel pixel mode: render at 1/pixelScale of the CSS size and snap to block centres. The painterly
+   *   effects only apply when `post.enabled`; otherwise pixel mode adds just a low-res outline for definition.
+   */
+  render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, pixel = false) {
     const p = tuning.post;
-    renderer.getDrawingBufferSize(this.size);
-    const scale = THREE.MathUtils.clamp(p.resolutionScale, 0.25, 1);
-    const w = Math.max(1, Math.floor(this.size.x * scale));
-    const h = Math.max(1, Math.floor(this.size.y * scale));
+    const d = tuning.debug;
+    const painterly = p.enabled;
+    let w: number;
+    let h: number;
+    if (pixel) {
+      renderer.getSize(this.size);
+      const k = Math.max(1, d.pixelScale);
+      w = Math.max(1, Math.floor(this.size.x / k));
+      h = Math.max(1, Math.floor(this.size.y / k));
+    } else {
+      renderer.getDrawingBufferSize(this.size);
+      const scale = THREE.MathUtils.clamp(p.resolutionScale, 0.25, 1);
+      w = Math.max(1, Math.floor(this.size.x * scale));
+      h = Math.max(1, Math.floor(this.size.y * scale));
+    }
     if (this.rt.width !== w || this.rt.height !== h) this.rt.setSize(w, h);
 
     renderer.setRenderTarget(this.rt);
@@ -167,15 +189,18 @@ export class PostPass {
 
     const u = this.material.uniforms;
     u.texel.value.set(1 / w, 1 / h);
-    u.radius.value = Math.round(THREE.MathUtils.clamp(p.kuwaharaRadius, 0, MAX_RADIUS));
+    u.res.value.set(w, h);
+    u.snap.value = pixel ? 1 : 0;
+    u.radius.value = painterly ? Math.round(THREE.MathUtils.clamp(p.kuwaharaRadius, 0, MAX_RADIUS)) : 0;
     u.levels.value = p.posterizeLevels;
-    u.posterizeMix.value = p.posterizeMix;
-    u.edgeStrength.value = p.edgeStrength;
+    u.posterizeMix.value = painterly ? p.posterizeMix : 0;
+    // Pixel mode always keeps at least its own outline so low-res silhouettes stay defined.
+    u.edgeStrength.value = pixel ? Math.max(d.pixelOutline, painterly ? p.edgeStrength : 0) : p.edgeStrength;
     u.edgeThreshold.value = p.edgeThreshold;
-    u.edgeWidth.value = p.edgeWidth;
-    u.saturation.value = p.saturation;
-    u.grain.value = p.grain;
-    u.keepSignals.value = p.keepSignals;
+    u.edgeWidth.value = painterly ? p.edgeWidth : 1;
+    u.saturation.value = painterly ? p.saturation : 1;
+    u.grain.value = painterly ? p.grain : 0;
+    u.keepSignals.value = painterly ? p.keepSignals : 0;
     u.signalSat.value = p.signalSaturation;
     u.time.value = (u.time.value + 0.013) % 10;
     u.cameraNear.value = camera.near;

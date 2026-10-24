@@ -237,7 +237,10 @@ export const tuning = {
     overview: false,
     showStats: true,
     pixelMode: false,
+    /** Screen pixels per pixel-mode block. */
     pixelScale: 2,
+    /** Outline strength in pixel mode when the painterly pass is off (keeps silhouettes defined). */
+    pixelOutline: 0.55,
   },
   swap: {
     lowerTime: 0.16,

@@ -19,6 +19,8 @@ const RANGES: Record<string, [number, number, number]> = {
   grain: [0, 0.15, 0.005],
   resolutionScale: [0.25, 1, 0.05],
   keepSignals: [0, 1, 0.05],
+  pixelScale: [1, 8, 1],
+  pixelOutline: [0, 1, 0.01],
   signalSaturation: [0.2, 1, 0.01],
 };
 

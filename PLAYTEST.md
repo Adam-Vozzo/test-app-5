@@ -3,6 +3,12 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## Pixel mode, rebuilt
+**P** (or `debug.pixelMode`) now renders the scene into a low-res target at 1/`pixelScale` with no antialiasing, and every screen pixel inside a block samples exactly that block's centre. The result is crisp blocks instead of the old stretched, antialiased blur.
+- `debug.pixelScale` (1–8) sets the block size in screen pixels.
+- `debug.pixelOutline` adds a one-block outline so silhouettes stay defined.
+- With **post → enabled** as well, the painterly smear, posterise and grain run at pixel resolution, and the outline is the stronger of the two settings.
+
 ## Painterly post-process (optional)
 Toggle it in the tuning panel: backtick → **post → enabled** (the folder opens by default, next to `debug`). It's off by default.
 - **Kuwahara smear** (`kuwaharaRadius` 0–6, default 3): flattens surfaces into brush-like patches while keeping edges sharp.

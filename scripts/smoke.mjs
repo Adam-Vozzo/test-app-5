@@ -84,7 +84,10 @@ try {
   const postDraws = await g(() => window.__game.renderer.renderer.info.render.calls);
   console.log('  post-process draws/frame', postDraws);
   if (postDraws < 5) throw new Error('frame stats only counted the post pass');
-  await g(() => { window.__tuning.post.enabled = false; });
+  await g(() => { window.__tuning.post.enabled = false; window.__tuning.debug.pixelMode = true; window.__tuning.debug.pixelScale = 3; });
+  await wait(700);
+  await shot('09-arena-pixel');
+  await g(() => { window.__tuning.debug.pixelMode = false; window.__tuning.debug.pixelScale = 2; });
 
   // Tuning panel open, with the repeater folder expanded.
   await g(() => {

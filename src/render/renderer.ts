@@ -18,8 +18,6 @@ export class Renderer {
   private sunOffset = new THREE.Vector3(-14, 26, 10);
   /** Painterly post-process, created the first time it's enabled. */
   private post: PostPass | null = null;
-  private pixelMode = false;
-  private pixelScale = 1;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -83,22 +81,15 @@ export class Renderer {
     this.renderer.setSize(w, h);
   }
 
-  syncPixelMode() {
-    const want = tuning.debug.pixelMode;
-    const scale = Math.max(1, tuning.debug.pixelScale);
-    if (want === this.pixelMode && scale === this.pixelScale) return;
-    this.pixelMode = want;
-    this.pixelScale = scale;
-    this.renderer.setPixelRatio(want ? 1 / scale : Math.min(window.devicePixelRatio, MAX_DPR));
-    this.renderer.domElement.style.imageRendering = want ? 'pixelated' : 'auto';
-    this.resize();
-  }
+  /** Pixel mode is rendered by the post pass now (crisp low-res target); nothing to resize here. */
+  syncPixelMode() {}
 
   render() {
     this.renderer.info.reset();
-    if (tuning.post.enabled) {
+    const pixel = tuning.debug.pixelMode;
+    if (tuning.post.enabled || pixel) {
       this.post ??= new PostPass();
-      this.post.render(this.renderer, this.scene, this.camera);
+      this.post.render(this.renderer, this.scene, this.camera, pixel);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
