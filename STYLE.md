@@ -121,6 +121,6 @@ The telegraph colour is defined once (`src/render/palette.ts → SIGNAL`), and b
 - [x] Player silhouette: black limbs, orange torso, round head and antennae, readable at range. The second eye no longer floats (M4 fix).
 - [x] Signal colours used for signals only, and visible in both biomes. A unit test checks telegraph contrast against every surface colour.
 - [x] One shadow-casting light, fog tinted to the biome.
-- [ ] Painterly posterise / soft-edge post pass. **Not done**: it costs a full-screen pass that integrated GPUs may not afford, and the toon ramp plus stripes already carry most of the look. Revisit only if you want it.
+- [x] Painterly posterise / soft-edge post pass: `src/render/post.ts` **optional, off by default** (tuning panel → `post` → `enabled`). It does a Kuwahara smear, luminance posterise, soft darkening at depth edges, saturation and grain. Thin bright FX and saturated signal colours are kept unfiltered so readability isn't traded for looks.
 
-Known gaps against the reference: our ground stripes are geometric (per-triangle) rather than brushy, and there's no outline or rim highlight.
+Known gaps against the reference: with the post pass off, ground stripes are geometric (per-triangle) rather than brushy and there are no soft outlines. Turn the pass on for those.

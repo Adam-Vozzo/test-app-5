@@ -210,6 +210,22 @@ export const tuning = {
     footstepGain: 0.12,
     sfxGain: 0.8,
   },
+  /** Painterly post-process (STYLE.md): Kuwahara smear + luminance posterise + soft depth edges. */
+  post: {
+    enabled: false,
+    kuwaharaRadius: 3,
+    posterizeLevels: 7,
+    posterizeMix: 0.6,
+    edgeStrength: 0.35,
+    edgeThreshold: 0.04,
+    edgeWidth: 1.5,
+    saturation: 1.1,
+    grain: 0.02,
+    /** Keep thin bright FX and strongly saturated signal colours unfiltered (readability). */
+    keepSignals: 1,
+    signalSaturation: 0.6,
+    resolutionScale: 1,
+  },
   debug: {
     slowmo: false,
     slowmoScale: 0.25,

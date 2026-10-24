@@ -3,6 +3,19 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## Painterly post-process (optional)
+Toggle it in the tuning panel: backtick → **post → enabled** (the folder opens by default, next to `debug`). It's off by default.
+- **Kuwahara smear** (`kuwaharaRadius` 0–6, default 3): flattens surfaces into brush-like patches while keeping edges sharp.
+- **Posterise** (`posterizeLevels`, `posterizeMix`): bands the luminance only, so hues stay true.
+- **Soft edges** (`edgeStrength`, `edgeThreshold`, `edgeWidth`): darkens where depth jumps, giving silhouettes a painted outline.
+- **`saturation`**, paper **`grain`**.
+- **`keepSignals` / `signalSaturation`**: thin bright FX (tracers, sparks, muzzle flash) and strongly saturated colours (telegraph magenta, weak-spot cyan, globs) skip the smear so they stay readable. As a side effect the player's orange torso stays crisp too.
+- **`resolutionScale`** (0.25–1): runs the pass at lower resolution, the first thing to drop on an integrated GPU.
+
+**Unsure about:**
+- **Cost.** At radius 3 it's 49 texture reads per pixel, plus 4 depth reads for edges. I couldn't measure real frame time here, so watch the overlay's fps when you toggle it.
+- **Far grass.** Thin stripes on distant grass blades can turn into vertical "zipper" streaks. Lower the radius or raise `resolutionScale` if they bother you.
+
 ## Tuning pass 2 (your JSON, baked in as defaults)
 - **Roll**: shorter and snappier (0.4s at 8 u/s, speeding up to 1.2× by the end, 0.03s recovery, one tumble, 0.3s i-frames).
 - **Biped**: wider stance (0.143).

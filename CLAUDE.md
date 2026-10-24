@@ -68,7 +68,7 @@ src/
   tuning.ts        all feel numbers (weapons reference src/weapons/defs.ts)
   core/            rng, math/springs, input, time (slow-mo, hitstop)
   physics/         Rapier world wrapper, collision groups
-  render/          renderer, palette, geometry helpers, toon materials
+  render/          renderer, palette, geometry helpers, toon materials, optional painterly post pass
   anim/            pure IK + gait logic, biped rig
   player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
   weapons/         weapon defs, firing, recoil

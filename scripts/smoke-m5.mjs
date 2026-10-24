@@ -13,6 +13,10 @@ export async function zonesScenario({ g, wait, shot }) {
     await g((t) => window.__game.start(t), theme);
     await wait(1500);
     await shot(`50-${theme}-spawn`);
+    await g(() => { window.__tuning.post.enabled = true; });
+    await wait(700);
+    await shot(`50-${theme}-spawn-post`);
+    await g(() => { window.__tuning.post.enabled = false; });
     await g(() => { window.__tuning.debug.overview = true; window.__tuning.debug.showGraph = true; });
     await wait(900);
     await shot(`51-${theme}-overview`);

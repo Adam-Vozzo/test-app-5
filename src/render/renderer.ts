@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import type { BiomePalette } from './palette';
 import { tuning } from '../tuning';
+import { PostPass } from './post';
 
 /** Integrated GPUs on hi-dpi screens choke at 2×; 1.5× keeps edges clean at a fraction of the fill cost. */
 const MAX_DPR = 1.5;
@@ -15,6 +16,8 @@ export class Renderer {
   /** Muzzle light always exists (changing light count recompiles shaders); toggled by intensity. */
   readonly muzzleLight: THREE.PointLight;
   private sunOffset = new THREE.Vector3(-14, 26, 10);
+  /** Painterly post-process, created the first time it's enabled. */
+  private post: PostPass | null = null;
   private pixelMode = false;
   private pixelScale = 1;
 
@@ -25,6 +28,8 @@ export class Renderer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Count the whole frame (scene + post pass), not just the last render call.
+    this.renderer.info.autoReset = false;
     container.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 400);
@@ -90,6 +95,12 @@ export class Renderer {
   }
 
   render() {
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.info.reset();
+    if (tuning.post.enabled) {
+      this.post ??= new PostPass();
+      this.post.render(this.renderer, this.scene, this.camera);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 }

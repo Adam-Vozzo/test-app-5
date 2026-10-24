@@ -7,9 +7,26 @@ const PRESET_KEY = 'abd.presets.v1';
 type Obj = Record<string, unknown>;
 
 /** Slider range heuristics from the default value; anything odd stays a number box (drag to edit). */
+/** Explicit slider ranges where the default-value heuristic would pick a bad range. */
+const RANGES: Record<string, [number, number, number]> = {
+  kuwaharaRadius: [0, 6, 1],
+  posterizeLevels: [2, 16, 1],
+  posterizeMix: [0, 1, 0.01],
+  edgeStrength: [0, 1, 0.01],
+  edgeThreshold: [0.005, 0.3, 0.005],
+  edgeWidth: [0.5, 4, 0.1],
+  saturation: [0, 2, 0.01],
+  grain: [0, 0.15, 0.005],
+  resolutionScale: [0.25, 1, 0.05],
+  keepSignals: [0, 1, 0.05],
+  signalSaturation: [0.2, 1, 0.01],
+};
+
 function addNumber(folder: GUI, obj: Obj, key: string): Controller {
   const v = obj[key] as number;
   const lower = key.toLowerCase();
+  const r = RANGES[key];
+  if (r) return folder.add(obj, key, r[0], r[1], r[2]);
   if (lower.includes('color')) return folder.addColor(obj, key);
   if (Number.isInteger(v) && Math.abs(v) >= 1 && Math.abs(v) < 64 && !lower.includes('deg')) {
     return folder.add(obj, key, Math.min(0, v * 3), Math.max(1, v * 3), 1);
@@ -94,7 +111,7 @@ export class Panel {
     for (const key of Object.keys(t)) {
       const f = this.gui.addFolder(key);
       build(f, t[key] as Obj, new Set(['id', 'name']));
-      if (key !== 'debug') f.close();
+      if (key !== 'debug' && key !== 'post') f.close();
     }
     this.gui.hide();
   }

@@ -77,6 +77,15 @@ try {
   await wait(300);
   await shot('06-arena-colliders');
   await g(() => window.__game.input.onKey('KeyH'));
+  // Painterly post-process on (a shader compile error logs a console error and fails the run).
+  await g(() => { window.__tuning.post.enabled = true; });
+  await wait(800);
+  await shot('08-arena-post');
+  const postDraws = await g(() => window.__game.renderer.renderer.info.render.calls);
+  console.log('  post-process draws/frame', postDraws);
+  if (postDraws < 5) throw new Error('frame stats only counted the post pass');
+  await g(() => { window.__tuning.post.enabled = false; });
+
   // Tuning panel open, with the repeater folder expanded.
   await g(() => {
     const gm = window.__game;
