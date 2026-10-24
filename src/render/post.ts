@@ -40,10 +40,11 @@ varying vec2 vUv;
 vec3 toGamma(vec3 c) { return pow(max(c, 0.0), vec3(1.0 / 2.2)); }
 vec3 toLinear(vec3 c) { return pow(max(c, 0.0), vec3(2.2)); }
 
-float viewDepth(vec2 uv) {
-  float d = texture2D(tDepth, uv).x;
-  float z = d * 2.0 - 1.0;
-  return (2.0 * cameraNear * cameraFar) / (cameraFar + cameraNear - z * (cameraFar - cameraNear));
+// 1 / view depth. It is affine in the depth-buffer value, and on any flat surface it is affine in screen
+// position too, so its second difference is zero on a plane no matter how steeply it is viewed.
+float invDepth(vec2 uv) {
+  float z = texture2D(tDepth, uv).x * 2.0 - 1.0;
+  return (cameraFar + cameraNear - z * (cameraFar - cameraNear)) / (2.0 * cameraNear * cameraFar);
 }
 
 // Classic four-quadrant Kuwahara: pick the mean of the least-varied quadrant. Flattens texture into
@@ -99,13 +100,16 @@ void main() {
   float lum2 = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(lum2), col, saturation);
 
-  // Soft edges where depth jumps (relative to distance), like a brush lifting at a silhouette.
+  // Soft outlines at silhouettes, like a brush lifting. Uses the Laplacian of inverse depth: zero on
+  // flat ground even at grazing angles (a plain depth gradient blackens the distant floor), and
+  // negative only when this pixel is nearer than its surroundings, so the line sits on the
+  // foreground object and is one pixel thick in pixel mode.
   if (edgeStrength > 0.0) {
     vec2 o = texel * edgeWidth;
-    float dc = viewDepth(uv);
-    float dx = abs(viewDepth(uv + vec2(o.x, 0.0)) - viewDepth(uv - vec2(o.x, 0.0)));
-    float dy = abs(viewDepth(uv + vec2(0.0, o.y)) - viewDepth(uv - vec2(0.0, o.y)));
-    float g = (dx + dy) / max(dc, 1e-3);
+    float ic = invDepth(uv);
+    float lap = invDepth(uv + vec2(o.x, 0.0)) + invDepth(uv - vec2(o.x, 0.0))
+              + invDepth(uv + vec2(0.0, o.y)) + invDepth(uv - vec2(0.0, o.y)) - 4.0 * ic;
+    float g = -lap / max(ic, 1e-6);
     float edge = smoothstep(edgeThreshold, edgeThreshold * 3.0, g);
     col *= 1.0 - edge * edgeStrength;
   }

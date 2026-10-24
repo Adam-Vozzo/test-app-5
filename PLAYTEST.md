@@ -3,6 +3,19 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## Outlines no longer blacken the floor
+The outline used to fire wherever depth changed quickly between neighbouring pixels. Ground seen at a grazing
+angle does exactly that near the horizon, so with `pixelOutline` at 1 the far floor turned into black bands.
+Outlines now use the second difference of inverse depth, which is zero on any flat surface however steeply
+you see it. They are also drawn only on the nearer object's side of an edge, so pixel-mode outlines are one
+block thick. This applies to the painterly pass too.
+
+**Try:** pixel mode with `pixelScale` 4 and `pixelOutline` 1, looking across the open floor in the Garden and the Kitchen.
+
+**Unsure about:**
+- Creases where a box face meets the floor no longer get a line (only convex corners and silhouettes do). Tell me if you miss them.
+- Painterly outlines are thinner than before. Raise `post.edgeWidth` if you want the softer, wider brush line back.
+
 ## Pixel mode, rebuilt
 **P** (or `debug.pixelMode`) now renders the scene into a low-res target at 1/`pixelScale` with no antialiasing, and every screen pixel inside a block samples exactly that block's centre. The result is crisp blocks instead of the old stretched, antialiased blur.
 - `debug.pixelScale` (1–8) sets the block size in screen pixels.
