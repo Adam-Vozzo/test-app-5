@@ -3,6 +3,16 @@
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 
+## Tuning pass 2 (your JSON, baked in as defaults)
+- **Roll**: shorter and snappier (0.4s at 8 u/s, speeding up to 1.2× by the end, 0.03s recovery, one tumble, 0.3s i-frames).
+- **Biped**: wider stance (0.143).
+- **Skitterer**: 120 hp (was 40) and speed 9 (was 6.2). **Spitter**: 75 hp, keeps 16u away, faster glob (1.0s) with a bigger splash (1.5).
+  **Brute**: 800 hp, quicker charge wind-up (1.1s) at 14 u/s.
+- **Seed-spitter** recoil 5.9° (kick back 0.15); **staple driver** recoil 2.5°.
+- **Debug defaults**: AI state labels now **on** (press L to hide), pixel-mode scale 2.
+
+Worth a second look: the brief describes the skitterer as "fast, fragile, swarms". At 120 hp it takes about 14 repeater body shots or about 3 close seed-spitter blasts. That makes it fast and tough rather than fragile, which changes its job from "punish standing still" to "a duel". Keep it if that's what you want.
+
 ## M6: Style pass, performance pass, GitHub Pages deploy
 **Performance** (measured headless, so treat these as counts, not frame rates):
 | Scene | Draw calls | Triangles | Before M6 |
