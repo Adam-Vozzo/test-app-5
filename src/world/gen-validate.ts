@@ -13,6 +13,8 @@ export interface LevelParts {
   furn: Furnishing;
   sockets: Socket[];
   dressing: Dressing;
+  /** The least distance a ranged enemy may start from its room's entry (m); 0 skips the rule. */
+  rangedMin?: number;
 }
 
 /** Fog makes everything beyond this invisible anyway; the props budget is what's built. */
@@ -83,10 +85,15 @@ export function checkSpace({ dim, space }: LevelParts): string[] {
   return out;
 }
 
-export function checkSockets({ graph, space, furn, sockets, dressing }: LevelParts): string[] {
+export function checkSockets({ dim, graph, space, furn, sockets, dressing, rangedMin = 0 }: LevelParts): string[] {
   const out: string[] = [];
   for (const s of sockets) {
     const r = space.rooms.find((x) => x.node === s.node)!;
+    // Fair range: every throw can be read and dodged from the moment you walk in.
+    if (rangedMin > 0 && dim.rangedFoes.includes(s.foe)) {
+      const entry = r.doors.find((d) => d.dir === (r.inDir + 2) % 4) ?? r.doors[0];
+      if (Math.hypot(s.x - entry.x, s.z - entry.z) < rangedMin) out.push(`sockets: ${s.foe} within ${rangedMin.toFixed(1)} m of room ${s.node}'s entry`);
+    }
     if (!inRoom(r, s.x, s.z, EDGE.thick + 0.4)) out.push(`sockets: ${s.kind} outside room ${s.node}`);
     const [, v] = toLocal(r, s.x, s.z);
     // Fair angles: nobody starts behind or beside the entrance unless it's an ambush (with its tell).

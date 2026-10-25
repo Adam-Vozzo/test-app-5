@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, type AreaPalette, type BiomePalette } from '../src/render/palette';
+import { FOES, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, type AreaPalette, type BiomePalette } from '../src/render/palette';
 
 const rgb = (hex: number) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => v / 255);
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -70,6 +70,24 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
         const ok = hueGap(SIGNAL.charge, c) >= 35 || contrast(SIGNAL.charge, c) >= 2;
         expect(ok, `charge vs #${c.toString(16)}`).toBe(true);
       }
+    }
+  });
+  it("Justice's enemies never wear a signal colour, and read dark against the fog (STYLE.md → Characters)", () => {
+    // Saturation: a near-grey never reads as a saturated signal, whatever its nominal hue.
+    const sat = (hex: number) => {
+      const [r, g, b] = rgb(hex);
+      const max = Math.max(r, g, b);
+      return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+    };
+    for (const [name, c] of Object.entries(FOES)) {
+      for (const sig of [SIGNAL.telegraph, SIGNAL.kill, SIGNAL.weakSpot, SIGNAL.crit, SIGNAL.charge]) {
+        const ok = hueGap(c, sig) >= 35 || contrast(c, sig) >= 2 || sat(c) < 0.2;
+        expect(ok, `${name} vs signal #${sig.toString(16)}`).toBe(true);
+      }
+    }
+    // The bodies (not the small gear accents) stand out as silhouettes against the pale horizon.
+    for (const body of [FOES.bailiffArmour, FOES.shield, FOES.gavelBody, FOES.blindfoldRobe, FOES.pageCoat, FOES.limb]) {
+      expect(contrast(body, JUSTICE.fog), `#${body.toString(16)}`).toBeGreaterThanOrEqual(4);
     }
   });
   it('signal colours are distinct from each other', () => {

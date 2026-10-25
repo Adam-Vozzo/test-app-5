@@ -231,6 +231,98 @@ export const tuning = {
     corpseTime: 6,
     globDamageGrace: 0.05,
   },
+  /**
+   * v2 Justice enemies (V2-4), in metres and seconds. Every attack has a wind-up (pose + magenta glow + sound), an
+   * active window, and a recovery you can punish. Attacks are picked by range and weight; `hits` > 1 is a mirrored
+   * combo (the second swing comes from the other side: answer in kind).
+   */
+  foes: {
+    bailiff: {
+      health: 170,
+      poise: 40,
+      poiseRegen: 22,
+      speed: 2.4,
+      runSpeed: 4.0,
+      accel: 18,
+      turnRate: 4.5,
+      sightRange: 24,
+      leash: 34,
+      /** The shield turns blows arriving within this cone of its front, except during and after its own swing. */
+      guardConeDeg: 120,
+      staggerTime: 0.9,
+      separation: 1.8,
+      reward: 6,
+      attacks: {
+        thrust: { range: 2.5, windup: 0.6, active: 0.16, recover: 0.85, cooldown: 0.9, damage: 22, knockback: 4, arcDeg: 70, lunge: 2.6, weight: 1 },
+        bash: { range: 1.7, windup: 0.42, active: 0.12, recover: 0.55, cooldown: 2.6, damage: 10, knockback: 9, arcDeg: 90, lunge: 1.8, weight: 0.7 },
+      },
+    },
+    gavel: {
+      health: 300,
+      poise: 90,
+      poiseRegen: 18,
+      speed: 1.8,
+      runSpeed: 2.8,
+      accel: 10,
+      turnRate: 2.6,
+      sightRange: 22,
+      leash: 30,
+      staggerTime: 1.4,
+      separation: 2.4,
+      reward: 12,
+      attacks: {
+        /** Overhead slam: a ground ring fills during the wind-up and erupts where it lands. */
+        slam: { range: 3.6, windup: 1.15, active: 0.12, recover: 1.6, cooldown: 1.0, damage: 42, knockback: 10, arcDeg: 360, lunge: 0.8, weight: 1, radius: 2.6, reach: 2.2 },
+        sweep: { range: 2.9, windup: 0.85, active: 0.22, recover: 1.1, cooldown: 2.4, damage: 26, knockback: 7, arcDeg: 170, lunge: 0.6, weight: 0.6 },
+      },
+    },
+    blindfold: {
+      health: 140,
+      poise: 30,
+      poiseRegen: 25,
+      speed: 2.0,
+      runSpeed: 5.2,
+      accel: 24,
+      turnRate: 7,
+      /** It doesn't see. It hears noises within these radii (m) and feels you when you're this close. */
+      senseRange: 2.4,
+      searchTime: 2.5,
+      leash: 40,
+      staggerTime: 0.8,
+      separation: 1.6,
+      reward: 10,
+      attacks: {
+        slash: { range: 2.4, windup: 0.45, active: 0.12, recover: 0.95, cooldown: 0.7, damage: 18, knockback: 4, arcDeg: 120, lunge: 2.2, weight: 1, hits: 2, comboWindup: 0.3 },
+      },
+    },
+    page: {
+      health: 120,
+      poise: 25,
+      poiseRegen: 25,
+      speed: 3.0,
+      runSpeed: 5.6,
+      accel: 26,
+      turnRate: 7,
+      sightRange: 30,
+      leash: 36,
+      /** Keeps this far away and throws; sees you and whistles the room awake. */
+      holdRange: 15,
+      alertRadius: 32,
+      staggerTime: 0.8,
+      separation: 1.6,
+      reward: 16,
+      attacks: {
+        throw: { range: 24, windup: 0.65, active: 0.1, recover: 0.7, cooldown: 1.6, damage: 16, knockback: 3, arcDeg: 360, lunge: 0, weight: 1, speed: 16 },
+        cut: { range: 2.2, windup: 0.4, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 14, knockback: 4, arcDeg: 100, lunge: 1.6, weight: 1 },
+      },
+    },
+    /** How far each noise carries (m). Walking is nearly silent: the Blindfold hunts gunfire and haste. */
+    noise: { pistol: 42, rifle: 55, blade: 16, sprint: 9, roll: 7, walk: 2.5 },
+    hitFlashTime: 0.08,
+    corpseTime: 5,
+    /** Idle enemies beyond this distance are hidden and skip their update (they're lost in the fog). */
+    sleepDistance: 75,
+  },
   dummy: {
     health: 220,
     respawnTime: 2.2,

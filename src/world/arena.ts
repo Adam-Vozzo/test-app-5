@@ -5,7 +5,7 @@ import type { Rng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { meshOf, paintBy, prep, toonMat } from '../render/geo';
 import type { BiomePalette } from '../render/palette';
-import type { SpawnSpec } from '../enemies/manager';
+import type { FoeSpawn, SpawnSpec } from '../enemies/manager';
 import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleGeo, sugarCubeGeo } from './props';
 
 /**
@@ -40,6 +40,8 @@ export interface BuiltWorld {
   spawnYaw: number;
   dummySpots: { pos: THREE.Vector3; slide: boolean; guardYaw?: number }[];
   enemySpots: SpawnSpec[];
+  /** v2 humanoid enemies (generated levels). */
+  foeSpots?: FoeSpawn[];
   /** Checkpoint: rest here (E). */
   checkpoint: THREE.Vector3 | null;
   /** What the checkpoint is called in prompts ("the lantern"). */

@@ -5,6 +5,8 @@
 export type Beat = 'introduce' | 'develop' | 'twist';
 export type CourtRank = 'knight' | 'queen' | 'king';
 export type EncounterTemplate = 'arena' | 'guarded' | 'nest' | 'ambush' | 'patrol' | 'signature';
+/** Socket roles an encounter template places (see gen-dress.ts → encounters). */
+export type SocketRole = 'grunt' | 'guard' | 'ranged' | 'patrol' | 'signature';
 
 export type RoomKitId =
   | 'start'
@@ -79,6 +81,8 @@ export interface LevelBeatDef {
   mustInclude: EncounterTemplate[];
   /** Two combats may sit back to back (the twist level only). */
   allowAdjacentCombats: boolean;
+  /** Which enemies fill each socket role (introduce one new enemy at a time; the twist mixes them). */
+  roster: Record<SocketRole, string[]>;
 }
 
 export interface DimensionDef {
@@ -111,6 +115,8 @@ export interface DimensionDef {
   landmark: { beyondExit: number; fromStart: number; height: number; baseY: number };
   /** Great swords standing out of the fog near vista sight lines (hero props). */
   heroProps: [number, number];
+  /** Enemies that throw from range (held to the fair-distance rule in validation). */
+  rangedFoes: string[];
 }
 
 export const JUSTICE_DIMENSION: DimensionDef = {
@@ -128,6 +134,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
       allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff'], guard: ['bailiff'], ranged: ['bailiff'], patrol: ['bailiff'], signature: ['blindfold'] },
     },
     {
       beat: 'develop',
@@ -138,6 +145,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
       allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff', 'gavel'], guard: ['bailiff'], ranged: ['page'], patrol: ['bailiff'], signature: ['blindfold'] },
     },
     {
       beat: 'twist',
@@ -148,6 +156,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
       allowAdjacentCombats: true,
+      roster: { grunt: ['bailiff', 'gavel', 'blindfold'], guard: ['bailiff', 'gavel'], ranged: ['page'], patrol: ['bailiff', 'gavel'], signature: ['blindfold'] },
     },
   ],
   setPieces: [
@@ -183,6 +192,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
   branches: [1, 2],
   landmark: { beyondExit: 90, fromStart: 360, height: 175, baseY: -62 },
   heroProps: [1, 3],
+  rangedFoes: ['page'],
 };
 
 export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION };

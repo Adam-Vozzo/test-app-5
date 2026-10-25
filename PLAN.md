@@ -121,7 +121,7 @@ Enemy spawns can use placeholder dummies until V2-4.
   - placeholders: enemies are training dummies (shields for guards), the miniboss is a guard dummy, and a cache gives
     back one heal flask
 
-## V2-4: Justice enemies
+## V2-4: Justice enemies ✅ (waiting on your playtest)
 - **Humanoid enemy rig:** reuse the procedural biped for stocky humanoids. Keep the multi-leg rig for beasts later
   (the Moon's dog, wolf and crayfish).
 - **Archetypes:**
@@ -131,6 +131,22 @@ Enemy spawns can use placeholder dummies until V2-4.
   - *Page of Swords* (elite scout)
 - Body plans are data, AI reuses the v1 state machine, and telegraphs follow the existing magenta rules.
 - Encounter templates from `LEVELS.md` drive placement.
+- **Done as:**
+  - a light humanoid rig for enemies (`src/enemies/humanoid.ts`: the player's planted-step gait and IK, no cloth)
+    driven by data poses
+  - the four archetypes as data in `src/enemies/foes.ts` (looks, gear, hitboxes, senses, attack poses), with feel
+    numbers in `tuning.foes`
+  - pure AI decisions in `src/enemies/foe-ai.ts` (attack timelines with mirrored combos, choice by range and weight,
+    arcs, guard cone, hearing, the fair-range rule), tested in `tests/foe-ai.test.ts`
+  - the `Foe` state machine (`src/enemies/foe.ts`): stand, patrol or ambush (with an audible tell), alert, approach
+    or hold range, attack, search, return on a leash, stagger, die
+  - the player makes noise (gunfire, blades, sprinting, rolling) that enemies hear; the Page's whistle wakes the room
+  - hazards: the slam ring and thrown blades; seven new wind-up and impact sounds
+  - generated levels fill encounter sockets from each beat's roster (data in `dimensions.ts`), and validation enforces
+    the ranged-distance rule
+  - the `--foes` smoke scenario: the shield blocks from the front but not in recovery, the slam hurts in its ring,
+    the Blindfold ignores walking and comes for gunfire, the Page throws, kills pay
+  - the miniboss socket stays a guard dummy until V2-5
 
 ## V2-5: Court-card minibosses (rank behaviours)
 - Shared behaviour sets: **Knight** (mobility), **Queen** (control), **King** (command), each with a Swords suit kit.

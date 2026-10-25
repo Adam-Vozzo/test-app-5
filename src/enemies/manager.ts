@@ -2,7 +2,10 @@
 // and the debug AI labels.
 import * as THREE from 'three';
 import type { LimbRenderer } from '../render/limbs';
-import { Enemy, type EnemyWorld } from './enemy';
+import type { Rng } from '../core/rng';
+import { Enemy, type EnemyWorld, type Hostile } from './enemy';
+import { Foe, type FoeIdle } from './foe';
+import type { FoeId } from './foe-ai';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
 
@@ -12,9 +15,17 @@ export interface SpawnSpec {
   yaw: number;
 }
 
+/** A v2 humanoid's spawn (from a level's encounter sockets). */
+export interface FoeSpawn {
+  id: FoeId;
+  pos: THREE.Vector3;
+  yaw: number;
+  idle: FoeIdle;
+}
+
 export class EnemyManager {
-  readonly enemies: Enemy[] = [];
-  onKilled: (e: Enemy) => void = () => {};
+  readonly enemies: Hostile[] = [];
+  onKilled: (e: Hostile) => void = () => {};
 
   constructor(
     private scene: THREE.Scene,
@@ -27,6 +38,19 @@ export class EnemyManager {
       e.onKilled = (x) => this.onKilled(x);
       this.enemies.push(e);
     }
+  }
+
+  spawnFoes(specs: FoeSpawn[], physics: EnemyWorld['physics'], rng: Rng) {
+    specs.forEach((s, i) => {
+      const e = new Foe(s.id, this.scene, physics, s.pos, s.yaw, s.idle, rng.fork(`foe${i}`));
+      e.onKilled = (x) => this.onKilled(x);
+      this.enemies.push(e);
+    });
+  }
+
+  /** Wake every enemy within `radius` of `from` (a Page's whistle). */
+  alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller: Hostile) {
+    for (const e of this.enemies) if (e !== caller && e.alive && e.center.distanceTo(from) <= radius) e.alert?.(at);
   }
 
   clear() {
@@ -46,6 +70,7 @@ export class EnemyManager {
 
   update(dt: number, w: EnemyWorld) {
     for (const e of this.enemies) if (e.group.visible || e.alive) e.update(dt, w);
+    this.hazards.updateKnives(dt, w);
     for (const hit of this.hazards.update(dt)) {
       w.sound('splash', hit.at);
       const dx = w.playerPos.x - hit.at.x;
@@ -56,11 +81,11 @@ export class EnemyManager {
   }
 
   draw(limbs: LimbRenderer) {
-    for (const e of this.enemies) if (e.group.visible) e.rig.draw(limbs);
+    for (const e of this.enemies) if (e.group.visible) e.draw(limbs);
   }
 
   /** The elite currently fighting the player (for the boss bar). */
-  get activeElite(): Enemy | null {
-    return this.enemies.find((e) => e.elite && e.aggroed) ?? null;
+  get activeElite(): Hostile | null {
+    return this.enemies.find((e) => e.bar && e.aggroed) ?? null;
   }
 }

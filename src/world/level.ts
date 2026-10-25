@@ -6,6 +6,7 @@ import { makeRng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
 import { GEAR, JUSTICE } from '../render/palette';
+import type { FoeId } from '../enemies/foe-ai';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
@@ -283,12 +284,11 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     group,
     spawn: V(sp.x, sp.y + 0.05, sp.z),
     spawnYaw: sp.yaw,
-    // Enemies are training dummies until V2-4; the miniboss is a guard dummy until V2-5.
-    dummySpots: layout.sockets.map((s) => ({
-      pos: V(s.x, s.y, s.z),
-      slide: s.kind === 'patrol',
-      guardYaw: s.kind === 'guard' || s.kind === 'miniboss' ? s.yaw : undefined,
-    })),
+    // Justice's enemies stand on the encounter sockets; the miniboss is a guard dummy until V2-5.
+    foeSpots: layout.sockets
+      .filter((s) => s.foe !== 'miniboss')
+      .map((s) => ({ id: s.foe as FoeId, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? 'ambush' : s.kind === 'patrol' ? 'patrol' : 'stand' })),
+    dummySpots: layout.sockets.filter((s) => s.foe === 'miniboss').map((s) => ({ pos: V(s.x, s.y, s.z), slide: false, guardYaw: s.yaw })),
     enemySpots: [],
     checkpoint: restPoints[0]?.pos ?? null,
     restLabel: 'the lantern',

@@ -41,6 +41,8 @@ export interface GunContext {
   projectiles: Projectiles;
   onHit: (e: HitEvent) => void;
   onShot: (shotId: number) => void;
+  /** A guard turned a blow (shield sparks). */
+  onBlocked?: () => void;
 }
 
 const _origin = new THREE.Vector3();

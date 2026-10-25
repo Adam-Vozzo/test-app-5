@@ -96,6 +96,22 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     nods to Grey Scout's stealth.
   - *Gavel*: a slow overhead slam.
   - *Page of Swords* (elite): a fast scout that alerts the room.
+  - **As built in V2-4 (Proposed until played):**
+    - **Bailiff:** a tower shield with a pale sword crest. It turns shots and blade strikes from the front (a 120°
+      cone) except during and after its own swing. It thrusts (0.6 s wind-up) or shield-bashes up close. Flank it, or
+      dodge the thrust and punish the 0.85 s recovery.
+    - **Gavel:** a stooped 2.15 m mass dragging a great hammer. Its **slam** fills a magenta ground ring during a
+      1.15 s wind-up and erupts there (42 damage), then leaves it open for 1.6 s. It also sweeps. A cyan seam on its
+      back is the weak spot.
+    - **Blindfold** (signature): blind. It hears gunfire (42–55 m), blades (16 m), sprinting (9 m) and rolls (7 m),
+      but walking carries only 2.5 m, and it feels you within 2.4 m. It goes to the last noise, searches, then gives
+      up. Its slash is a **mirrored combo**: the second swing comes from the other side, so learning one teaches the
+      other.
+    - **Page of Swords** (elite, stays dead once slain): it holds about 15 m off, circles, and throws a blade
+      (telegraph-magenta, 0.65 s wind-up). When it first sees you it whistles, and every enemy within 32 m comes.
+    - **Shared:** every wind-up has a pose, a magenta glow (full on the weapon, a blush on the body) and its own
+      sound. Fights stay in their rooms: an enemy pulled more than 30–40 m from home walks back and heals. Resting
+      at a lantern brings back everyone except slain elites. Kills pay currency.
 - **Minibosses:**
   - *Knight of Swords*: charges through wind lanes.
   - *Queen of Swords*: cold precision, with lines of thrown blades to read and step through.

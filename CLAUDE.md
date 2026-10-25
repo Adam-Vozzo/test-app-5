@@ -17,11 +17,11 @@ The current slice exists to answer:
 Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
 four thin ones.
 
-> **Code status (V2-3):** the player, camera, weapons, look, the Justice training courtyard and the generated Justice
-> levels (`src/world/gen-*.ts`, `level.ts`) are v2, in metres. Enemies, v1 zones (`src/world/gen.ts`, `zone.ts`,
+> **Code status (V2-4):** the player, camera, weapons, look, the Justice training courtyard, the generated Justice
+> levels (`src/world/gen-*.ts`, `level.ts`) and Justice's enemies (`src/enemies/foe*.ts`, `humanoid.ts`) are v2, in
+> metres. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
-> through `?mode=arena|range|garden|kitchen` until V2-4 replaces them; generated levels use training dummies as
-> stand-ins. Comments that mention bugs, pollen or beetles describe that v1 content.
+> through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
 ## Pillars (check every decision against these)
 
@@ -59,15 +59,15 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --level --pistol --sword --enemies --zones` (`--level`, `--pistol` and `--sword` are v2; `--enemies` and
+  with `npm run smoke -- --level --foes --pistol --sword --enemies --zones` (`--level`, `--foes`, `--pistol` and `--sword` are v2; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
 ## Conventions
 
 - **Units**: **1 world unit = 1 metre**; the player is 1.6 m (`src/anim/body.ts` holds her proportions; lengths in the
-  rig, weapon placement and reloads come from `BODY`, never literals). `tuning.enemies` is still v1 beetle units
-  until V2-4. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where noted).
+  rig, weapon placement and reloads come from `BODY`, never literals). `tuning.foes` (v2 enemies) is in metres;
+  `tuning.enemies` is the v1 bugs, still in beetle units. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where noted).
 - **Seeded RNG everywhere**: never call `Math.random()` in game code. Use `rng()` from `src/core/rng.ts`, seeded
   from `?seed=` (shown in the debug overlay). FX jitter uses a separate stream so gameplay generation stays
   deterministic regardless of what effects ran.
@@ -116,8 +116,9 @@ src/
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
-  enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
-                   (v2: humanoid enemies on the biped rig, court-rank behaviours)
+  enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
+                   Foe state machine (foe.ts). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
+                   manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
                    gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), faceted prop kit,

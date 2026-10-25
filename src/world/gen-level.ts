@@ -35,8 +35,14 @@ export interface LevelReport {
 
 export const MAX_ATTEMPTS = 24;
 
+/** Rules that depend on enemy feel numbers, passed in so generation stays free of tuning. */
+export interface GenOptions {
+  /** The least distance a ranged enemy may start from its room's entry (m). */
+  rangedMin?: number;
+}
+
 /** One attempt with a given RNG seed. Returns the parts and what failed (empty = valid). */
-export function attemptLevel(dim: DimensionDef, level: number, seed: number): { layout: LevelLayout | null; fail: string[] } {
+export function attemptLevel(dim: DimensionDef, level: number, seed: number, opts: GenOptions = {}): { layout: LevelLayout | null; fail: string[] } {
   const rng = makeRng(seed).fork(`${dim.id}-level${level}`);
   const script = levelScript(dim, level, rng.fork('script'));
   const graph = missionGraph(dim, script, rng.fork('graph'));
@@ -44,7 +50,7 @@ export function attemptLevel(dim: DimensionDef, level: number, seed: number): { 
   const space = embed(dim, graph, rng.fork('space'));
   if (!space) return { layout: null, fail: ['space: the loop or a branch would not fit'] };
   const furn = furnish(dim, space, rng.fork('kits'));
-  const sockets = encounters(dim, graph, space, furn, script.enemies, rng.fork('encounters'));
+  const sockets = encounters(dim, graph, space, furn, level, rng.fork('encounters'), opts.rangedMin ?? 0);
   const dressing = dress(dim, graph, space, furn, sockets, rng.fork('dress'));
   const b = space.rooms.map((r) => roomRect(r));
   const bounds = {
@@ -54,17 +60,17 @@ export function attemptLevel(dim: DimensionDef, level: number, seed: number): { 
     maxZ: Math.max(...b.map((r) => r.maxZ)),
   };
   const layout: LevelLayout = { dimension: dim.id, level, seed, script, graph, space, furn, sockets, dressing, bounds };
-  return { layout, fail: validate({ dim, script, graph, space, furn, sockets, dressing }) };
+  return { layout, fail: validate({ dim, script, graph, space, furn, sockets, dressing, rangedMin: opts.rangedMin ?? 0 }) };
 }
 
 /** Generate a valid level for (dimension, level, seed), reseeding on failure. Same inputs → same level. */
-export function generateLevel(dim: DimensionDef, level: number, seed: number): { layout: LevelLayout; report: LevelReport } {
+export function generateLevel(dim: DimensionDef, level: number, seed: number, opts: GenOptions = {}): { layout: LevelLayout; report: LevelReport } {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   const failures: string[][] = [];
   let last: LevelLayout | null = null;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const s = attempt === 0 ? seed >>> 0 : hash2(seed >>> 0, attempt);
-    const { layout, fail } = attemptLevel(dim, level, s);
+    const { layout, fail } = attemptLevel(dim, level, s, opts);
     if (layout) last = layout;
     if (layout && !fail.length) {
       layout.seed = seed >>> 0;

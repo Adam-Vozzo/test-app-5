@@ -304,6 +304,8 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
     gm.levelIndex = 0;
     gm.zoneSeed = 42;
     gm.start('level');
+    // Real enemies now: the walkthrough checks the level, not the fights.
+    window.__tuning.debug.godMode = true;
   });
   await wait(1500);
   const info = await g(() => {
@@ -317,13 +319,13 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
       path: L.graph.critical.map((id) => L.graph.nodes[id].kind).join(' → '),
       rooms: L.space.rooms.length,
       sockets: L.sockets.length,
-      dummies: gm.dummies.length,
+      dummies: gm.dummies.length + gm.enemies.enemies.length,
       vistas: L.dressing.vistas.length,
     };
   });
   console.log('  level 1', JSON.stringify(info));
   if (!info.ok) throw new Error('level 1 failed validation');
-  if (info.dummies !== info.sockets) throw new Error('every encounter socket should hold a dummy');
+  if (info.dummies !== info.sockets) throw new Error('every encounter socket should hold an enemy (or the miniboss stand-in)');
   await shot('30-level-spawn');
   const draws = await g(() => window.__game.renderer.renderer.info.render.calls);
   console.log('  level draws/frame', draws);
@@ -410,7 +412,9 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   await wait(300);
   await g(() => {
     const gm = window.__game;
+    window.__tuning.debug.godMode = false;
     gm.hurtPlayer(99999, gm.player.pos.clone().add({ x: 1, y: 0, z: 0 }), 0);
+    window.__tuning.debug.godMode = true;
   });
   await wait(300);
   await g(() => window.__game.rise());
@@ -440,4 +444,148 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   console.log('  level 3', JSON.stringify(info3));
   if (!info3.ok) throw new Error('level 3 failed validation');
   await shot('37-level3-spawn');
+  await g(() => { window.__tuning.debug.godMode = false; });
+}
+
+// V2-4 scenario: Justice's enemies in the training courtyard. The Bailiff's shield turns shots from the front but
+// not during its recovery; the Gavel's slam hurts whoever stands in its ring; the Blindfold ignores footsteps and
+// comes for gunfire; the Page throws a blade. Kills pay out.
+export async function foesScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw) =>
+    g(([x, z, yaw]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = 0;
+    }, [x, z, yaw]);
+  const spawn = (id, x, z, yaw, idle = 'stand') =>
+    g(([id, x, z, yaw, idle]) => {
+      const gm = window.__game;
+      gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw, idle }], gm.physics, gm.rng.fork(`smoke-${id}`));
+      return gm.enemies.enemies.length - 1;
+    }, [id, x, z, yaw, idle]);
+  const foe = (i) =>
+    g((i) => {
+      const f = window.__game.enemies.enemies[i];
+      return { state: f.state, attack: f.attack, phase: f.phase, health: Math.round(f.health), max: f.maxHealth, x: f.ground.x, z: f.ground.z };
+    }, i);
+  const fire = async (n, gap = 120) => {
+    for (let k = 0; k < n; k++) {
+      await g(() => window.__game.input.press('Mouse0'));
+      await wait(40);
+      await g(() => window.__game.input.release('Mouse0'));
+      await wait(gap);
+    }
+  };
+  // Re-aim until the crosshair ray actually lands on the target (the camera settles after a teleport).
+  const aimAt = async (i, h) => {
+    for (let k = 0; k < 30; k++) {
+      const err = await g(([i, h]) => {
+        const gm = window.__game;
+        const f = gm.enemies.enemies[i];
+        gm.aimAt([f.ground.x, f.ground.y + h, f.ground.z]);
+        return Math.hypot(gm.aimPoint.x - f.ground.x, gm.aimPoint.z - f.ground.z);
+      }, [i, h]);
+      if (err < 0.6) return true;
+      await wait(60);
+    }
+    return false;
+  };
+
+  await g(() => window.__game.start('justice'));
+  await wait(1200);
+  await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = true;
+    window.__tuning.debug.showAI = true;
+    gm.arsenal.request(0);
+    // Clear the dummies out of the way: they'd soak up shots.
+    for (const d of gm.dummies) d.dispose(gm.renderer.scene);
+    gm.dummies.length = 0;
+  });
+
+  // ---- Bailiff: blocked from the front, open in its recovery.
+  const b = await spawn('bailiff', 4, -21, Math.PI);
+  await put(4, -12.5, 0);
+  await wait(500);
+  if (!(await aimAt(b, 1.15))) throw new Error('could not aim at the Bailiff');
+  await fire(4);
+  await wait(300);
+  const front = await foe(b);
+  const sparks = await g(() => window.__game.stats.blocked);
+  await shot('40-foe-bailiff-guard');
+  // A longer recovery (live tuning) so the headless frame rate can step back and fire inside it.
+  await g(() => { window.__tuning.foes.bailiff.attacks.thrust.recover = 3; window.__tuning.foes.bailiff.attacks.bash.recover = 3; });
+  const recovering = await until((i) => window.__game.enemies.enemies[i].phase === 'recover', 20000, b);
+  await g((i) => {
+    const gm = window.__game;
+    const f = gm.enemies.enemies[i];
+    const fx = -Math.sin(f.yaw), fz = -Math.cos(f.yaw);
+    gm.player.controller.teleport({ x: f.ground.x + fx * 6, y: 0.05, z: f.ground.z + fz * 6 }, f.yaw + Math.PI);
+    gm.camera.snap(gm.player.pos, f.yaw + Math.PI);
+  }, b);
+  await aimAt(b, 1.15);
+  await fire(3, 60);
+  await wait(300);
+  const punished = await foe(b);
+  await g(() => { window.__tuning.foes.bailiff.attacks.thrust.recover = 0.85; window.__tuning.foes.bailiff.attacks.bash.recover = 0.55; });
+  console.log(`  bailiff: front shots ${front.health}/${front.max} (${sparks} turned by the shield), after its swing ${punished.health} (recovery seen ${recovering})`);
+  if (front.health !== front.max || sparks < 1) throw new Error('the Bailiff should block shots from the front');
+  if (!recovering || punished.health >= front.max) throw new Error('the Bailiff should be open during its recovery');
+  await g((i) => window.__game.enemies.enemies[i].despawn(), b);
+
+  // ---- Gavel: stand in front and take the slam.
+  const v = await spawn('gavel', 9, -30, Math.PI);
+  await put(9, -27.5, 0);
+  await g(() => { window.__tuning.debug.godMode = false; window.__game.vitals.health = window.__game.vitals.maxHealth; });
+  const wound = await until((i) => { const f = window.__game.enemies.enemies[i]; return f.attack === 'slam' && f.phase === 'windup' && f.tl.k > 0.6; }, 20000, v);
+  await shot('41-foe-gavel-slam');
+  const hp0 = await g(() => window.__game.vitals.health);
+  const landed = await until(([i, hp]) => window.__game.vitals.health < hp || window.__game.enemies.enemies[i].phase === 'recover', 10000, [v, hp0]);
+  const hp1 = await g(() => window.__game.vitals.health);
+  await g(() => { window.__tuning.debug.godMode = true; window.__game.vitals.health = window.__game.vitals.maxHealth; });
+  console.log(`  gavel: slam wound up ${wound}, landed ${landed}, player ${hp0} → ${hp1}`);
+  if (!wound || hp1 >= hp0) throw new Error('the Gavel slam should hurt a player standing in its ring');
+  await g((i) => window.__game.enemies.enemies[i].despawn(), v);
+
+  // ---- Blindfold: deaf to footsteps, hunts gunfire.
+  const bl = await spawn('blindfold', -9, -34, Math.PI);
+  await put(-9, -29.5, 0);
+  await wait(1500);
+  const quiet = await foe(bl);
+  await shot('42-foe-blindfold-listening');
+  await g(() => window.__game.aimAt([-9, 30, -60]));
+  await fire(1);
+  const heard = await until((i) => ['alert', 'search', 'approach', 'attack'].includes(window.__game.enemies.enemies[i].state), 8000, bl);
+  console.log(`  blindfold: after walking up ${quiet.state}, after a shot heard ${heard}`);
+  if (quiet.state !== 'idle' || !heard) throw new Error('the Blindfold should ignore walking and come for gunfire');
+  await g((i) => window.__game.enemies.enemies[i].despawn(), bl);
+
+  // ---- Page: throws a blade from range.
+  const pg = await spawn('page', 0, -46, Math.PI);
+  await put(0, -28, Math.PI);
+  await g(() => window.__game.camera.snap(window.__game.player.pos, 0));
+  const threw = await until(() => window.__game.hazards.knives.length > 0, 20000);
+  await shot('43-foe-page-throw');
+  console.log(`  page: threw a blade ${threw}`);
+  if (!threw) throw new Error('the Page should throw from range');
+
+  // ---- Kills pay out.
+  const before = await g(() => window.__game.vitals.pollen);
+  await g((i) => window.__game.enemies.enemies[i].takeDamage({ amount: 9999, crit: false, point: { x: 0, y: 1, z: 0 }, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 }), pg);
+  await wait(400);
+  const after = await g(() => window.__game.vitals.pollen);
+  const dead = await foe(pg);
+  console.log(`  page killed: ${dead.state}, currency ${before} → ${after}`);
+  if (dead.state !== 'dead' || after <= before) throw new Error('a kill should pay out');
+  await shot('44-foe-page-dead');
+  await g(() => { window.__tuning.debug.showAI = false; });
 }

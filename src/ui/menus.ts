@@ -40,7 +40,7 @@ export class Menus {
       <p>The Eight of Swords, bound only by herself. Everything here is generated in code.</p>
       <button data-a="level">Play: Justice, level 1</button>
       <button data-a="justice">Training courtyard</button>
-      <p class="note">V2-3: generated levels. Walk toward the scales; rest at lanterns; find the barred shortcut and open it from the far side. Enemies are training dummies until V2-4; shields block from the front.</p>
+      <p class="note">V2-4: Justice's enemies. Walk toward the scales; rest at lanterns; open the barred shortcut from the far side. Bailiffs block from the front, the Gavel slams, the Blindfold hunts by sound, the Page whistles the room awake.</p>
       <div class="keys">${keys}</div>
       <div class="seed">seed ${seed} · add ?seed=… to the URL to change it</div>`);
     this.pause = this.make(`

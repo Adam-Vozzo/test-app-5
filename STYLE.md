@@ -106,6 +106,10 @@ Rules:
   wand torch, a cup helm), so the suit reads before the face.
 - **Common enemies** are stocky like the player but darker and more hunched. Each archetype has a distinct silhouette
   at 30 m.
+  - *As built (V2-4, `FOES` in `src/render/palette.ts`):* the Bailiff is slate armour behind a dark tower shield with a
+    pale sword crest; the Gavel is a 2.15 m stooped mass with a hammer; the Blindfold is a slate-blue robe with a pale
+    band across the eyes and two long blades; the Page is small, blue, with a cape snapped back. Bodies are ≥ 4:1
+    against the Justice fog; pale cloth is cool chalk-grey, so it never reads as crit gold or weak-spot cyan (tested).
 
 ### Shading and post
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.

@@ -2,7 +2,7 @@
 // tiers), the encounter sockets, and the dressing (lanterns, arches, swords, grass, hero props, vista poses).
 // Pure: no Three/DOM. Everything here is plain records the builder turns into meshes and colliders.
 import type { Rng } from '../core/rng';
-import type { DimensionDef, EncounterTemplate } from './dimensions';
+import type { DimensionDef, EncounterTemplate, SocketRole } from './dimensions';
 import type { MissionGraph } from './gen-graph';
 import { connRect, DX, DZ, overlaps, roomRect, toLocal, toWorld, yawOf, type Dir, type Room, type Space } from './gen-space';
 
@@ -79,7 +79,7 @@ export interface Lantern {
   rest: Pose;
 }
 
-export type SocketKind = 'grunt' | 'guard' | 'ranged' | 'patrol' | 'signature' | 'miniboss';
+export type SocketKind = SocketRole | 'miniboss';
 
 export interface Socket {
   node: number;
@@ -90,6 +90,8 @@ export interface Socket {
   y: number;
   /** Faces the room's entry. */
   yaw: number;
+  /** Which enemy stands here (from the beat's roster); the miniboss's rank comes from the level script. */
+  foe: string;
 }
 
 export interface Furnishing {
@@ -281,7 +283,8 @@ function segDist(u: number, v: number, a: [number, number], b: [number, number])
 export const yawTo = (x: number, z: number, tx: number, tz: number) => Math.atan2(-(tx - x), -(tz - z));
 
 /** Layer 5: sockets by encounter template, never on cover, always in front of the entry (LEVELS.md). */
-export function encounters(dim: DimensionDef, g: MissionGraph, space: Space, furn: Furnishing, enemies: [number, number], rng: Rng): Socket[] {
+export function encounters(dim: DimensionDef, g: MissionGraph, space: Space, furn: Furnishing, level: number, rng: Rng, rangedMin = 0): Socket[] {
+  const { enemies, roster } = dim.levels[level];
   const out: Socket[] = [];
   const n = g.critical.length;
   for (const r of space.rooms) {
@@ -299,7 +302,13 @@ export function encounters(dim: DimensionDef, g: MissionGraph, space: Space, fur
     const add = (kind: SocketKind, u: number, v: number, y = r.y, force = false) => {
       const [x, z] = toWorld(r, u, v);
       if (!force && !free(x, z, y)) return false;
-      sockets.push({ node: r.node, kind, template: nd.template ?? 'miniboss', x, z, y, yaw: yawTo(x, z, ex, ez) });
+      let foe = kind === 'miniboss' ? 'miniboss' : rr.pick(roster[kind]);
+      // A thrower too close to the way in can't be read in time: a fighter stands there instead.
+      if (dim.rangedFoes.includes(foe) && Math.hypot(x - ex, z - ez) < rangedMin) {
+        const melee = roster.grunt.filter((f) => !dim.rangedFoes.includes(f));
+        foe = melee.length ? rr.pick(melee) : roster.guard[0];
+      }
+      sockets.push({ node: r.node, kind, template: nd.template ?? 'miniboss', x, z, y, yaw: yawTo(x, z, ex, ez), foe });
       return true;
     };
     /** Scatter `k` sockets over the far part of the room, mirrored in a symmetric dimension. */

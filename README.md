@@ -4,8 +4,8 @@ A souls-like third-person shooter set in a world built from the tarot, played as
 generated in code: geometry, animation, levels and sound. No asset files.
 
 v2 is an iteration of *A bugs death*, the bug-scale v1 prototype. Its docs are frozen in `archive/v1/`. The playable
-build is V2-3: the Eight of Swords, her auto-pistol and the SwordRifle, in generated Justice levels (training dummies
-stand in for enemies) and a training courtyard.
+build is V2-4: the Eight of Swords, her auto-pistol and the SwordRifle, in generated Justice levels with Justice's
+enemies (Bailiff, Gavel, Blindfold, Page of Swords), and a training courtyard.
 
 ```
 npm install

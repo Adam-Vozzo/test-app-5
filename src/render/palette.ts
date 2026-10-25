@@ -36,6 +36,28 @@ export const GEAR = {
   lantern: 0xf0b266,
 } as const;
 
+/**
+ * Justice's enemies (STYLE.md → Characters): stocky, darker than the chalk court, each read by one piece of gear
+ * (the Bailiff's tower shield, the Gavel's hammer, the Blindfold's twin blades and band, the Page's cape).
+ * Wind-ups glow telegraph magenta on top of these; none of them is a signal colour.
+ */
+export const FOES = {
+  limb: 0x1d1f24,
+  bailiffArmour: 0x3d4652,
+  bailiffTabard: 0xc2c8cc,
+  shield: 0x2d333c,
+  shieldRim: 0x8e9aa6,
+  gavelBody: 0x3b3735,
+  gavelHide: 0x57504a,
+  hammer: 0x26272b,
+  blindfoldRobe: 0x414a5c,
+  blindfoldBand: 0xd0d4d6,
+  blade: 0xb8c2cc,
+  pageCoat: 0x4a5874,
+  pageCape: 0x2f3a52,
+  steel: 0x9aa6b2,
+} as const;
+
 /** v1 bug characters (enemies until V2-4 replaces them). */
 export const CHARACTER = {
   limb: 0x1e1414,

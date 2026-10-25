@@ -3,13 +3,17 @@ import { JUSTICE_DIMENSION as DIM } from '../src/world/dimensions';
 import { isCombat } from '../src/world/gen-graph';
 import { attemptLevel, generateLevel, type LevelLayout } from '../src/world/gen-level';
 import { DX, DZ, connLength, overlaps, roomRect, toLocal } from '../src/world/gen-space';
+import { rangedMinDistance } from '../src/enemies/foe-ai';
+import { tuning } from '../src/tuning';
 import { checkGraph, checkSockets, checkSpace, landmarkVisible, segmentHitsBox, validate, type LevelParts } from '../src/world/gen-validate';
 
 const SEEDS = Array.from({ length: 50 }, (_, i) => i * 7919 + 13);
-const parts = (L: LevelLayout): LevelParts => ({ dim: DIM, script: L.script, graph: L.graph, space: L.space, furn: L.furn, sockets: L.sockets, dressing: L.dressing });
+const RANGED = rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll);
+const OPTS = { rangedMin: RANGED };
+const parts = (L: LevelLayout): LevelParts => ({ dim: DIM, script: L.script, graph: L.graph, space: L.space, furn: L.furn, sockets: L.sockets, dressing: L.dressing, rangedMin: RANGED });
 
 // Generate once, check many properties.
-const levels = [0, 1, 2].flatMap((level) => SEEDS.map((seed) => ({ level, seed, ...generateLevel(DIM, level, seed) })));
+const levels = [0, 1, 2].flatMap((level) => SEEDS.map((seed) => ({ level, seed, ...generateLevel(DIM, level, seed, OPTS) })));
 
 describe('level generator: validity and budget', () => {
   it('every seed yields a valid level, quickly', () => {
@@ -29,8 +33,8 @@ describe('level generator: validity and budget', () => {
 
   it('is deterministic: same dimension, level and seed give the same level', () => {
     for (const level of [0, 1, 2]) {
-      const a = generateLevel(DIM, level, 4242).layout;
-      const b = generateLevel(DIM, level, 4242).layout;
+      const a = generateLevel(DIM, level, 4242, OPTS).layout;
+      const b = generateLevel(DIM, level, 4242, OPTS).layout;
       expect(JSON.stringify(b)).toBe(JSON.stringify(a));
     }
   });
@@ -161,6 +165,26 @@ describe('level generator: encounters', () => {
     }
   });
 
+  it("fills sockets from the beat's roster, and keeps throwers a fair distance from the way in", () => {
+    for (const { layout: L, level } of levels) {
+      const roster = DIM.levels[level].roster;
+      for (const s of L.sockets) {
+        if (s.kind === 'miniboss') continue;
+        // A ranged role may fall back to a fighter; every other role draws from its own list.
+        const allowed = s.kind === 'ranged' ? [...roster.ranged, ...roster.grunt, ...roster.guard] : roster[s.kind];
+        expect(allowed).toContain(s.foe);
+        if (DIM.rangedFoes.includes(s.foe)) {
+          const r = L.space.rooms.find((x) => x.node === s.node)!;
+          const [, v] = toLocal(r, s.x, s.z);
+          expect(Math.hypot(toLocal(r, s.x, s.z)[0], v + r.d / 2)).toBeGreaterThanOrEqual(RANGED - 1e-6);
+        }
+      }
+      // Introduce: one new enemy at a time. Level 1 has only Bailiffs and the signature Blindfold.
+      if (level === 0) for (const s of L.sockets) expect(['bailiff', 'blindfold', 'miniboss']).toContain(s.foe);
+      for (const s of L.sockets) if (s.kind === 'signature') expect(s.foe).toBe('blindfold');
+    }
+  });
+
   it('mirrors cover about the room axis in a symmetric dimension', () => {
     for (const { layout: L } of levels.slice(0, 20)) {
       for (const r of L.space.rooms) {
@@ -229,7 +253,7 @@ describe('level validation catches bad levels', () => {
     // Some attempt somewhere fails; its reasons are strings naming the check.
     let found = false;
     for (let s = 0; s < 400 && !found; s++) {
-      const a = attemptLevel(DIM, 2, s);
+      const a = attemptLevel(DIM, 2, s, OPTS);
       if (a.fail.length) {
         found = true;
         for (const f of a.fail) expect(f).toMatch(/^(graph|space|sockets|landmark|budget):/);

@@ -286,6 +286,35 @@ const SFX = {
     slide: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1400, q: 1.5, dur: 0.12, gain: 0.25, delay: 0.04 }),
     clack2: L({ kind: 'noise', filter: 'bandpass', f0: 1600, f1: 1300, q: 3, dur: 0.04, gain: 0.7, delay: 0.17 }),
   },
+  // Justice's enemies (V2-4): each wind-up is identifiable by ear before it lands.
+  // Bailiff thrust = rising steel scrape, Gavel = deep growl and rattling chain, Blindfold = two quick shings,
+  // Page = rising whistle.
+  windupThrust: {
+    scrape: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 2600, q: 3, dur: 0.5, gain: 0.45 }),
+    tick: L({ kind: 'osc', wave: 'square', f0: 1800, f1: 1800, dur: 0.03, gain: 0.08, delay: 0.45 }),
+  },
+  windupSlam: {
+    growl: L({ kind: 'osc', wave: 'sawtooth', f0: 62, f1: 44, dur: 1.1, gain: 0.2, attack: 0.1 }),
+    chain: L({ kind: 'noise', filter: 'highpass', f0: 3500, f1: 2500, dur: 0.9, gain: 0.16, attack: 0.2 }),
+  },
+  windupSlash: {
+    shing1: L({ kind: 'osc', wave: 'triangle', f0: 2400, f1: 3100, dur: 0.12, gain: 0.14 }),
+    shing2: L({ kind: 'osc', wave: 'triangle', f0: 2600, f1: 3400, dur: 0.12, gain: 0.14, delay: 0.18 }),
+    hiss: L({ kind: 'noise', filter: 'highpass', f0: 4000, f1: 6000, dur: 0.3, gain: 0.15 }),
+  },
+  windupThrow: { whistle: L({ kind: 'osc', wave: 'sine', f0: 900, f1: 1900, dur: 0.6, gain: 0.18 }) },
+  ambushTell: {
+    draw: L({ kind: 'noise', filter: 'highpass', f0: 2800, f1: 4200, dur: 0.45, gain: 0.35 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1760, f1: 1700, dur: 0.6, gain: 0.12, delay: 0.1 }),
+  },
+  whistle: {
+    up: L({ kind: 'osc', wave: 'sine', f0: 1500, f1: 2300, dur: 0.22, gain: 0.3 }),
+    down: L({ kind: 'osc', wave: 'sine', f0: 2300, f1: 1500, dur: 0.3, gain: 0.28, delay: 0.25 }),
+  },
+  slamImpact: {
+    crash: L({ kind: 'noise', filter: 'lowpass', f0: 1600, f1: 120, dur: 0.6, gain: 0.9 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 75, f1: 30, dur: 0.5, gain: 0.9 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

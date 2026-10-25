@@ -8,12 +8,41 @@ import { G, groups, Physics, RAPIER, type DamageInfo, type Damageable } from '..
 import { meshOf, toonMat } from '../render/geo';
 import { SIGNAL } from '../render/palette';
 import { tuning } from '../tuning';
+import type { Noise } from './foe-ai';
 import type { Hazards } from './hazards';
+import type { LimbRenderer } from '../render/limbs';
 import { MultiLegRig, type RigPose } from './rig';
 import { PLANS, type BodyPlan, type EnemyKind } from './types';
 
 export type AIState = 'idle' | 'alert' | 'approach' | 'windup' | 'attack' | 'recover' | 'stagger' | 'dead';
 type Attack = 'lunge' | 'spit' | 'charge' | 'butt';
+
+/** Anything that fights the player: v1 bugs and v2 humanoids alike (the manager, HUD and game see only this). */
+export interface Hostile {
+  readonly alive: boolean;
+  readonly elite: boolean;
+  slain: boolean;
+  readonly aggroed: boolean;
+  readonly center: THREE.Vector3;
+  health: number;
+  readonly maxHealth: number;
+  readonly name: string;
+  readonly label: string;
+  /** Currency dropped on death. */
+  readonly reward: number;
+  /** Shows the big health bar while it fights you (bosses and minibosses). */
+  readonly bar: boolean;
+  readonly group: THREE.Object3D;
+  onKilled: (e: Hostile) => void;
+  labelPos(out: THREE.Vector3): THREE.Vector3;
+  update(dt: number, w: EnemyWorld): void;
+  draw(limbs: LimbRenderer): void;
+  respawn(): void;
+  despawn(): void;
+  dispose(): void;
+  /** Told where the player is (a Page's whistle). */
+  alert?(at: THREE.Vector3): void;
+}
 
 export interface EnemyWorld {
   physics: Physics;
@@ -21,7 +50,11 @@ export interface EnemyWorld {
   playerChest: THREE.Vector3;
   playerVel: THREE.Vector3;
   playerAlive: boolean;
-  enemies: readonly Enemy[];
+  enemies: readonly Hostile[];
+  /** Noises made this frame (gunfire, blades, haste). */
+  noises: readonly Noise[];
+  /** Wake everyone within `radius` of `from` and tell them where the player is. */
+  alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller: Hostile): void;
   hazards: Hazards;
   /** Returns true if the hit landed (false when dodged / i-framed / god mode). */
   hurtPlayer(amount: number, from: THREE.Vector3, knockback: number): boolean;
@@ -45,7 +78,7 @@ const _up = new THREE.Vector3(0, 1, 0);
 
 type Cfg = typeof tuning.enemies.skitterer & typeof tuning.enemies.spitter & typeof tuning.enemies.brute;
 
-export class Enemy implements Damageable {
+export class Enemy implements Damageable, Hostile {
   readonly plan: BodyPlan;
   readonly rig: MultiLegRig;
   readonly group = new THREE.Group();
@@ -88,7 +121,7 @@ export class Enemy implements Damageable {
   slain = false;
   readonly home = new THREE.Vector3();
   homeYaw = 0;
-  onKilled: (e: Enemy) => void = () => {};
+  onKilled: (e: Hostile) => void = () => {};
 
   constructor(
     readonly kind: EnemyKind,
@@ -140,6 +173,21 @@ export class Enemy implements Damageable {
   }
   get maxHealth() {
     return this.cfg.health;
+  }
+  get name() {
+    return this.kind === 'brute' ? 'Brute beetle' : this.kind;
+  }
+  get reward() {
+    return this.cfg.pollen;
+  }
+  get bar() {
+    return this.elite;
+  }
+  labelPos(out: THREE.Vector3) {
+    return out.copy(this.rig.pos).addScaledVector(_up, this.plan.radius * 1.6 + 0.3);
+  }
+  draw(limbs: LimbRenderer) {
+    this.rig.draw(limbs);
   }
 
   respawn() {
@@ -364,7 +412,7 @@ export class Enemy implements Damageable {
     if (_des.lengthSq() > 1e-6) _des.normalize();
     // Separation from other enemies.
     for (const o of w.enemies) {
-      if (o === this || !o.alive) continue;
+      if (o === this || !o.alive || !(o instanceof Enemy)) continue;
       _v.subVectors(this.ground, o.ground).setY(0);
       const d = _v.length();
       const range = c.separation + o.plan.radius;

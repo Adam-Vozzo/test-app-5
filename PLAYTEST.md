@@ -4,6 +4,33 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-4: Justice's enemies
+**Run:** **Play: Justice, level 1**. Level 1 has Bailiffs and one Blindfold; levels 2 and 3 add the Gavel and the
+Page. (`?mode=level&level=3` has all four.) **L** shows each enemy's state.
+
+**Try:**
+1. **Bailiff:** shoot it from the front and the shield sparks. Flank it, or bait the thrust (a rising steel scrape),
+   roll through, and punish the recovery. The sword's blade rebounds off the shield too.
+2. **Gavel:** watch the magenta ring fill under its hammer during the wind-up (a deep growl and a chain), then get
+   out. It's open for a long time after. The cyan seam on its back crits.
+3. **Blindfold:** walk up to it. It shouldn't notice. Fire a shot and it comes for the noise, not for you. Its slash
+   comes twice, from alternate sides (the mirrored combo). Rolling and sprinting make noise too.
+4. **Page of Swords:** it whistles when it sees you and the room comes. It keeps its distance and throws blades you
+   can see coming. Killing it is permanent; resting brings everything else back.
+5. **Ambushes** (level 3): enemies crouched behind cover give a ringing tell before they rise.
+
+**Unsure about:**
+- **Every number is a first guess:** health, speeds, wind-ups, damage. I tuned so each attack telegraphs ≥ 0.3 s and
+  leaves ≥ 0.5 s to punish, but difficulty can only be judged by playing. Everything is in `foes` in the tuning
+  panel.
+- **Pathing** is steering plus feelers inside a room (no navmesh). Enemies can snag on cover corners; a leash walks
+  them home if a chase drifts more than 30–40 m.
+- **The Blindfold's hearing radii** decide whether stealth is real. Walking carries 2.5 m and it feels you within
+  2.4 m, so you can creep past it. Is that too easy?
+- **The magenta glow** now goes full on the weapon and only a blush on the body, so the wind-up pose still reads.
+  Check it reads at range in pixel mode.
+- **Mirrored combos** exist only on the Blindfold so far; the court cards (V2-5) and Justice (V2-6) lean on them more.
+
 ## V2-3: generated Justice levels
 **Run:** `npm run dev` → **Play: Justice, level 1** (or `?mode=level&level=1..3&seed=…`). The training courtyard is
 still on the menu.

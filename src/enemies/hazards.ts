@@ -1,7 +1,24 @@
 // Enemy attack visuals that make danger readable: spitter globs with a ground marker that fills as impact
 // approaches, and the brute's charge lane. All in telegraph magenta (STYLE.md signal colour).
 import * as THREE from 'three';
+import { G, groups } from '../physics/world';
 import { SIGNAL } from '../render/palette';
+import type { EnemyWorld } from './enemy';
+
+interface Knife {
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  t: number;
+  damage: number;
+  knockback: number;
+  mesh: THREE.Mesh;
+}
+
+const knifeGeo = new THREE.OctahedronGeometry(0.1, 0).scale(0.7, 0.7, 3.2);
+const _seg = new THREE.Vector3();
+const _dir = new THREE.Vector3();
+const _p = new THREE.Vector3();
+const SOLID = groups(G.QUERY, G.WORLD);
 
 interface Glob {
   pos: THREE.Vector3;
@@ -39,8 +56,78 @@ export class Hazards {
   private laneMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, opacity: 0.32, depthWrite: false, fog: false, side: THREE.DoubleSide });
   private laneFillMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, opacity: 0.55, depthWrite: false, fog: false, side: THREE.DoubleSide });
   private time = 0;
+  private rings = new Map<object, THREE.Group>();
+  readonly knives: Knife[] = [];
+  private knifePool: THREE.Mesh[] = [];
+  private knifeMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false });
 
   constructor(private scene: THREE.Scene) {}
+
+  /** Show / update a slam's ground ring at `at`, its fill growing with the wind-up (0..1). */
+  ring(owner: object, at: THREE.Vector3, radius: number, fill: number) {
+    let g = this.rings.get(owner);
+    if (!g) {
+      g = new THREE.Group();
+      const ring = new THREE.Mesh(ringGeo, this.ringMat);
+      const disc = new THREE.Mesh(discGeo, this.discMat);
+      disc.name = 'fill';
+      g.add(ring, disc);
+      g.renderOrder = 5;
+      this.scene.add(g);
+      this.rings.set(owner, g);
+    }
+    g.visible = true;
+    g.position.copy(at).setY(at.y + 0.05);
+    g.scale.setScalar(radius);
+    g.children[1].scale.setScalar(Math.max(0.02, fill));
+  }
+
+  hideRing(owner: object) {
+    const g = this.rings.get(owner);
+    if (g) g.visible = false;
+  }
+
+  /** A thrown blade: flies straight, stops at walls, hurts on contact. */
+  knife(from: THREE.Vector3, vel: THREE.Vector3, damage: number, knockback: number) {
+    const mesh = this.knifePool.pop() ?? this.makeKnife();
+    mesh.visible = true;
+    mesh.position.copy(from);
+    this.knives.push({ pos: from.clone(), vel: vel.clone(), t: 0, damage, knockback, mesh });
+  }
+
+  private makeKnife() {
+    const m = new THREE.Mesh(knifeGeo, this.knifeMat);
+    m.renderOrder = 5;
+    this.scene.add(m);
+    return m;
+  }
+
+  /** Move thrown blades; walls stop them, the player's body takes them (unless rolling: hurtPlayer decides). */
+  updateKnives(dt: number, w: EnemyWorld) {
+    for (let i = this.knives.length - 1; i >= 0; i--) {
+      const k = this.knives[i];
+      k.t += dt;
+      const step = _seg.copy(k.vel).multiplyScalar(dt);
+      const len = step.length();
+      const hit = len > 0 ? w.physics.raycast(k.pos, _dir.copy(step).divideScalar(len), len, SOLID) : null;
+      // Closest approach to the player's body (a vertical segment through the chest).
+      _p.copy(w.playerChest);
+      const t = Math.max(0, Math.min(1, _p.clone().sub(k.pos).dot(step) / Math.max(1e-6, len * len)));
+      const near = k.pos.clone().addScaledVector(step, t);
+      const dy = Math.max(0, Math.abs(near.y - _p.y) - 0.5);
+      const struck = Math.hypot(near.x - _p.x, near.z - _p.z, dy) < 0.42 && (!hit || hit.distance >= len * t);
+      if (struck) w.hurtPlayer(k.damage, near, k.knockback);
+      k.pos.add(step);
+      k.mesh.position.copy(k.pos);
+      k.mesh.lookAt(_p.copy(k.pos).add(k.vel));
+      if (struck || hit || k.t > 3) {
+        if (hit && !struck) w.sound('armor', k.pos);
+        k.mesh.visible = false;
+        this.knifePool.push(k.mesh);
+        this.knives.splice(i, 1);
+      }
+    }
+  }
 
   /** Lob a glob that lands on `target` after `T` seconds. */
   lob(from: THREE.Vector3, target: THREE.Vector3, T: number, gravity: number, radius: number, damage: number, knockback: number) {
@@ -130,5 +217,11 @@ export class Hazards {
     }
     this.globs.length = 0;
     for (const lane of this.lanes.values()) lane.visible = false;
+    for (const r of this.rings.values()) r.visible = false;
+    for (const k of this.knives) {
+      k.mesh.visible = false;
+      this.knifePool.push(k.mesh);
+    }
+    this.knives.length = 0;
   }
 }

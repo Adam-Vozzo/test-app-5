@@ -223,8 +223,12 @@ The pipeline above, for one dimension. Files: `src/world/dimensions.ts` (data), 
   15 m from every lantern, ≤ 4 m up; combat rooms 18–44 m; an unoccluded sight line from the spawn and every vista to
   the scales (beam, pans or pillar) past walls, columns, arch piers and lintels, slabs and hero swords; a props
   budget.
-  - **Waiting on V2-4:** "every spawn has a path to the player" (true today because every room is connected, but real
-    navigation comes with enemies) and the ranged-distance rule (needs enemy telegraph and projectile numbers).
+  - **Since V2-4:** each beat has a **roster** (data) that fills socket roles with enemies. The introduce level has only
+    Bailiffs and the signature Blindfold; develop adds the Gavel and the Page; the twist mixes them all. The
+    **ranged-distance rule** is enforced: the generator puts a fighter on any ranged socket closer to its room's way
+    in than (throw wind-up × blade speed) + one roll (14.65 m with today's tuning), and validation checks it.
+  - **Still open:** "every spawn has a path to the player" holds because every room is connected and enemies steer
+    by feelers inside their room. There's no navmesh; a leash walks enemies home if a chase drifts.
 - **Numbers:** across 1,500 seeds (500 per level), 93% of levels pass on the first attempt and all pass within 3;
   generation takes ≤ 20 ms. Levels draw 43–62 calls in the smoke run.
 

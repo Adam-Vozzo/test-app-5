@@ -7,7 +7,8 @@ import { Clock } from './core/time';
 import { Physics, GROUPS, type RayHit } from './physics/world';
 import { OTSCamera } from './player/camera';
 import { Fx } from './fx/fx';
-import type { Enemy, EnemyWorld } from './enemies/enemy';
+import type { EnemyWorld, Hostile } from './enemies/enemy';
+import { rangedMinDistance, type Noise } from './enemies/foe-ai';
 import { Hazards } from './enemies/hazards';
 import { EnemyManager } from './enemies/manager';
 import { Vitals } from './player/vitals';
@@ -36,7 +37,6 @@ import { Projectiles } from './weapons/projectiles';
 
 type Mode = 'menu' | 'playing' | 'paused';
 
-const ELITE_NAMES: Record<string, string> = { brute: 'Brute beetle' };
 
 const _aimHit: RayHit = {
   point: new THREE.Vector3(),
@@ -88,6 +88,8 @@ export class Game {
   private healEnv = 0;
   private lastDodgeSfx = -1;
   private rollBuffer = 0;
+  /** Noises the player made since the enemies last listened (gunfire, blades, haste). */
+  private readonly noises: Noise[] = [];
   private readonly chest = new THREE.Vector3();
   dummies: Dummy[] = [];
   /** Where the crosshair ray lands this frame. */
@@ -170,7 +172,7 @@ export class Game {
       this.world = buildCourtyard(this.physics, this.rng.fork('justice'));
       this.area = JUSTICE;
     } else if (this.layout === 'level') {
-      const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed);
+      const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
       const lw = buildGeneratedLevel(layout, report, JUSTICE_DIMENSION, this.physics);
       lw.onCache = () => {
         this.vitals.healCharges = Math.min(tuning.vitals.healCharges + 1, this.vitals.healCharges + 1);
@@ -202,7 +204,10 @@ export class Game {
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.player.biped.onFootstep = () => {
-      if (this.player.controller.grounded) this.synth.footstep();
+      if (!this.player.controller.grounded) return;
+      this.synth.footstep();
+      // Walking is nearly silent; running isn't.
+      this.noise(this.player.controller.sprinting ? tuning.foes.noise.sprint : tuning.foes.noise.walk);
     };
     this.camera = new OTSCamera(this.renderer.camera, this.physics);
     this.camera.snap(this.world.spawn, this.world.spawnYaw);
@@ -225,6 +230,8 @@ export class Game {
       if (g) sp.pos.y = g.y + 0.02;
     }
     this.enemies.spawnAll(this.world.enemySpots, this.physics);
+    if (this.world.foeSpots) this.enemies.spawnFoes(this.world.foeSpots, this.physics, makeRng(this.zoneSeed).fork(`foes-${this.levelIndex}`));
+    this.noises.length = 0;
     const game = this;
     this.enemyWorld = {
       physics: this.physics,
@@ -235,6 +242,8 @@ export class Game {
         return !game.vitals.dead;
       },
       enemies: this.enemies.enemies,
+      noises: this.noises,
+      alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback) => this.hurtPlayer(amount, from, knockback),
       sound: (name, at) => this.sfxAt(name, at),
@@ -252,8 +261,15 @@ export class Game {
       hud: this.hud,
       clock: this.clock,
       projectiles: this.projectiles,
-      onHit: (e) => this.recordHit(e),
-      onShot: () => this.stats.shots++,
+      onHit: (e) => {
+        this.recordHit(e);
+        if (this.arsenal.sword?.mode === 'sword') this.noise(tuning.foes.noise.blade);
+      },
+      onBlocked: () => this.stats.blocked++,
+      onShot: () => {
+        this.stats.shots++;
+        this.noise(this.gun.def.id === 'pistol' ? tuning.foes.noise.pistol : tuning.foes.noise.rifle);
+      },
     };
     this.physics.step();
   }
@@ -266,7 +282,7 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The current zone, if playing one. */
@@ -311,6 +327,12 @@ export class Game {
   /** The weapon in hand. */
   get gun(): Gun {
     return this.arsenal.current;
+  }
+
+  /** A noise at the player, heard by enemies within `r` metres next frame. */
+  private noise(r: number) {
+    const p = this.player.pos;
+    this.noises.push({ x: p.x, y: p.y + 1, z: p.z, r });
   }
 
   private recordHit(e: HitEvent) {
@@ -425,12 +447,12 @@ export class Game {
     this.hud.toast('Rested. Heals and ammo refilled; the dead stir…', 2.4);
   }
 
-  private onEnemyKilled(e: Enemy) {
-    const reward = e.cfg.pollen;
+  private onEnemyKilled(e: Hostile) {
+    const reward = e.reward;
     this.vitals.pollen += reward;
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
-    if (e.elite) this.hud.toast(`${ELITE_NAMES[e.kind] ?? e.kind} defeated  ✿ +${reward}`, 3);
+    if (e.elite) this.hud.toast(`${e.name} defeated  ✿ +${reward}`, 3);
   }
 
   pause() {
@@ -598,6 +620,7 @@ export class Game {
     if (wasState !== 'roll' && c.state === 'roll') {
       this.rollBuffer = 0;
       this.arsenal.onRoll();
+      this.noise(tuning.foes.noise.roll);
       v.spendRoll();
       this.synth.sfx('roll');
     }
@@ -620,6 +643,7 @@ export class Game {
     this.chest.copy(player.biped.chest);
     for (const d of this.dummies) d.update(simDt, this.renderer.camera);
     this.enemies.update(simDt, this.enemyWorld);
+    if (simDt > 0) this.noises.length = 0;
     if (simDt > 0) this.physics.step();
 
     // 4. Camera + crosshair ray.
@@ -710,13 +734,17 @@ export class Game {
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
     this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.pollen);
     const elite = this.enemies.activeElite;
-    this.hud.setBoss(elite ? ELITE_NAMES[elite.kind] ?? elite.kind : null, elite ? elite.health / elite.maxHealth : 0);
+    this.hud.setBoss(elite ? elite.name : null, elite ? elite.health / elite.maxHealth : 0);
     if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);
     else if (near && !c.committed) this.hud.prompt(near.text);
     else this.hud.prompt(null);
     const labels = [...(tuning.debug.showAI ? this.aiLabels() : []), ...(tuning.debug.showGraph && this.level ? this.roomLabels(this.level) : [])];
     this.hud.setLabels(labels.length ? labels : null);
-    if (this.level) this.minimap.drawLevel(this.level, tuning.debug.showGraph, c.pos, this.dummies.map((d) => ({ x: d.base.x, z: d.base.z, alive: d.alive })));
+    if (this.level)
+      this.minimap.drawLevel(this.level, tuning.debug.showGraph, c.pos, [
+        ...this.dummies.map((d) => ({ x: d.base.x, z: d.base.z, alive: d.alive })),
+        ...this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })),
+      ]);
     else this.minimap.draw(this.zone?.layout ?? null, tuning.debug.showGraph, c.pos, this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })));
     this.hud.update(realDt);
     this.hud.setRange(this.layout === 'range' ? this.rangeText() : null);
@@ -760,7 +788,7 @@ export class Game {
     const out: { x: number; y: number; text: string }[] = [];
     for (const e of this.enemies.enemies) {
       if (!e.group.visible) continue;
-      const p = _o.copy(e.rig.pos).addScaledVector(new THREE.Vector3(0, 1, 0), e.plan.radius * 1.6 + 0.3).project(cam);
+      const p = e.labelPos(_o).project(cam);
       if (p.z > 1) continue;
       out.push({ x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, text: e.label });
     }

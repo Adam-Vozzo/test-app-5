@@ -83,5 +83,6 @@ export function blockFeedback(ctx: GunContext, point: THREE.Vector3, dir: THREE.
   _back.copy(dir).negate();
   ctx.fx.sparksAt(point, _back, 0xffffff, 14, 7);
   ctx.synth.sfx('block');
+  ctx.onBlocked?.();
 }
 const _back = new THREE.Vector3();
