@@ -14,10 +14,15 @@ Your answers are now in the docs:
 - **Trial grounds:** a dev sandbox (`?mode=trials`) for the Chariot (momentum) and the Hanged Man (the world moves only
   while you stand still). It's a side track in `PLAN.md` that doesn't block the slice.
 
-**Still to decide:**
-- **No rifle reload** (charges are the magazine)? I proposed it because it keeps the loop pure, but it means an empty
-  rifle can only be refilled by swinging or resting.
-- **Justice's unbinding move:** the proposal is a parry.
+**Also decided since:**
+- **No rifle reload.** The SwordRifle shows its charge as glowing cells on the weapon (plus HUD pips), in a new
+  reserved violet.
+- **Parry** is Justice's unbinding move.
+
+**Unsure about:** the violet charge colour (`#9C7BFF`) is a first pick. It needs to stay readable on the weapon at
+pixel scale and never be mistaken for telegraph magenta. It's well clear of magenta (74° of hue apart), but it shares
+a hue family with the Tower's grey-violet fog and the Moon's indigo. It's much more saturated than either, which is
+fine on paper, but check it in those dimensions' screenshots.
 
 ## V2-0: Direction and docs
 Nothing new to play: the build is still the v1 prototype. Read `DESIGN.md`, `LEVELS.md` and `STYLE.md`, and accept,

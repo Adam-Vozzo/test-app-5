@@ -26,7 +26,8 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - unbinding as the progression
   - a trial-grounds sandbox for other arcana concepts
 
-  Still open before V2-2: whether the rifle has no reload (`DESIGN.md → Weapons`).
+  - no rifle reload, with a visible charge indicator on the weapon
+  - a parry as Justice's unbinding move
 
 ## V2-1: Humanoid rescale and new look
 - **Units:**
@@ -60,7 +61,13 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - Every level start and lantern rest begins **full**.
   - All of it is tunable.
 - **Rifle mode is heavy:** built from v1's staple-driver def (visible projectile with drop, 0.8 s bolt cycle,
-  pierce 1, 2.6× crit, big stagger, hard kick). Proposed: no reload, because charges are the magazine.
+  pierce 1, 2.6× crit, big stagger, hard kick). No reload: charges are the magazine.
+- **Charge indicator:**
+  - glowing cells on the weapon (one per charge), with a refill flare and chime, and a dry click when empty
+  - a mirrored HUD pip row
+  - the reserved charge colour, added to `src/render/palette.ts` and covered by `tests/palette.test.ts`
+    (contrast against every area palette and against telegraph magenta)
+  - readable at pixel scale 2–3 in the smoke screenshots
 - **Rusted state:** lower damage, slower switch and a dull sound. Repair stages are data (four stages), so V2-7 can
   apply one.
 - **Melee range:** dummies that block from the front (a Bailiff stand-in), so the flank-and-punish rhythm can be felt
@@ -109,7 +116,8 @@ Enemy spawns can use placeholder dummies until V2-4.
 - **The Magician:** one upgrade menu with SwordRifle repair stage 1, plus 2–3 pistol and flask upgrades, paid in
   pentacles. **The High Priestess:** gate keeper, with 3–5 lines.
 - Save of progress (unlocked gates, upgrades, repair stage, seed) in `localStorage`.
-- The first **unbinding**, granted on Justice's defeat: one new move (proposed: a parry).
+- The first **unbinding**, granted on Justice's defeat: the **parry**. It's a new verb, so it gets its own timing
+  window, telegraph-matched feedback and a tuning folder. Melee from V2-2 is the base.
 - **Slice complete:** a `PLAYTEST.md` entry against the slice question above.
 
 ## Side track T: trial grounds (doesn't block the slice)

@@ -122,6 +122,7 @@ Rules:
 | **Weak spot** | `#7CFFEA` cyan | weak points |
 | **Crit / currency pickup** | `#FFE14D` gold | crit markers, pentacle pickups |
 | **Kill / damage taken** | `#FF3B30` red | kill marker, HP bar |
+| **SwordRifle charge** (Proposed hue) | `#9C7BFF` electric violet | charge cells on the weapon, the HUD charge pips. The player's own resource, so it must never be confused with an enemy telegraph; the hue sits ~75° from telegraph magenta. |
 | **UI / interact** | `#FFFFFF` | UI, muzzle flash, interaction rings |
 
 Never use signal colours on props, characters or accent motifs. `tests/palette.test.ts` checks every area palette

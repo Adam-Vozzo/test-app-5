@@ -203,8 +203,8 @@ it, and the King combines it with a squad.
   open. She's a zero-to-hero protagonist who has only been held back by herself.
 - **Decided: unbinding instead of buildcraft.** She starts bound (the card's binding). Each **arcana boss frees one
   restraint, which gives her a new move.** That gives a progression arc without loot, rarity or a skill tree.
-  Which four moves is still Proposed. Candidates:
-  - Justice frees a **parry** (answer in kind).
+  Justice's move is decided (a parry). The other three are still Proposed. Candidates:
+  - Justice frees a **parry** (answer in kind). **Decided.**
   - The Devil frees a **chain-break dash**.
   - The Tower frees a **safe fall or plunge**.
   - The Moon frees the **blindfold**, which is the ending.
@@ -212,7 +212,7 @@ it, and the King combines it with a squad.
   kill-red). The off-white blindfold is pushed up onto her forehead, carrying cloth tails that trail behind her.
   See `STYLE.md`.
 
-## Weapons (Decided; the rifle's reload rule Proposed)
+## Weapons (Decided; the charge indicator's look Proposed)
 
 Depth over breadth: two weapons for the whole game, made deeper through upgrades.
 
@@ -230,8 +230,19 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
     - pierce 1, huge crits (2.6×) and a big stagger
     - a sharp crack-and-thump sound
     - a hard pitch kick that mostly springs back
-  - *Proposed:* **no rifle reload.** Charges *are* the magazine, so the only ways to refill are sword hits and
+  - **No rifle reload (Decided).** Charges *are* the magazine, so the only ways to refill are sword hits and
     lanterns. That keeps the loop pure: an empty rifle means it's time to swing.
+  - **The charge must be visible on the weapon (Decided).** The look is Proposed:
+    - **On the weapon:** one glowing cell per charge, set along the SwordRifle's spine and visible in both modes.
+      A cell goes dark when spent.
+    - **Feedback:** a sword hit that refills a charge lights its cell with a short flare and a rising chime. Firing
+      the last charge leaves the weapon visibly dark.
+    - **Empty:** pulling the trigger with no charge gives a dry click and a dull flicker. The shot never fires, and
+      the cue says *swing*.
+    - **HUD:** a small pip row by the crosshair mirrors the cells, for when the weapon is off-screen or small at
+      pixel scale.
+    - **Colour:** a new reserved **charge** signal colour (`STYLE.md`).
+    - **Rusted state:** cells are cracked and dim, and repair stages brighten them.
   - *Proposed repair:* four repair stages, one per suit relic (dropped by each King). Each stage restores a part:
     blade, barrel, stock and edge.
 - **Melee is a genuinely new verb.** It gets its own code path (`CLAUDE.md → Weapons are data`). It's also the
@@ -287,15 +298,14 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 
 ## Open questions
 
-1. **Which four unbinding moves?** Only Justice's is needed for the slice. The proposal is a parry.
-2. **Rifle reload:** none, because charges are the magazine (Proposed above)?
-3. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
-4. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
-5. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?
+1. **The other three unbinding moves** (the Devil, the Tower, the Moon). They aren't needed for the slice.
+2. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
+3. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
+4. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?
 
 Resolved:
 - Working title: ***Eight***.
 - The four pairings and order, with Justice as the slice.
-- The charge loop, starting full, and a heavy rifle.
-- Unbinding as the progression.
+- The charge loop, starting full, a heavy rifle, no reload, and a visible charge indicator on the weapon.
+- Unbinding as the progression, with Justice's move being a parry.
 - Trial grounds for the Chariot and the Hanged Man.
