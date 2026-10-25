@@ -90,7 +90,19 @@ export const tuning = {
     heightMix: 1,
     skyBands: 24,
     cloudAmount: 0.35,
-    /** Pixel/painterly outlines fade out between these view distances (metres): the distance stays soft. */
+  },
+  /** Pixel mode (src/render/pixel.ts): crisp low-res blocks with a depth outline. P toggles it. */
+  pixel: {
+    enabled: true,
+    /** Screen pixels per block. */
+    scale: 2,
+    /** Outline darkness, 0 = none. */
+    outline: 0.3,
+    /** How sharp a depth step must be to get a line: higher draws fewer, only strong silhouettes. */
+    edgeThreshold: 0.3,
+    /** Line thickness in blocks. */
+    edgeWidth: 1,
+    /** Outlines fade out between these view distances (metres), so the distance stays soft. */
     outlineFadeStart: 30,
     outlineFadeEnd: 140,
   },
@@ -239,23 +251,6 @@ export const tuning = {
     footstepGain: 0.12,
     sfxGain: 0.8,
   },
-  /** Painterly post-process (STYLE.md): Kuwahara smear + luminance posterise + soft depth edges. */
-  post: {
-    enabled: false,
-    kuwaharaRadius: 0,
-    posterizeLevels: 2,
-    posterizeMix: 0,
-    edgeStrength: 0,
-    /** Also the threshold for pixel-mode outlines. */
-    edgeThreshold: 0.3,
-    edgeWidth: 0.5,
-    saturation: 2,
-    grain: 0,
-    /** Keep thin bright FX and strongly saturated signal colours unfiltered (readability). */
-    keepSignals: 0,
-    signalSaturation: 0.2,
-    resolutionScale: 1,
-  },
   debug: {
     slowmo: false,
     slowmoScale: 0.25,
@@ -266,12 +261,6 @@ export const tuning = {
     showGraph: false,
     overview: false,
     showStats: true,
-    /** On by default in V2-1 to evaluate the Brume look (STYLE.md); P toggles it. */
-    pixelMode: true,
-    /** Screen pixels per pixel-mode block. */
-    pixelScale: 2,
-    /** Outline strength in pixel mode when the painterly pass is off (keeps silhouettes defined). */
-    pixelOutline: 0.3,
   },
   swap: {
     lowerTime: 0.16,

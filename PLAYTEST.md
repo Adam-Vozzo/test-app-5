@@ -4,6 +4,14 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## Pixel mode gets its own settings; the painterly pass is gone
+- The painterly post pass (Kuwahara smear, posterise, grain) is **removed**. Other post techniques get explored
+  later (`PLAN.md → Later`).
+- Pixel mode is now its own tuning group, **`pixel`**: `enabled` (P), `scale`, `outline`, **`edgeThreshold`**,
+  **`edgeWidth`** (line thickness in blocks; 0.5 steps), `outlineFadeStart` and `outlineFadeEnd`. Your values carry
+  over: outline 0.3, threshold 0.3, width 1, fade 30 → 140 m.
+- A preset or JSON saved before this change still loads, but its old `post` and `debug.pixel*` keys are ignored.
+
 ## V2-1 tuning pass 1 (your JSON, baked in as defaults)
 - **Movement:** walk 4.5 m/s (was 4.8), sprint 7.5 (was 8.8).
 - **Roll:** 8.5 m/s for 0.5 s (was 12.8 for 0.4), so about 4.6 m.

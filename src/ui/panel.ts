@@ -9,19 +9,13 @@ type Obj = Record<string, unknown>;
 /** Slider range heuristics from the default value; anything odd stays a number box (drag to edit). */
 /** Explicit slider ranges where the default-value heuristic would pick a bad range. */
 const RANGES: Record<string, [number, number, number]> = {
-  kuwaharaRadius: [0, 6, 1],
-  posterizeLevels: [2, 16, 1],
-  posterizeMix: [0, 1, 0.01],
-  edgeStrength: [0, 1, 0.01],
-  edgeThreshold: [0.005, 0.3, 0.005],
-  edgeWidth: [0.5, 4, 0.1],
-  saturation: [0, 2, 0.01],
-  grain: [0, 0.15, 0.005],
-  resolutionScale: [0.25, 1, 0.05],
-  keepSignals: [0, 1, 0.05],
-  pixelScale: [1, 8, 1],
-  pixelOutline: [0, 1, 0.01],
-  signalSaturation: [0.2, 1, 0.01],
+  // pixel
+  scale: [1, 8, 1],
+  outline: [0, 1, 0.01],
+  edgeThreshold: [0.005, 1, 0.005],
+  edgeWidth: [0.5, 4, 0.5],
+  outlineFadeStart: [0, 300, 1],
+  outlineFadeEnd: [1, 600, 1],
 };
 
 function addNumber(folder: GUI, obj: Obj, key: string): Controller {
@@ -113,7 +107,7 @@ export class Panel {
     for (const key of Object.keys(t)) {
       const f = this.gui.addFolder(key);
       build(f, t[key] as Obj, new Set(['id', 'name']));
-      if (key !== 'debug' && key !== 'post') f.close();
+      if (key !== 'debug' && key !== 'pixel') f.close();
     }
     this.gui.hide();
   }

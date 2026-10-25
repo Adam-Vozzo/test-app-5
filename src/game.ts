@@ -415,7 +415,7 @@ export class Game {
       d.godMode = !d.godMode;
       this.hud.toast(d.godMode ? 'god mode' : 'god mode off');
     }
-    if (code === 'KeyP') d.pixelMode = !d.pixelMode;
+    if (code === 'KeyP') tuning.pixel.enabled = !tuning.pixel.enabled;
     if (code === 'KeyM') d.showGraph = !d.showGraph;
     if (code === 'KeyO') d.overview = !d.overview;
     if (code === 'KeyN' && this.zone) this.regenerate(this.zoneSeed + 1);
@@ -435,7 +435,6 @@ export class Game {
       this.fpsTime = 0;
     }
 
-    this.renderer.syncPixelMode();
     if (this.player && this.mode !== 'menu') this.step(realDt);
     this.renderer.render();
     this.input.endFrame();

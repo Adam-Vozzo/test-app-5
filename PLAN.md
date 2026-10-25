@@ -139,6 +139,8 @@ Each trial is one generated room plus one rule (`DESIGN.md → Trial grounds`).
 - Each trial ends with a `PLAYTEST.md` entry: is the rule fun, and should it challenge a current dimension?
 
 ## Later (after the slice is played; no detail on purpose)
+- **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel
+  mode stays).
 - **The Devil × Pentacles**, **The Tower × Wands**, **The Moon × Cups**: each needs kits, a signature enemy, a suit
   kit for the court ranks and a boss.
 - The Star and the Fool in the hub, the remaining unbindings, and the Sun ending.

@@ -32,8 +32,8 @@ Notes from studying the store screenshots, plus a Remnant 2 screenshot the user 
 9. **Small, stocky, readable figures.** A hooded or helmeted head, a box or capsule body and stick limbs. The face is
    a dark hole or a single dot. Figures are read by their gear silhouette (sword, spear, shield, lantern).
 10. **Painterly sky, posterised ground and low resolution.** Grey Scout has smeared, banded clouds and a diagonal rain
-    hatch over the whole frame. Brume renders at low resolution with crisp pixels. We already have both tools: the
-    painterly pass and pixel mode.
+    hatch over the whole frame. Brume renders at low resolution with crisp pixels. We have pixel mode; a painterly
+    or hatch pass is still to find (see *Shading and post*).
 
 ## v2 rules
 
@@ -107,17 +107,17 @@ Rules:
 - **Common enemies** are stocky like the player but darker and more hunched. Each archetype has a distinct silhouette
   at 30 m.
 
-### Shading and post (carried over from v1)
+### Shading and post
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.
 - **Stripes become facets.** v1's wobbly organic stripes give way to flat-shaded facets and per-face value jitter,
   which reads as blocky rather than soft.
-- **Pixel mode** (`debug.pixelMode`) is the Brume look. **On by default since V2-1 for evaluation**, at `pixelScale`
-  2 with a light outline (`pixelOutline` 0.3, threshold `post.edgeThreshold` 0.3, from the user's tuning). P
-  toggles it.
-- **Outlines fade with distance** (`look.outlineFadeStart` → `outlineFadeEnd`, 30 → 140 m). Ink lines belong to the
+- **Pixel mode** (`tuning.pixel`, `src/render/pixel.ts`) is the Brume look and the only post step. It's on by
+  default (P toggles it): `scale` 2, a light outline (`outline` 0.3, `edgeThreshold` 0.3, `edgeWidth` 1 block), from
+  the user's tuning.
+- **Outlines fade with distance** (`pixel.outlineFadeStart` → `outlineFadeEnd`, 30 → 140 m). Ink lines belong to the
   play space. Outlining fogged hills turned the distance into shards, against the "silhouettes only" value plane.
-- **Painterly pass** (`post.enabled`) is the Grey Scout look for skies and distance. Optional; real-hardware cost is
-  still unmeasured.
+- **No painterly pass for now (Decided).** v1's Kuwahara/posterise pass didn't suit v2 and was removed. Other post
+  techniques get explored later (`PLAN.md → Later`).
 - A **rain/hatch overlay** (Grey Scout's diagonal streaks) is a cheap screen-space option for the Moon dimension.
 
 ### Reserved signal colours (unchanged from v1, must pop in **every** area palette)

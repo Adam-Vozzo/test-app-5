@@ -85,17 +85,17 @@ try {
   await wait(300);
   await shot('06-justice-colliders');
   await g(() => window.__game.input.onKey('KeyH'));
-  // Painterly post-process on (a shader compile error logs a console error and fails the run).
-  await g(() => { window.__tuning.post.enabled = true; });
+  // Pixel mode with a thick, eager outline (a shader compile error logs a console error and fails the run).
+  await g(() => { const p = window.__tuning.pixel; p.edgeWidth = 2; p.edgeThreshold = 0.05; p.outline = 0.8; });
   await wait(800);
-  await shot('08-justice-post');
-  const postDraws = await g(() => window.__game.renderer.renderer.info.render.calls);
-  console.log('  post-process draws/frame', postDraws);
-  if (postDraws < 5) throw new Error('frame stats only counted the post pass');
-  await g(() => { window.__tuning.post.enabled = false; window.__tuning.debug.pixelMode = false; });
+  await shot('08-justice-pixel-thick-outline');
+  const pixelDraws = await g(() => window.__game.renderer.renderer.info.render.calls);
+  console.log('  pixel-mode draws/frame', pixelDraws);
+  if (pixelDraws < 5) throw new Error('frame stats only counted the pixel pass');
+  await g(() => { const p = window.__tuning.pixel; p.edgeWidth = 1; p.edgeThreshold = 0.3; p.outline = 0.3; p.enabled = false; });
   await wait(700);
   await shot('09-justice-no-pixel');
-  await g(() => { window.__tuning.debug.pixelMode = true; });
+  await g(() => { window.__tuning.pixel.enabled = true; });
 
   // Tuning panel open, with the pistol folder expanded.
   await g(() => {

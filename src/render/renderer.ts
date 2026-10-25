@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { fogParams, Sky } from './atmosphere';
 import type { AreaLighting } from './palette';
 import { tuning } from '../tuning';
-import { PostPass } from './post';
+import { PixelPass } from './pixel';
 
 /** Integrated GPUs on hi-dpi screens choke at 2×; 1.5× keeps edges clean at a fraction of the fill cost. */
 const MAX_DPR = 1.5;
@@ -20,8 +20,8 @@ export class Renderer {
   readonly sky: Sky;
   /** v2 areas read fog shape from tuning.look each frame; v1 biomes keep their fixed exp² fog. */
   private lookFog = false;
-  /** Painterly post-process, created the first time it's enabled. */
-  private post: PostPass | null = null;
+  /** Pixel mode, created the first time it's enabled. */
+  private pixel: PixelPass | null = null;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -93,9 +93,6 @@ export class Renderer {
     this.renderer.setSize(w, h);
   }
 
-  /** Pixel mode is rendered by the post pass now (crisp low-res target); nothing to resize here. */
-  syncPixelMode() {}
-
   render() {
     this.renderer.info.reset();
     const look = tuning.look;
@@ -106,10 +103,9 @@ export class Renderer {
       fogParams.w = look.heightMix;
     }
     this.sky.update(this.camera, look.skyBands, look.cloudAmount);
-    const pixel = tuning.debug.pixelMode;
-    if (tuning.post.enabled || pixel) {
-      this.post ??= new PostPass();
-      this.post.render(this.renderer, this.scene, this.camera, pixel);
+    if (tuning.pixel.enabled) {
+      this.pixel ??= new PixelPass();
+      this.pixel.render(this.renderer, this.scene, this.camera);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
