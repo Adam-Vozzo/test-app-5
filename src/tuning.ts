@@ -437,6 +437,9 @@ export const tuning = {
     raiseTime: 0.2,
     dropDistance: 0.4,
     tiltDeg: 50,
+    /** The SwordRifle rides on her back when it isn't in hand: reaching over the shoulder to stow or draw it. */
+    stowTime: 0.38,
+    drawTime: 0.36,
   },
   weapons: {
     pistol: AUTO_PISTOL,

@@ -163,6 +163,8 @@ try {
   }
 
   if (process.argv.includes('--sword')) {
+    const { holsterScenario } = await import('./smoke-v2.mjs');
+    await holsterScenario({ page, g, hold, release, press, look, wait, shot });
     const { swordScenario } = await import('./smoke-v2.mjs');
     await swordScenario({ page, g, hold, release, press, look, wait, shot });
   }

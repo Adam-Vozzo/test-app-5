@@ -17,6 +17,8 @@ export class Arsenal {
   private swapT = 0;
   private target = 0;
   private switched = false;
+  /** The slot swapped away from (for the phase lengths after the switch). */
+  private from = 0;
 
   constructor(
     private player: Player,
@@ -26,6 +28,18 @@ export class Arsenal {
     this.guns = LOADOUT.map((w) => new Gun(defs[w.id] ?? w, buildModel(w.id), infiniteReserve));
     this.swords = this.guns.map((g) => (g.model.sword ? new SwordRifle(g) : null));
     player.setWeapon(this.guns[0].model);
+    this.sling();
+  }
+
+  /** The SwordRifle rides on her back whenever it isn't the weapon in hand. */
+  private sling() {
+    const i = this.swords.findIndex((s) => s !== null);
+    this.player.setBackWeapon(i >= 0 && i !== this.index ? this.guns[i].model : null);
+  }
+
+  /** Swaps that involve the SwordRifle reach over the shoulder instead of dipping the weapon. */
+  private stowing(from: number) {
+    return !!this.swords[from];
   }
 
   get current() {
@@ -88,22 +102,29 @@ export class Arsenal {
   update(dt: number, ctx: GunContext, inp: SwordInput, canAct = true) {
     const s = tuning.swap;
     let lowered = 0;
+    let holster = 0;
     if (this.swapping) {
       this.swapT += dt;
-      if (!this.switched && this.swapT >= s.lowerTime) {
+      // Phase lengths: stowing the SwordRifle and drawing it take a reach over the shoulder.
+      const down = this.stowing(this.switched ? this.from : this.index) ? s.stowTime : s.lowerTime;
+      const up = this.stowing(this.switched ? this.index : this.target) ? s.drawTime : s.raiseTime;
+      if (!this.switched && this.swapT >= down) {
         // Swapping away loses any reload in progress.
         this.current.cancelReload(false);
         this.sword?.cancelActions();
+        this.from = this.index;
         this.index = this.target;
         this.player.setWeapon(this.current.model);
+        this.sling();
         this.switched = true;
         ctx.synth.reload('pouch');
       }
-      lowered = this.switched
-        ? 1 - smoothstep(s.lowerTime, s.lowerTime + s.raiseTime, this.swapT)
-        : smoothstep(0, s.lowerTime, this.swapT);
-      if (this.swapT >= s.lowerTime + s.raiseTime) this.swapping = false;
+      const k = this.switched ? 1 - smoothstep(down, down + up, this.swapT) : smoothstep(0, down, this.swapT);
+      if (this.sword) holster = k;
+      else lowered = k;
+      if (this.swapT >= down + up) this.swapping = false;
     }
+    this.player.holster = holster;
     const gun = this.current;
     const sword = this.sword;
     if (sword) sword.update(dt, ctx, inp, canAct && !this.swapping);

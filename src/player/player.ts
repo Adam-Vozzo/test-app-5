@@ -26,6 +26,14 @@ const _hl = new THREE.Vector3();
 const _sw = new THREE.Vector3();
 const _qs = new THREE.Quaternion();
 const _es = new THREE.Euler(0, 0, 0, 'YXZ');
+const _slotPos = new THREE.Vector3();
+const _slotQuat = new THREE.Quaternion();
+const _over = new THREE.Vector3();
+const _restL = new THREE.Vector3();
+const _bx = new THREE.Vector3();
+const _by = new THREE.Vector3();
+const _bz = new THREE.Vector3();
+const _bm = new THREE.Matrix4();
 
 /** Per-frame pose overrides from the weapon system (recoil, reload choreography). */
 export interface WeaponPose {
@@ -44,6 +52,11 @@ export class Player {
   readonly biped: Biped;
   readonly weaponRoot = new THREE.Group();
   model: WeaponModel | null = null;
+  /** The weapon slung on her back (the SwordRifle while the pistol is out). */
+  readonly backRoot = new THREE.Group();
+  backModel: WeaponModel | null = null;
+  /** Drawing or stowing the held weapon from or to the back slot: 0 = in hand, 1 = on the back. */
+  holster = 0;
   /** SwordRifle sword-mode placement (blend 0 = the usual aimed hold, 1 = blade pose). */
   swordPose: SwordPose | null = null;
   combatTimer = 0;
@@ -69,7 +82,7 @@ export class Player {
   ) {
     this.controller = new Controller(physics, spawn, yaw);
     this.biped = new Biped(scene, physics);
-    scene.add(this.weaponRoot);
+    scene.add(this.weaponRoot, this.backRoot);
     // The heal: a draught carried to the mouth.
     this.drop = new THREE.Mesh(
       new THREE.SphereGeometry(0.06, 8, 6).scale(1, 1.4, 1),
@@ -90,6 +103,30 @@ export class Player {
     if (this.model) this.weaponRoot.remove(this.model.root);
     this.model = model;
     this.weaponRoot.add(model.root);
+  }
+
+  /** Sling a weapon on her back (null clears the slot). */
+  setBackWeapon(model: WeaponModel | null) {
+    if (this.backModel) this.backRoot.remove(this.backModel.root);
+    this.backModel = model;
+    if (!model) return;
+    model.root.position.set(0, 0, 0);
+    model.root.quaternion.identity();
+    this.backRoot.add(model.root);
+  }
+
+  /** The back slot in world space: chest-relative, riding the body (it tumbles with a roll, falls with her). */
+  private backSlot(outPos: THREE.Vector3, outQuat: THREE.Quaternion) {
+    const b = this.biped;
+    const s = BODY.back;
+    outPos.set(s.x, s.y, s.z).applyQuaternion(b.bodyQuat).add(b.chest);
+    // Model forward (-Z) along the muzzle line, its top (+Y) facing back against her.
+    _bz.set(-s.muzzle[0], -s.muzzle[1], -s.muzzle[2]).normalize();
+    _by.set(0, 0, 1);
+    _by.addScaledVector(_bz, -_by.dot(_bz)).normalize();
+    _bx.crossVectors(_by, _bz);
+    _bm.makeBasis(_bx, _by, _bz);
+    outQuat.setFromRotationMatrix(_bm).premultiply(b.bodyQuat);
   }
 
   move(dt: number, inp: Omit<MoveInput, 'combat'>) {
@@ -119,6 +156,12 @@ export class Player {
       },
       dt,
     );
+    if (this.backModel) {
+      this.backSlot(_slotPos, _slotQuat);
+      this.backRoot.position.copy(_slotPos);
+      this.backRoot.quaternion.copy(_slotQuat);
+      this.backRoot.updateMatrixWorld(true);
+    }
     if (this.dead) {
       this.animateDead();
       return;
@@ -181,10 +224,26 @@ export class Player {
     const sx = Math.sin(this.swayT * 0.9) * sway * 0.5;
     const sy = Math.sin(this.swayT * 1.7) * sway;
     root.position.add(_v.set(pose.kickPos.x.x + sx, pose.kickPos.y.x - pose.drop + sy, pose.kickPos.z.x).applyQuaternion(this.weaponQuat));
+    // Drawing from / stowing to the back: the weapon arcs over the right shoulder; the right hand rides the grip,
+    // the off hand lets go.
+    const hk = c.rolling ? 0 : THREE.MathUtils.clamp(this.holster, 0, 1);
+    if (hk > 0) {
+      this.backSlot(_slotPos, _slotQuat);
+      const o = BODY.back.over;
+      _over.set(o[0], o[1], o[2]).applyQuaternion(b.yawQuat).add(b.chest);
+      const u = 1 - hk;
+      root.position.multiplyScalar(u * u).addScaledVector(_over, 2 * hk * u).addScaledVector(_slotPos, hk * hk);
+      root.quaternion.slerp(_slotQuat, THREE.MathUtils.smoothstep(hk, 0.15, 1));
+    }
     root.updateMatrixWorld(true);
 
     const gripW = model.grip.clone().applyMatrix4(root.matrixWorld);
     let foreW = pose.leftHand ? pose.leftHand(root, b, _hand) : model.fore.clone().applyMatrix4(root.matrixWorld);
+    if (hk > 0) {
+      const r = BODY.restHandL;
+      _restL.set(r[0], r[1], r[2]).applyQuaternion(b.yawQuat).add(b.chest);
+      foreW.lerp(_restL, THREE.MathUtils.smoothstep(hk, 0, 0.35));
+    }
     this.drop.visible = false;
     if (this.healT >= 0) {
       // Off hand leaves the gun, brings the draught to the mouth, holds, then returns.

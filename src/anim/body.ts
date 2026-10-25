@@ -30,6 +30,13 @@ export const BODY = {
   pouch: { x: -0.24, y: 0.03, z: -0.03 },
   /** Where the heal is drunk from, relative to the head. */
   mouth: { forward: 0.2, up: -0.06 },
+  /**
+   * The SwordRifle's back slot, relative to the chest (+z is behind her): slung diagonally, muzzle up past the right
+   * shoulder, its top against her back. `over` is the point above the right shoulder the draw and stow arc through.
+   */
+  back: { x: -0.02, y: -0.04, z: 0.2, muzzle: [0.4, 0.92, 0.05] as const, over: [0.3, 0.55, 0.04] as const },
+  /** Off hand at rest while the right hand reaches over the shoulder. */
+  restHandL: [-0.2, -0.28, -0.08] as const,
   /** Closest the aim point may come before the weapon stops tracking it (folding guns against walls). */
   minAimDistance: 4,
 } as const;

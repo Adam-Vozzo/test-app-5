@@ -4,6 +4,14 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## SwordRifle on her back (your request)
+**Try:** with the pistol out, the SwordRifle hangs diagonally across her back. Press **2**: she reaches over her right
+shoulder and draws it; **1** stows it the same way. Watch it while rolling (it tumbles with her) and when she falls.
+
+**Unsure about:** the draw (0.36 s) and stow (0.38 s) are slower than the old dip-swap (0.36 s total) and they're
+committed, so swapping mid-fight costs a little more. Tune `swap.drawTime` and `swap.stowTime`. The slot position and
+angle are in `BODY.back`; it may clip the hood on some poses.
+
 ## V2-5: the court cards
 **Run:** play to the end of a level (the throne room), or `?mode=level&level=1` (Knight), `2` (Queen), `3` (King).
 The court card rises when you walk in; the way on stays sealed until it falls.

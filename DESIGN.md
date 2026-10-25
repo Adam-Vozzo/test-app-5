@@ -291,6 +291,9 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
     - The charged strike costs 2, and it won't start without them.
     - An empty rifle dry-fires and flickers its cells.
   - **Committed body:** a swing's windup and active phases can't be rolled out of, but its recovery can.
+  - **Carried on her back:** while the pistol is out, the SwordRifle is slung diagonally across her back, muzzle up past
+    the right shoulder. Swapping to it reaches over the shoulder and draws it (0.36 s); swapping away stows it the same
+    way (0.38 s). It's committed like any swap (`tuning.swap.drawTime / stowTime`).
   - **Rust:** stage 0 deals 65% damage, switches 1.5× slower, sounds duller and has dim cells. The four repair
     stages step this up to full (`REPAIR_STAGES` in `src/weapons/defs.ts`).
 

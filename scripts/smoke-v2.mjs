@@ -459,6 +459,26 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   await g(() => { window.__tuning.debug.godMode = false; });
 }
 
+// The SwordRifle rides on her back while the pistol is out, and the swap reaches over the shoulder for it.
+export async function holsterScenario({ g, wait, shot }) {
+  await g(() => window.__game.start('justice'));
+  await wait(1200);
+  const slung = await g(() => !!window.__game.player.backModel && window.__game.arsenal.current.def.id === 'pistol');
+  await g(() => window.__game.arsenal.request(1));
+  let peak = 0;
+  for (let i = 0; i < 400 && (await g(() => window.__game.arsenal.isSwapping)); i++) {
+    peak = Math.max(peak, await g(() => window.__game.player.holster));
+    await wait(20);
+  }
+  const drawn = await g(() => window.__game.arsenal.current.def.id === 'swordRifle' && !window.__game.player.backModel && window.__game.player.holster === 0);
+  await g(() => window.__game.arsenal.request(0));
+  for (let i = 0; i < 400 && (await g(() => window.__game.arsenal.isSwapping)); i++) await wait(20);
+  const back = await g(() => !!window.__game.player.backModel);
+  await shot('39-holster-slung');
+  console.log(`  holster: slung at start ${slung}, drawn over the shoulder (peak ${peak.toFixed(2)}) ${drawn}, back on her back ${back}`);
+  if (!slung || !drawn || !back || peak < 0.5) throw new Error('the SwordRifle should ride on her back and be drawn from it');
+}
+
 // V2-4 scenario: Justice's enemies in the training courtyard. The Bailiff's shield turns shots from the front but
 // not during its recovery; the Gavel's slam hurts whoever stands in its ring; the Blindfold ignores footsteps and
 // comes for gunfire; the Page throws a blade. Kills pay out.

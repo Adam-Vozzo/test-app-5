@@ -90,6 +90,8 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - HUD pips, guard dummies, the charge colour
   - a 0.15 s roll-press buffer (`feel.rollBuffer`) so a dodge pressed during hitstop isn't lost
   - the `--sword` smoke scenario
+  - *later (your request):* the SwordRifle rides on her back while the pistol is out, and swaps draw it over the
+    shoulder and stow it back (slot in `BODY.back`, timings in `tuning.swap`)
 
 ## V2-3: Level generator v2 ✅ (waiting on your playtest)
 Implements `LEVELS.md` for one dimension:
