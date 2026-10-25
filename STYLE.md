@@ -57,7 +57,7 @@ milestone; until it lands, the code still uses v1's beetle units.
 | Combat clearing | 18–40 m across | see `LEVELS.md → Combat spaces` |
 | Doorway / arch | 2.5–4 m tall | arches frame vistas, so err tall |
 | Hero props | 8–30 m | planted swords, statues, chained pillars |
-| Landmark | 60–300 m | the dimension's symbol, visible through fog |
+| Landmark | 60–450 m | the dimension's symbol, visible through fog; generated levels stand Justice's 175 m scales ≥ 360 m from the spawn, so the beam rides above the height fog |
 
 ### Atmospheric perspective (the core look)
 - **Fog colour = the horizon/sky colour of the area**, and it is light. The play space stays clear and the distance

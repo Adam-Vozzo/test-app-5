@@ -8,8 +8,31 @@ import type { BiomePalette } from '../render/palette';
 import type { SpawnSpec } from '../enemies/manager';
 import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleGeo, sugarCubeGeo } from './props';
 
-/** `justice` is the v2 scene; the rest are v1 bug-scale scenes, reachable by URL only (`?mode=`). */
-export type LayoutKind = 'justice' | 'arena' | 'range' | 'garden' | 'kitchen';
+/**
+ * `justice` (the training courtyard) and `level` (a generated Justice level) are v2 scenes; the rest are v1
+ * bug-scale scenes, reachable by URL only (`?mode=`).
+ */
+export type LayoutKind = 'justice' | 'level' | 'arena' | 'range' | 'garden' | 'kitchen';
+
+/** A rest point: rest with E nearby; you rise at the last one you rested at. */
+export interface RestPoint {
+  pos: THREE.Vector3;
+  rest: THREE.Vector3;
+  restYaw: number;
+}
+
+/** Something the player can use with E (a shortcut door, the exit, a cache). */
+export interface Interactable {
+  pos: THREE.Vector3;
+  radius: number;
+  /** The prompt to show for a player standing at `p`, or null for none. */
+  prompt(p: THREE.Vector3): string | null;
+  /** Use it (only called when `prompt` returned a usable prompt). Returns a toast, if any. */
+  use(p: THREE.Vector3): string | null;
+  /** Can it be used from `p` right now? (A barred door shows a prompt but can't be opened from the wrong side.) */
+  usable(p: THREE.Vector3): boolean;
+  update?(dt: number): void;
+}
 
 export interface BuiltWorld {
   group: THREE.Group;
@@ -21,6 +44,11 @@ export interface BuiltWorld {
   checkpoint: THREE.Vector3 | null;
   /** What the checkpoint is called in prompts ("the lantern"). */
   restLabel?: string;
+  /** Several rest points (generated levels). The first is where a level starts. */
+  restPoints?: RestPoint[];
+  interactables?: Interactable[];
+  /** The world's extent on the ground, for the overview camera. */
+  bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
 }
 
 const _m = new THREE.Matrix4();

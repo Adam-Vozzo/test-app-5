@@ -91,7 +91,7 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - a 0.15 s roll-press buffer (`feel.rollBuffer`) so a dodge pressed during hitstop isn't lost
   - the `--sword` smoke scenario
 
-## V2-3: Level generator v2
+## V2-3: Level generator v2 ✅ (waiting on your playtest)
 Implements `LEVELS.md` for one dimension:
 - level script
 - mission-graph grammar
@@ -104,6 +104,22 @@ Implements `LEVELS.md` for one dimension:
 Pure logic in `src/world/gen*` with unit tests for the graph constraints, validation checks and determinism.
 Debug: the graph overlay with node types, the validation report, and the vista-camera screenshots in the smoke test.
 Enemy spawns can use placeholder dummies until V2-4.
+- **Done as:**
+  - the dimension script, room kits and connector rules as data in `src/world/dimensions.ts`
+  - pure generation in `src/world/gen-graph.ts` (script, mission graph), `gen-space.ts` (rooms on a right-angled grid,
+    the loop, the shortcut, branches), `gen-dress.ts` (kit structure, encounter sockets, dressing, vista poses) and
+    `gen-validate.ts` (graph, space, sockets, landmark sight lines, budget), run by `gen-level.ts` with reseeding
+  - `tests/gen-level.test.ts`: 150 seeds across the three levels; graph constraints, layout, sockets, sight lines,
+    determinism, and that each check catches a broken level
+  - the builder `src/world/level.ts`: stone platforms over a fog-filled drop, causeways and stairs, arches, the
+    one-sided portcullis, lanterns, caches, the veiled exit, hero swords, the scales
+  - in the game: **Play: Justice, level 1** (or `?mode=level&level=1..3`), rest at any lantern and rise at the last
+    one, E to use doors and the exit, the exit leads to the next level (it wraps to level 1 until V2-6's boss)
+  - debug: M draws the mission graph and kit labels, O the overview, V jumps between vistas, N rolls a new seed, and
+    the stats line shows the validation report
+  - the `--level` smoke scenario
+  - placeholders: enemies are training dummies (shields for guards), the miniboss is a guard dummy, and a cache gives
+    back one heal flask
 
 ## V2-4: Justice enemies
 - **Humanoid enemy rig:** reuse the procedural biped for stocky humanoids. Keep the multi-leg rig for beasts later

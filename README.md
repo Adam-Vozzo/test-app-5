@@ -4,13 +4,14 @@ A souls-like third-person shooter set in a world built from the tarot, played as
 generated in code: geometry, animation, levels and sound. No asset files.
 
 v2 is an iteration of *A bugs death*, the bug-scale v1 prototype. Its docs are frozen in `archive/v1/`. The playable
-build is the V2-1 greybox: the Eight of Swords and her auto-pistol in a Justice courtyard.
+build is V2-3: the Eight of Swords, her auto-pistol and the SwordRifle, in generated Justice levels (training dummies
+stand in for enemies) and a training courtyard.
 
 ```
 npm install
 npm run dev        # play at the printed URL
 npm test           # unit tests (IK, gait, RNG, generation)
-npm run smoke      # build + headless Chromium run with screenshots (add -- --pistol for the gun scenario)
+npm run smoke      # build + headless Chromium run with screenshots (add -- --level --pistol --sword for v2 scenarios)
 npm run build      # static build in dist/ (relative base, GitHub Pages ready)
 ```
 
@@ -19,7 +20,8 @@ npm run build      # static build in dist/ (relative base, GitHub Pages ready)
 `.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` on every push to `main` (or on demand from the Actions tab).
 One-time setup: **Settings → Pages → Source: GitHub Actions**. The Vite `base` is relative (`./`), so it works under any repository sub-path.
 
-URL params: `?seed=123` (any string works) and `?mode=justice` to skip the menu. The v1 bug-scale scenes are still
+URL params: `?seed=123` (any string works), `?mode=level&level=1` (a generated Justice level, 1–3) or `?mode=justice`
+(the training courtyard) to skip the menu. The v1 bug-scale scenes are still
 reachable with `?mode=garden|kitchen|arena|range` until v2 replaces them.
 
 ## Docs

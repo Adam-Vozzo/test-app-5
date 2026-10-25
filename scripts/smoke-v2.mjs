@@ -276,3 +276,168 @@ export async function swordScenario({ g, wait, shot }) {
   await until(() => { const s = window.__game.arsenal.sword; return s.mode === 'rifle' && !s.switching; });
   await shot('37-swordrifle-back-to-rifle');
 }
+
+// V2-3 scenario: a generated Justice level. Validation report, the spawn view, the overview with the mission graph,
+// every vista, stairs, parapets, the shortcut (barred from the near side, lifted from the gate side), resting and
+// rising at a later lantern, and the exit into level 2.
+export async function levelScenario({ g, hold, release, press, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(100);
+    }
+    return false;
+  };
+  /** Teleport and face `yaw` (0 = -Z), camera behind. */
+  const put = (x, y, z, yaw) =>
+    g(([x, y, z, yaw]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: y + 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = 0;
+    }, [x, y, z, yaw]);
+  const pos = () => g(() => window.__game.player.pos.toArray().map((v) => +v.toFixed(2)));
+
+  await g(() => {
+    const gm = window.__game;
+    gm.levelIndex = 0;
+    gm.zoneSeed = 42;
+    gm.start('level');
+  });
+  await wait(1500);
+  const info = await g(() => {
+    const gm = window.__game;
+    const L = gm.level.generated;
+    return {
+      ok: gm.level.report.ok,
+      attempts: gm.level.report.attempts,
+      ms: +gm.level.report.ms.toFixed(1),
+      setPiece: L.script.setPiece.id,
+      path: L.graph.critical.map((id) => L.graph.nodes[id].kind).join(' → '),
+      rooms: L.space.rooms.length,
+      sockets: L.sockets.length,
+      dummies: gm.dummies.length,
+      vistas: L.dressing.vistas.length,
+    };
+  });
+  console.log('  level 1', JSON.stringify(info));
+  if (!info.ok) throw new Error('level 1 failed validation');
+  if (info.dummies !== info.sockets) throw new Error('every encounter socket should hold a dummy');
+  await shot('30-level-spawn');
+  const draws = await g(() => window.__game.renderer.renderer.info.render.calls);
+  console.log('  level draws/frame', draws);
+  if (draws > 150) throw new Error(`level draws ${draws} over the 150 budget`);
+
+  await g(() => { window.__tuning.debug.overview = true; window.__tuning.debug.showGraph = true; });
+  await wait(900);
+  await shot('31-level-overview');
+  await g(() => { window.__tuning.debug.overview = false; });
+  await wait(300);
+  await shot('32-level-kit-labels');
+  await g(() => { window.__tuning.debug.showGraph = false; });
+  for (let i = 0; i < info.vistas; i++) {
+    await g((i) => window.__game.gotoVista(i), i);
+    await wait(900);
+    await shot(`33-level-vista-${i}`);
+  }
+
+  // Stairs: walk up the first connector that climbs.
+  const stairs = await g(() => window.__game.level.generated.space.connectors.find((c) => c.kind === 'stairs' && Math.abs(c.y1 - c.y0) > 1));
+  if (stairs) {
+    const [x0, z0, y0, x1, z1, y1] = stairs.y1 > stairs.y0 ? [stairs.ax, stairs.az, stairs.y0, stairs.bx, stairs.bz, stairs.y1] : [stairs.bx, stairs.bz, stairs.y1, stairs.ax, stairs.az, stairs.y0];
+    const yaw = Math.atan2(-(x1 - x0), -(z1 - z0));
+    const back = 2.5;
+    const len = Math.hypot(x1 - x0, z1 - z0);
+    await put(x0 - ((x1 - x0) / len) * back, y0, z0 - ((z1 - z0) / len) * back, yaw);
+    await wait(300);
+    await hold('KeyW');
+    const climbed = await until((top) => window.__game.player.pos.y > top - 0.3, 25000, y1);
+    await release('KeyW');
+    console.log(`  stairs ${y0}→${y1} m: climbed ${climbed}, at`, JSON.stringify(await pos()));
+    if (!climbed) throw new Error('could not climb a stair connector');
+  }
+
+  // Parapets: run at a room's edge for a while and stay on the platform.
+  const room = await g(() => window.__game.level.generated.space.rooms[0]);
+  await put(room.x, room.y, room.z, Math.PI / 2);
+  await hold('KeyW');
+  await hold('ShiftLeft');
+  // Reach the west parapet (game time lags wall time headless), then keep pushing into it.
+  const reached = await until((edgeX) => window.__game.player.pos.x < edgeX, 15000, room.x - room.sx / 2 + 1.6);
+  await wait(1200);
+  await release('ShiftLeft');
+  await release('KeyW');
+  const edge = await pos();
+  console.log(`  ran at the start room edge: reached ${reached}, at`, JSON.stringify(edge));
+  if (!reached) throw new Error('never reached the start room edge');
+  if (edge[1] < room.y - 0.5 || edge[0] < room.x - room.sx / 2) throw new Error('left the platform: the parapet leaked');
+
+  // Shortcut: barred from the lantern side, lifted from the gate side, then walk back through it.
+  const door = await g(() => window.__game.level.generated.dressing.door);
+  const sx = door.opensFrom === 0 ? 0 : door.opensFrom === 1 ? 1 : door.opensFrom === 2 ? 0 : -1;
+  const sz = door.opensFrom === 0 ? -1 : door.opensFrom === 2 ? 1 : 0;
+  const faceGate = Math.atan2(-sx, -sz);
+  await put(door.x - sx * 2.2, door.y, door.z - sz * 2.2, faceGate);
+  await wait(400);
+  await press('KeyE');
+  await wait(400);
+  const barred = await g(() => !window.__game.level.shortcutOpen());
+  await shot('34-level-shortcut-barred');
+  await put(door.x + sx * 2.2, door.y, door.z + sz * 2.2, faceGate + Math.PI);
+  await wait(400);
+  await press('KeyE');
+  const lifted = await until(() => window.__game.level.shortcutOpen(), 5000);
+  await wait(1500);
+  await shot('35-level-shortcut-open');
+  await hold('KeyW');
+  const through = await until(([x, z, sx, sz]) => {
+    const p = window.__game.player.pos;
+    return (p.x - x) * sx + (p.z - z) * sz < -3;
+  }, 15000, [door.x, door.z, sx, sz]);
+  await release('KeyW');
+  console.log(`  shortcut: barred from the near side ${barred}, lifted ${lifted}, walked back through ${through}`);
+  if (!barred || !lifted || !through) throw new Error('the shortcut should open only from the gate side, then let you through');
+
+  // Rest at the pre-miniboss lantern, die, and rise there.
+  const lantern = await g(() => {
+    const ls = window.__game.level.generated.dressing.lanterns;
+    return ls[ls.length - 1];
+  });
+  await put(lantern.rest.x, lantern.rest.y, lantern.rest.z, 0);
+  await wait(300);
+  await press('KeyE');
+  await wait(300);
+  await g(() => {
+    const gm = window.__game;
+    gm.hurtPlayer(99999, gm.player.pos.clone().add({ x: 1, y: 0, z: 0 }), 0);
+  });
+  await wait(300);
+  await g(() => window.__game.rise());
+  await wait(500);
+  const risen = await pos();
+  const d = Math.hypot(risen[0] - lantern.rest.x, risen[2] - lantern.rest.z);
+  console.log(`  rose ${d.toFixed(2)} m from the last lantern rested at`);
+  if (d > 1.5) throw new Error('should rise at the last lantern rested at');
+
+  // The exit: through the veiled gate into level 2.
+  const exit = await g(() => window.__game.level.generated.dressing.exit);
+  await put(exit.x, exit.y, exit.z + 2.5, 0);
+  await wait(400);
+  await press('KeyE');
+  const next = await until(() => window.__game.levelIndex === 1 && !!window.__game.level, 15000);
+  await wait(1500);
+  const info2 = await g(() => {
+    const gm = window.__game;
+    return { ok: gm.level.report.ok, attempts: gm.level.report.attempts, setPiece: gm.level.generated.script.setPiece.id, beat: gm.level.generated.script.beat };
+  });
+  console.log('  level 2', JSON.stringify(info2));
+  if (!next || !info2.ok) throw new Error('the exit should lead to a valid level 2');
+  await shot('36-level2-spawn');
+  await g(() => { window.__game.levelIndex = 2; window.__game.regenerate(42); });
+  await wait(1500);
+  const info3 = await g(() => ({ ok: window.__game.level.report.ok, beat: window.__game.level.generated.script.beat, draws: window.__game.renderer.renderer.info.render.calls }));
+  console.log('  level 3', JSON.stringify(info3));
+  if (!info3.ok) throw new Error('level 3 failed validation');
+  await shot('37-level3-spawn');
+}

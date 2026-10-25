@@ -4,6 +4,45 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-3: generated Justice levels
+**Run:** `npm run dev` → **Play: Justice, level 1** (or `?mode=level&level=1..3&seed=…`). The training courtyard is
+still on the menu.
+
+**Try:**
+1. **Read the spawn view.** You look straight down the main axis: a dark arch, the courts beyond, the barred
+   shortcut, and the scales standing over everything in the bright fog. Is the goal clear before you take a step?
+2. **Walk toward the scales.** Fights (training dummies for now) sit in walled courts, colonnaded arenas and nests
+   with a raised tier. Shields mark the guards; flank them.
+3. **Rest at the mid lantern (E).** From there the path turns off the axis, loops round through two or three rooms
+   and comes back to a **gate room**. Its portcullis lifts only from that side (E): the shortcut drops you back at
+   the lantern. Does it feel like a souls-like loop, or like a corridor with a door?
+4. **The vistas** are raised terraces (and the colonnade and wind bridge set-pieces) that frame the scales. Press
+   **V** to jump between them.
+5. **Each level has one set-piece:** the sword-graveyard field, the mirrored twin courts, the colonnade under the
+   scales, or the wind bridge. Can you tell levels apart by them?
+6. **Branches** off a fight end in a lit cache (E: +1 heal flask, a placeholder reward).
+7. **The exit** is a veiled gate past the miniboss room (a guard dummy stands in for the court card). E takes you to
+   level 2 (develop: denser, a nest) and level 3 (twist: back-to-back fights allowed, an ambush). After level 3 it
+   wraps to level 1 until the boss arrives in V2-6.
+8. **Die and rise:** you rise at the last lantern you rested at.
+9. **Debug:** **M** draws the mission graph with kit labels over each room, **O** the overview, **N** rolls a new
+   seed. The stats line shows the validation report (attempts, time, and why a level failed if one ever does).
+
+**Unsure about:**
+- **Platforms over a fog-filled drop.** `DESIGN.md` describes a windswept plateau. I broke it into stone platforms
+  joined by causeways, so the rooms read as designed pieces and boundaries are always parapets, never invisible walls.
+  That's an assumption (marked Proposed in `DESIGN.md`). Say if you'd rather have continuous ground.
+- **Generic risk.** Every Justice level is the same shape: a straight axis with one loop out to one side. The
+  variety comes from the set-piece, the kits, the side and the encounters. That suits Justice (formal, ordered), but
+  three levels in a row may feel samey. Doglegs off the axis would be cheap to add.
+- **Length.** The critical path is about 250–330 m. With dummies it's a few minutes; whether it reaches the 8–12
+  minute target depends on V2-4's enemies.
+- **The scales are bigger** (175 m, ≥ 360 m from the spawn) so the beam rises above the height fog. Check that they
+  read as a silhouette at the spawn and loom at the vistas without stealing the play space.
+- **Enemy counts** are low in level 1 (the signature court holds a single dummy by design). Judge density with
+  real enemies.
+- **The ambush's audible tell** and the ranged-distance rule wait for V2-4's enemies.
+
 ## V2-2 tuning pass (your JSON, baked in as defaults)
 - **Swings:** snappier and harder-hitting.
   - Recovery is 0.2 s on all three swings (was 0.32–0.45), and the charged strike recovers in 0.3 s (was 0.6).

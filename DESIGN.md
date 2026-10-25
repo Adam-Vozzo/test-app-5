@@ -86,7 +86,9 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   flank or after their own swing. **Mirrored combos**: the second half of a combo mirrors the first, so learning one
   side teaches the other. Fairness made literal.
 - **Space:** a windswept plateau of white stone courts and colonnades, with swords planted in the earth like grave
-  markers. Rooms are **symmetric** (the generator uses a mirror axis), formal and ordered.
+  markers. Rooms are **symmetric** (the generator uses a mirror axis), formal and ordered. *As built in V2-3
+  (Proposed until played):* the plateau is broken into stone platforms over a fog-filled drop, joined by causeways on
+  a right-angled grid, with the barred shortcut running down the main axis toward the scales.
 - **Landmark:** a vast set of scales hanging over the dimension, visible from every level.
 - **Enemies:**
   - *Bailiff*: a guard enemy with a front shield; flank it or bait its swing.

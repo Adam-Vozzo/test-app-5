@@ -24,6 +24,9 @@ import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
 import { buildCourtyard } from './world/courtyard';
+import { JUSTICE_DIMENSION } from './world/dimensions';
+import { generateLevel } from './world/gen-level';
+import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/level';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
 import { Minimap } from './ui/minimap';
@@ -71,8 +74,14 @@ export class Game {
   readonly enemies: EnemyManager;
   readonly vitals = new Vitals();
   readonly minimap = new Minimap();
-  /** Seed of the current zone (N rolls a new one). */
+  /** Seed of the current zone or generated level (N rolls a new one). */
   zoneSeed: number;
+  /** Which of the dimension's three levels is playing (0–2). */
+  levelIndex = 0;
+  /** The rest point you last rested at (you rise there). */
+  private lastRest = 0;
+  /** Which vista the V key jumps to next. */
+  private vistaCursor = 0;
   pollenDrop!: PollenDrop;
   private enemyWorld!: EnemyWorld;
   private deathT = -1;
@@ -160,6 +169,17 @@ export class Game {
     if (this.layout === 'justice') {
       this.world = buildCourtyard(this.physics, this.rng.fork('justice'));
       this.area = JUSTICE;
+    } else if (this.layout === 'level') {
+      const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed);
+      const lw = buildGeneratedLevel(layout, report, JUSTICE_DIMENSION, this.physics);
+      lw.onCache = () => {
+        this.vitals.healCharges = Math.min(tuning.vitals.healCharges + 1, this.vitals.healCharges + 1);
+        this.synth.sfx('rest', 0.6);
+        return 'A flask left by someone before you: +1 heal';
+      };
+      this.world = lw;
+      this.area = JUSTICE;
+      if (!report.ok) this.hud.toast(`level failed validation after ${report.attempts} attempts (see stats)`, 4);
     } else if (this.layout === 'garden' || this.layout === 'kitchen') {
       const z = buildZone(this.zoneSeed, this.layout, this.physics);
       this.world = z;
@@ -177,6 +197,8 @@ export class Game {
     this.world.group.updateMatrixWorld(true);
     this.world.group.traverse((o) => (o.matrixAutoUpdate = false));
     this.zone?.cache.group.traverse((o) => (o.matrixAutoUpdate = true));
+    this.lastRest = 0;
+    this.vistaCursor = 0;
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.player.biped.onFootstep = () => {
@@ -252,11 +274,38 @@ export class Game {
     return this.world && 'layout' in this.world ? (this.world as ZoneWorld) : null;
   }
 
-  /** Rebuild the current zone from a new seed (debug key N). */
+  /** Rebuild the current zone or level from a new seed (debug key N). */
   regenerate(seed: number) {
     this.zoneSeed = seed >>> 0;
     this.buildLevel();
-    this.hud.toast(`zone seed ${this.zoneSeed}`, 2);
+    this.hud.toast(`${this.level ? 'level' : 'zone'} seed ${this.zoneSeed}`, 2);
+  }
+
+  /** The current generated level, if playing one. */
+  get level(): LevelWorld | null {
+    return this.world && 'generated' in this.world ? (this.world as LevelWorld) : null;
+  }
+
+  /** Walk on to the dimension's next level (the boss arena comes with V2-6; for now it wraps to level 1). */
+  nextLevel() {
+    this.levelIndex = (this.levelIndex + 1) % 3;
+    this.buildLevel();
+    const s = this.level!.generated.script;
+    this.hud.toast(`${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}: ${s.setPiece.name}`, 3.5);
+  }
+
+  /** Debug and smoke tests: stand at a vista and look where it looks. */
+  gotoVista(i: number) {
+    const lv = this.level;
+    if (!lv) return false;
+    const vs = lv.generated.dressing.vistas;
+    if (!vs.length) return false;
+    const v = vs[((i % vs.length) + vs.length) % vs.length];
+    const at = new THREE.Vector3(v.x, v.y + 0.05, v.z);
+    this.player.controller.teleport(at, v.yaw);
+    this.camera.snap(at, v.yaw);
+    this.camera.pitch = v.pitch;
+    return true;
   }
 
   /** The weapon in hand. */
@@ -349,10 +398,12 @@ export class Game {
     if (!this.world || this.deathT < 0) return;
     this.deathT = -1;
     this.menus.showDeath(false);
-    const at = this.world.checkpoint ? this.world.checkpoint.clone().add(new THREE.Vector3(0, 0.05, -2.2)) : this.world.spawn;
-    this.player.controller.teleport(at, this.world.spawnYaw);
+    const rp = this.world.restPoints?.[this.lastRest];
+    const at = rp ? rp.rest.clone() : this.world.checkpoint ? this.world.checkpoint.clone().add(new THREE.Vector3(0, 0.05, -2.2)) : this.world.spawn;
+    const yaw = rp ? rp.restYaw : this.world.spawnYaw;
+    this.player.controller.teleport(at, yaw);
     this.player.dead = false;
-    this.camera.snap(at, this.world.spawnYaw);
+    this.camera.snap(at, yaw);
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
@@ -420,7 +471,8 @@ export class Game {
     if (code === 'KeyP') tuning.pixel.enabled = !tuning.pixel.enabled;
     if (code === 'KeyM') d.showGraph = !d.showGraph;
     if (code === 'KeyO') d.overview = !d.overview;
-    if (code === 'KeyN' && this.zone) this.regenerate(this.zoneSeed + 1);
+    if (code === 'KeyN' && (this.zone || this.level)) this.regenerate(this.zoneSeed + 1);
+    if (code === 'KeyV' && this.gotoVista(this.vistaCursor)) this.vistaCursor++;
     if ((code === 'Digit1' || code === 'Digit2') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
@@ -478,10 +530,44 @@ export class Game {
       if (v.startHeal()) this.synth.sfx('healStart');
       else if (v.healCharges <= 0) this.hud.toast(`no heals left: rest at ${this.restLabel}`);
     }
-    // Rest (E) at the checkpoint.
+    // Rest (E) at the checkpoint, or the nearest lantern in a generated level.
+    const rests = this.world?.restPoints;
+    let restAt = -1;
+    if (rests) {
+      rests.forEach((r, i) => {
+        if (Math.hypot(c.pos.x - r.pos.x, c.pos.z - r.pos.z) < 3.2 && Math.abs(c.pos.y - r.pos.y) < 2) restAt = i;
+      });
+    }
     const cp = this.world?.checkpoint;
-    const nearCheckpoint = !!cp && alive && Math.hypot(c.pos.x - cp.x, c.pos.z - cp.z) < 3.2;
-    if (control && nearCheckpoint && inp.justPressed('KeyE') && !c.committed) this.rest();
+    const nearCheckpoint = alive && (rests ? restAt >= 0 : !!cp && Math.hypot(c.pos.x - cp.x, c.pos.z - cp.z) < 3.2);
+    let usedE = false;
+    if (control && nearCheckpoint && inp.justPressed('KeyE') && !c.committed) {
+      if (restAt >= 0) this.lastRest = restAt;
+      this.rest();
+      usedE = true;
+    }
+    // Interactables (E): the shortcut door, the exit, caches. The nearest one with a prompt wins.
+    let near: { it: NonNullable<BuiltWorld['interactables']>[number]; text: string } | null = null;
+    let nearD = Infinity;
+    for (const it of this.world?.interactables ?? []) {
+      it.update?.(simDt);
+      const d = Math.hypot(c.pos.x - it.pos.x, c.pos.z - it.pos.z);
+      if (!alive || d > it.radius || d >= nearD || Math.abs(c.pos.y - it.pos.y) > 2.5) continue;
+      const text = it.prompt(c.pos);
+      if (text) {
+        near = { it, text };
+        nearD = d;
+      }
+    }
+    if (control && near && !usedE && inp.justPressed('KeyE') && !c.committed && near.it.usable(c.pos)) {
+      const toast = near.it.use(c.pos);
+      if (toast) this.hud.toast(toast, 3);
+      this.synth.sfx('rest', 0.5);
+      if (this.level?.exited) {
+        this.nextLevel();
+        return;
+      }
+    }
     if (!playing || !alive) {
       // Death screen: E / Space also rise.
       if (this.deathT >= 1.4 && (inp.justPressed('KeyE') || inp.justPressed('Space'))) this.rise();
@@ -538,9 +624,10 @@ export class Game {
 
     // 4. Camera + crosshair ray.
     cam.update(player.pos, ads, realDt, simDt, this.clock.realElapsed);
-    if (tuning.debug.overview && this.zone) {
-      // Debug: look straight down on the whole zone.
-      const b = this.zone.layout.bounds;
+    const overviewBounds = this.zone?.layout.bounds ?? this.world?.bounds;
+    if (tuning.debug.overview && overviewBounds) {
+      // Debug: look straight down on the whole zone or level.
+      const b = overviewBounds;
       const cx = (b.minX + b.maxX) / 2;
       const cz = (b.minZ + b.maxZ) / 2;
       const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ);
@@ -625,20 +712,45 @@ export class Game {
     const elite = this.enemies.activeElite;
     this.hud.setBoss(elite ? ELITE_NAMES[elite.kind] ?? elite.kind : null, elite ? elite.health / elite.maxHealth : 0);
     if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);
+    else if (near && !c.committed) this.hud.prompt(near.text);
     else this.hud.prompt(null);
-    this.hud.setLabels(tuning.debug.showAI ? this.aiLabels() : null);
-    this.minimap.draw(this.zone?.layout ?? null, tuning.debug.showGraph, c.pos, this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })));
+    const labels = [...(tuning.debug.showAI ? this.aiLabels() : []), ...(tuning.debug.showGraph && this.level ? this.roomLabels(this.level) : [])];
+    this.hud.setLabels(labels.length ? labels : null);
+    if (this.level) this.minimap.drawLevel(this.level, tuning.debug.showGraph, c.pos, this.dummies.map((d) => ({ x: d.base.x, z: d.base.z, alive: d.alive })));
+    else this.minimap.draw(this.zone?.layout ?? null, tuning.debug.showGraph, c.pos, this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })));
     this.hud.update(realDt);
     this.hud.setRange(this.layout === 'range' ? this.rangeText() : null);
     const info = this.renderer.renderer.info;
+    const lv = this.level;
+    const gen = lv
+      ? `${JUSTICE_DIMENSION.name} L${this.levelIndex + 1} · ${lv.generated.script.setPiece.id} · gen ${lv.report.ok ? 'ok' : 'FAILED'} in ${lv.report.attempts} attempt${lv.report.attempts > 1 ? 's' : ''} (${lv.report.ms.toFixed(1)} ms)` +
+        (lv.report.ok ? '' : `\n  ${lv.report.failures[lv.report.failures.length - 1]?.join('; ')}`) +
+        '\n'
+      : '';
     this.hud.setStats(
-      `seed ${this.zone ? this.zoneSeed : this.seed}  ${this.layout}\n` +
+      `seed ${this.zone || lv ? this.zoneSeed : this.seed}  ${this.layout}\n` +
+        gen +
         `fps ${this.fps.toFixed(0)}  draws ${info.render.calls}  tris ${(info.render.triangles / 1000).toFixed(1)}k\n` +
         `state ${c.state}${c.grounded ? '' : ' (air)'}${c.invulnerable ? ' i-frames' : ''}  ` +
         `speed ${Math.hypot(c.vel.x, c.vel.z).toFixed(1)}` +
         (tuning.debug.slowmo ? `\nSLOW-MO ${tuning.debug.slowmoScale}×` : '') +
         (tuning.debug.godMode ? '\nGOD MODE' : ''),
     );
+  }
+
+  /** Kit labels over each room (debug, with the map on M). */
+  private roomLabels(lv: LevelWorld) {
+    const cam = this.renderer.camera;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const out: { x: number; y: number; text: string }[] = [];
+    for (const r of lv.generated.space.rooms) {
+      const nd = lv.generated.graph.nodes[r.node];
+      const p = _o.set(r.x, r.y + 3, r.z).project(cam);
+      if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) continue;
+      out.push({ x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h, text: `${nd.index >= 0 ? nd.index : 'b'} ${nd.kind}${nd.template ? ` · ${nd.template}` : ''} · ${r.kit}` });
+    }
+    return out;
   }
 
   private aiLabels() {

@@ -244,7 +244,7 @@ export function buildCourtyard(physics: Physics, rng: Rng): BuiltWorld {
 
 let glowTex: THREE.Texture | null = null;
 /** Warm light pooled on the ground: an additive radial gradient (no extra real light; see CLAUDE.md). */
-function glowPool(at: THREE.Vector3, r: number, color: number) {
+export function glowPool(at: THREE.Vector3, r: number, color: number) {
   if (!glowTex) {
     const c = document.createElement('canvas');
     c.width = c.height = 64;

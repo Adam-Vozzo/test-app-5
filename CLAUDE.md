@@ -17,10 +17,11 @@ The current slice exists to answer:
 Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
 four thin ones.
 
-> **Code status (V2-1):** the player, camera, weapons, look and the Justice courtyard are v2, in metres. Enemies,
-> zones (`src/world/gen.ts`, `zone.ts`, `themes.ts`), the test arena and the pollen economy are still v1 bug-scale
-> content in beetle units, reachable only through `?mode=arena|range|garden|kitchen` until V2-3/V2-4 replace them.
-> Comments that mention bugs, pollen or beetles describe that v1 content.
+> **Code status (V2-3):** the player, camera, weapons, look, the Justice training courtyard and the generated Justice
+> levels (`src/world/gen-*.ts`, `level.ts`) are v2, in metres. Enemies, v1 zones (`src/world/gen.ts`, `zone.ts`,
+> `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
+> through `?mode=arena|range|garden|kitchen` until V2-4 replaces them; generated levels use training dummies as
+> stand-ins. Comments that mention bugs, pollen or beetles describe that v1 content.
 
 ## Pillars (check every decision against these)
 
@@ -58,7 +59,7 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --pistol --sword --enemies --zones` (`--pistol` and `--sword` are v2; `--enemies` and
+  with `npm run smoke -- --level --pistol --sword --enemies --zones` (`--level`, `--pistol` and `--sword` are v2; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
@@ -117,8 +118,10 @@ src/
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
   enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
                    (v2: humanoid enemies on the biped rig, court-rank behaviours)
-  world/           v2: faceted prop kit, Justice courtyard, training dummies. v1: arenas, props, pollen drop,
-                   zone generator. (Coming: dimension data, mission graph, room/connector kits, validation, hub)
+  world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
+                   mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
+                   gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), faceted prop kit,
+                   Justice courtyard, training dummies. v1: arenas, props, pollen drop, zone generator. (Coming: hub)
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)
 archive/v1/        frozen v1 planning docs

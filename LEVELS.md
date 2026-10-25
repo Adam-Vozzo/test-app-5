@@ -77,7 +77,7 @@ A dimension's three levels and boss follow **introduce → develop → twist →
 | Twist | Level 3 | turns on the player, or the space changes (Tower: the floor goes; Moon: the path lies) | King (command) |
 | Master | Boss arena | the arcana uses the rule against you; everything learned is tested | Major arcana |
 
-This table is data (`src/world/dimensions.ts`, to come). The generator reads the beat to pick kits, encounter
+This table is data (`src/world/dimensions.ts`). The generator reads the beat to pick kits, encounter
 density and set-pieces. It never decides pacing on its own.
 
 ## Generation pipeline
@@ -87,8 +87,8 @@ seed ─▶ 1 Level script ─▶ 2 Mission graph ─▶ 3 Space ─▶ 4 Dressi
                                                                                                   └▶ fail: reseed
 ```
 Each step is a pure function (no Three/DOM) in `src/world/gen*`, so it's unit-testable. Each step forks the RNG by
-name (`rng.fork('graph')`, `rng.fork('dress')`…), so changing dressing never moves a wall. Today's
-`src/world/gen.ts` (a chain of clearings plus one side branch) is the seed of steps 2–3.
+name (`rng.fork('graph')`, `rng.fork('dress')`…), so changing dressing never moves a wall. (v1's `src/world/gen.ts`
+still generates the bug-scale zones; v2's generator is `gen-level.ts` and its layers, below.)
 
 ### 1. Level script
 Chosen from the dimension script and seed:
@@ -183,7 +183,50 @@ A generated level is rejected and regenerated from `seed + attempt` if any check
 - **Combat sizes** fit the template; every enemy spawn has a path to the player.
 - **Fair angles:** no spawn behind the entrance unless the template is *Ambush* with an audible tell.
 - **Budget:** critical-path length, room count and prop/draw-call estimates within *Budgets*.
-- **Determinism:** the same seed gives the same layout (already tested in `tests/gen.test.ts`).
+- **Determinism:** the same seed gives the same layout (`tests/gen-level.test.ts`).
+
+## As built in V2-3 (Justice)
+The pipeline above, for one dimension. Files: `src/world/dimensions.ts` (data), `gen-graph.ts`, `gen-space.ts`,
+`gen-dress.ts`, `gen-validate.ts`, `gen-level.ts` (pure), and `level.ts` (the builder).
+
+- **The critical path** always has this shape:
+  `start → P… → lantern → loop… → gate → Q… → lantern → miniboss → exit`.
+  - The middle slots (P, the 2–3 loop rooms, Q) hold the set-piece, the vistas, the combats and any traverse. They
+    are permuted until the order meets the constraints: set-piece in the middle third, gate in the second half, no
+    back-to-back fights unless the beat is the twist, and no two vistas side by side. While possible, there's also a
+    lantern after a fight, and the introduce level opens without a fight.
+  - **Counting:** a set-piece with a fight counts as one of the level's combats, and a set-piece that is a view (the
+    colonnade, the wind bridge) counts as one of its vistas. A **guarded gate** (the gate room holds the fight) counts
+    as a combat. That keeps the critical path at 9–10 nodes with 2–3 combats. There are 3 lanterns (start, mid,
+    pre-miniboss).
+  - Each beat must include one template: the introduce level the **signature**, develop a **nest**, twist an
+    **ambush**.
+- **Space:**
+  - Justice lays out on a right-angled grid along one axis that runs north toward the scales. Rooms are axis-aligned
+    stone platforms over a fog-filled drop, joined by causeways (or stairs where floors differ; the steepest is 0.36).
+  - **The loop:** the mid lantern exits sideways, the loop rooms run north and turn back, and the gate lands on the
+    axis just north of the lantern. The shortcut is the axis itself, barred by a portcullis that lifts only from the
+    gate's side. From the spawn you look straight down the barred axis at the scales.
+  - **Branches** leave a free edge of a combat room (never into the loop) and end in a lit cache.
+  - **Compression:** an arch frames the far end of every connector into a vista, a fight, the gate or the miniboss.
+    Half of the long ones are walled passes.
+- **Kits** are data: size ranges, edge style (wall / parapet / colonnade), floor height, cover clusters, a raised tier
+  (the nest, ≤ 4 m with ramps at both ends), a divider (the twin courts), planted swords (the sword field), grass.
+  Cover is mirrored about each room's axis.
+- **Order:** cover belongs to the kit (space), encounter sockets come next, and decorative dressing (swords, grass, hero
+  props) comes last so it can keep off the sockets.
+- **Sockets by template:** arena (mirrored spread over the far half), guarded (a guard holding the way out, support
+  behind it), nest (ranged on the tier wings, one fighter below), ambush (behind cover, facing the entrance), patrol
+  (a line crossing the room), signature (one, alone, in a quiet court), miniboss (one, on the axis).
+- **Validation as built:** graph shape and constraints, reachability, the shortcut's direction; room and connector
+  overlaps, slopes, shortcut length (8–70 m); sockets inside their room, ≥ 6 m in front of the entry unless ambush, ≥
+  15 m from every lantern, ≤ 4 m up; combat rooms 18–44 m; an unoccluded sight line from the spawn and every vista to
+  the scales (beam, pans or pillar) past walls, columns, arch piers and lintels, slabs and hero swords; a props
+  budget.
+  - **Waiting on V2-4:** "every spawn has a path to the player" (true today because every room is connected, but real
+    navigation comes with enemies) and the ranged-distance rule (needs enemy telegraph and projectile numbers).
+- **Numbers:** across 1,500 seeds (500 per level), 93% of levels pass on the first attempt and all pass within 3;
+  generation takes ≤ 20 ms. Levels draw 43–62 calls in the smoke run.
 
 ## Trial rooms
 The trial grounds (`DESIGN.md → Trial grounds`) reuse this pipeline at its smallest. A trial is a level script with
