@@ -2,214 +2,44 @@
 
 Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
+v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
-## Outlines no longer blacken the floor
-The outline used to fire wherever depth changed quickly between neighbouring pixels. Ground seen at a grazing
-angle does exactly that near the horizon, so with `pixelOutline` at 1 the far floor turned into black bands.
-Outlines now use the second difference of inverse depth, which is zero on any flat surface however steeply
-you see it. They are also drawn only on the nearer object's side of an edge, so pixel-mode outlines are one
-block thick. This applies to the painterly pass too.
+## V2-0 follow-up: decisions recorded
+Your answers are now in the docs:
+- **Title:** *Eight*.
+- **The four pairings, their order, and Justice as the slice.**
+- **SwordRifle:** sword hits refill charges, and every level and lantern starts full. The rifle mode is built from
+  the staple driver's def so it feels as heavy.
+- **Progression:** each arcana boss frees one restraint, which is a new move.
+- **Trial grounds:** a dev sandbox (`?mode=trials`) for the Chariot (momentum) and the Hanged Man (the world moves only
+  while you stand still). It's a side track in `PLAN.md` that doesn't block the slice.
 
-**Try:** pixel mode with `pixelScale` 4 and `pixelOutline` 1, looking across the open floor in the Garden and the Kitchen.
+**Also decided since:**
+- **No rifle reload.** The SwordRifle shows its charge as glowing cells on the weapon (plus HUD pips), in a new
+  reserved violet.
+- **Parry** is Justice's unbinding move.
 
-**Unsure about:**
-- Creases where a box face meets the floor no longer get a line (only convex corners and silhouettes do). Tell me if you miss them.
-- Painterly outlines are thinner than before. Raise `post.edgeWidth` if you want the softer, wider brush line back.
+**Unsure about:** the violet charge colour (`#9C7BFF`) is a first pick. It needs to stay readable on the weapon at
+pixel scale and never be mistaken for telegraph magenta. It's well clear of magenta (74° of hue apart), but it shares
+a hue family with the Tower's grey-violet fog and the Moon's indigo. It's much more saturated than either, which is
+fine on paper, but check it in those dimensions' screenshots.
 
-## Pixel mode, rebuilt
-**P** (or `debug.pixelMode`) now renders the scene into a low-res target at 1/`pixelScale` with no antialiasing, and every screen pixel inside a block samples exactly that block's centre. The result is crisp blocks instead of the old stretched, antialiased blur.
-- `debug.pixelScale` (1–8) sets the block size in screen pixels.
-- `debug.pixelOutline` adds a one-block outline so silhouettes stay defined.
-- With **post → enabled** as well, the painterly smear, posterise and grain run at pixel resolution, and the outline is the stronger of the two settings.
+## V2-0: Direction and docs
+Nothing new to play: the build is still the v1 prototype. Read `DESIGN.md`, `LEVELS.md` and `STYLE.md`, and accept,
+change or reject each **Proposed** item.
 
-## Painterly post-process (optional)
-Toggle it in the tuning panel: backtick → **post → enabled** (the folder opens by default, next to `debug`). It's off by default.
-- **Kuwahara smear** (`kuwaharaRadius` 0–6, default 3): flattens surfaces into brush-like patches while keeping edges sharp.
-- **Posterise** (`posterizeLevels`, `posterizeMix`): bands the luminance only, so hues stay true.
-- **Soft edges** (`edgeStrength`, `edgeThreshold`, `edgeWidth`): darkens where depth jumps, giving silhouettes a painted outline.
-- **`saturation`**, paper **`grain`**.
-- **`keepSignals` / `signalSaturation`**: thin bright FX (tracers, sparks, muzzle flash) and strongly saturated colours (telegraph magenta, weak-spot cyan, globs) skip the smear so they stay readable. As a side effect the player's orange torso stays crisp too.
-- **`resolutionScale`** (0.25–1): runs the pass at lower resolution, the first thing to drop on an integrated GPU.
+**Decide before V2-2 (the SwordRifle):**
+- **The charge loop:** sword hits refill charges and rifle shots spend them. Is that the SwordRifle you imagined?
+- **The four dimensions:** Justice × Swords, the Devil × Pentacles, the Tower × Wands and the Moon × Cups, in that
+  order. And is Justice the right slice?
 
-**Unsure about:**
-- **Cost.** At radius 3 it's 49 texture reads per pixel, plus 4 depth reads for edges. I couldn't measure real frame time here, so watch the overlay's fps when you toggle it.
-- **Far grass.** Thin stripes on distant grass blades can turn into vertical "zipper" streaks. Lower the radius or raise `resolutionScale` if they bother you.
-
-## Tuning pass 2 (your JSON, baked in as defaults)
-- **Roll**: shorter and snappier (0.4s at 8 u/s, speeding up to 1.2× by the end, 0.03s recovery, one tumble, 0.3s i-frames).
-- **Biped**: wider stance (0.143).
-- **Skitterer**: 120 hp (was 40) and speed 9 (was 6.2). **Spitter**: 75 hp, keeps 16u away, faster glob (1.0s) with a bigger splash (1.5).
-  **Brute**: 800 hp, quicker charge wind-up (1.1s) at 14 u/s.
-- **Seed-spitter** recoil 5.9° (kick back 0.15); **staple driver** recoil 2.5°.
-- **Debug defaults**: AI state labels now **on** (press L to hide), pixel-mode scale 2.
-
-Worth a second look: the brief describes the skitterer as "fast, fragile, swarms". At 120 hp it takes about 14 repeater body shots or about 3 close seed-spitter blasts. That makes it fast and tough rather than fragile, which changes its job from "punish standing still" to "a duel". Keep it if that's what you want.
-
-## M6: Style pass, performance pass, GitHub Pages deploy
-**Performance** (measured headless, so treat these as counts, not frame rates):
-| Scene | Draw calls | Triangles | Before M6 |
-|---|---|---|---|
-| Garden Bed (seed 42, spawn view) | 58 | 151k | 56 / 256k |
-| Kitchen Floor (seed 42, spawn view) | 70 | 140k | 90 / 140k |
-| Test arena | ~62 | ~150k | |
-
-What changed:
-- boundary grass uses a 9-row low-detail blade
-- crumbs are instanced
-- far idle enemies sleep
-- the level's matrices are frozen after build
-- the pixel ratio is capped at 1.5×
-
-All limb segments for the player and every enemy are still two instanced draw calls, and there is one shadow-casting light.
-**I can't measure real FPS here** (SwiftShader runs about 20fps whatever the scene), so please check the overlay's `fps` on your integrated-GPU laptop. If it's short of 60:
-- try **P** (pixel mode)
-- lower `debug.pixelScale`
-- shrink the shadow map in `src/render/renderer.ts`
-
-**Style:** the STYLE.md checklist is reviewed against the screenshots. One addition: a soft screen-edge falloff for the reference's lamp-lit stage. Not done: the painterly posterise post-pass. It's a full-screen cost, and I'd rather you judge whether the look needs it.
-
-**Deploy:** `.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` to GitHub Pages on push to `main` or from the Actions tab. One-time setup: **Settings → Pages → Source: GitHub Actions**. The repo has no `main` branch yet (all work is on `claude/confident-faraday-skgvuh`), so either merge into a new `main` or run the workflow manually against this branch.
-
-## M5: Procedural zones, two themes, checkpoint + pollen loop
-**Run:** pick **Play: Garden Bed** or **Play: Kitchen Floor** (or `?mode=garden` / `?mode=kitchen`, with `&seed=…`).
-**N** rolls the next seed, **M** shows the graph minimap, **O** gives a top-down overview of the whole zone.
-
-**What's generated (all seeded, so the same seed and theme always give the same zone):**
-- A graph of **6–10 clearings** joined by paths over a noise heightfield. The ground is flattened under clearings and paths, so the hills stay at the edges.
-- The **start** clearing holds the sugar-cube checkpoint. The **farthest** clearing holds the **brute**; in the kitchen it sits inside a bottle-cap arena whose entrance faces the way in. **Encounters** sit in between and ramp from 2 to 5 enemies with depth. Spitters hang at the back of each clearing.
-- **One optional side branch** (a dead end off a middle clearing) holds a **pollen cache**: a closed bud that blooms when you touch it (+40 ✿, once per zone; resting doesn't reset it). Sometimes a spitter guards it.
-- **Themes are data** (`src/world/themes.ts`): palette, fog, ground (stripes vs a generated tile texture), boundary walls, decor and enemy weights.
-  - **Garden Bed**: grass-blade forest walls, pebbles, fallen leaves, a dropped trowel as the landmark; more skitterers.
-  - **Kitchen Floor**: tile grid with slate grout, cardboard-box and chair-leg walls, bread crumbs, a fallen fork, the bottle-cap arena; more spitters.
-- **Loop**: rest at the sugar cube (E) to refill heals and ammo and respawn every enemy except a slain brute. Die and your pollen stays where you fell.
-
-**Tests:** `npm test` checks that generation is deterministic per seed, the graph is connected, the boss is in the farthest clearing, the cache is a dead end off the main path, clearings don't overlap, and spawns are walkable. Another test checks that telegraph magenta stands out against every surface colour in both biome palettes.
+**Decide before V2-7 (the hub):**
+- Unbinding as the progression arc (`DESIGN.md → The protagonist`).
+- The hub as The World, and its cast (Magician, High Priestess, the Star arriving after the Tower).
 
 **Unsure about:**
-- **Zone size and pacing.** A 6-clearing garden is a short run and a 10-clearing kitchen with ~20 enemies is long. Is that roughly the 10 minutes we want?
-- **Walls have small gaps.** You can sometimes squeeze between grass blades into the dark band; a fence at the zone edge stops you leaving the world. Tell me if it breaks immersion.
-- **Kitchen density.** Chair legs and boxes are dense, which reads as clutter but may block too many sight lines for the spitters.
-- **Performance** (judged in M6): the garden walls are about 250k triangles at roughly 56 draw calls, and the kitchen has more draw calls (crumbs aren't instanced yet).
-
-## M4: Stamina, dodge, heal, death, and three IK enemies
-**Run:** **Play: test arena** (or `?mode=arena`). Seven enemies are placed around the arena:
-- four **skitterers** in the middle distance
-- two **spitters** further back
-- the **brute beetle** (elite) inside the bottle cap. It shows a boss bar when it engages.
-
-The sugar cube behind the spawn is the checkpoint (**E** to rest).
-
-**Souls-like rules:**
-- **Stamina** (green bar) pays for rolls (28) and sprinting (18/s), and regenerates after 0.7s. Emptying it exhausts you: no roll or sprint until it's back to 25.
-- **Roll i-frames**: the first 0.26s of the roll (your tuned value). The status line shows `i-frames`, and a dodged hit plays a whoosh.
-- **Heal (Q)**: 3 dewdrop charges. It takes 1.2s, you move at 35% speed, and the gun is lowered while the off hand brings a dewdrop to your mouth. It lands at 70%. Getting hit before then interrupts it, and the charge is wasted.
-- **Damage**: enemies take 3–4 hits to kill you (25 / 30 / 32 / 40 damage). A hit gives knockback, a red vignette, a short stun and a lagging health chunk.
-- **Death**: the beetle flips onto its back, legs flailing, and the gun drops. You get "Squished" and rise at the sugar cube (button, E or Space). Heals and ammo refill, and every enemy except a slain elite respawns.
-  Your **pollen** (✿, from kills: 4 / 8 / 60) stays where you fell, marked by a gold puff with a beam. Walk back to it to recover it. Die again first and it's gone.
-- **Rest (E)** at the sugar cube refills heals and ammo and respawns the non-elite enemies.
-
-**Enemies** (all procedural: tripod gait, feet raycast to the ground, body rides the feet plane, spring hit reactions, belly-up death with curled legs):
-| | Telegraph (pose + magenta glow + sound) | Active | Punish window | Weak spot |
-|---|---|---|---|---|
-| **Skitterer** (low, wide, fast, 40hp) | crouches 0.38s + rising chirp | lunge bite | 0.75s | head (2× crit) |
-| **Spitter** (tall, keeps 12u away, 70hp) | rears up 0.85s + gurgle | lobs a glob; a **magenta ring marks where it lands** and fills until impact (1.15s) | 1.1s | glowing cyan sac on the abdomen |
-| **Brute beetle** (elite, 480hp) | charge: 1.25s of stomping, growl and a **magenta lane on the ground** showing the exact path. Headbutt up close: 0.75s head-down | charge at 13u/s, or headbutt | 1.4s, or **2.2s dazed if it charges into a wall** | glowing seam on the top-back of the abdomen. The domed front and head are **armour** (20% damage, dull sparks, "tink") |
-
-Poise is live too: enough stagger in a short window staggers an enemy, and the seed-spitter up close is the fastest way.
-Debug: **L** shows AI state labels, **G** is god mode, **I** shows enemy foot plants, **H** shows hitboxes and armour.
-
-**Fixes from your playtest:**
-- **The beetle's eyes floated in front of its head.** The geometry helper `place()` mutated its input, so the second eye (built from a clone of the moved first eye) was translated twice. It's fixed at the source, with a regression test. The same bug had displaced the second mandible.
-- Also caught in testing: the killing blow could let you instantly re-collect the pollen you dropped. A drop now only becomes collectible once you've been away from it.
-
-**Unsure about (needs your hands):**
-- **Difficulty.** Four skitterers rushing together might be overwhelming at 25 damage per bite, or trivial with the seed-spitter. Tune `enemies.skitterer.damage`, `windup` and `speed`.
-- **Spitter lead.** Globs aim at where you're heading (half lead). Strafing in a straight line gets you hit; changing direction or rolling dodges.
-- **The brute's charge** tracks you for the first 70% of the wind-up, then locks. Is the lane readable soon enough at 1.25s? Baiting it into the bottle-cap wall should give a long punish.
-- **Perception.** Enemies need line of sight (from just above their body to your chest or head) or have to be within hearing range. Low cover like the matchstick ramp can hide you.
-- All of this was verified headless at about 20fps (bites land, heals heal, i-frames dodge, death drops pollen and rise restores). Whether the fights *feel* fair can only be judged by playing.
-
-## M3: Seed-spitter, staple driver, weapon swap
-**Run:** the target range (`?mode=range`). Press **1 / 2 / 3** or scroll the **mouse wheel** to swap.
-The swap is committed (about 0.36s to lower and raise, with no firing in between), and swapping away loses a reload in progress.
-
-**The three verbs** (each should feel different within three shots):
-| | Rubber-band repeater (1) | Seed-spitter (2) | Staple driver (3) |
-|---|---|---|---|
-| Fire | full-auto hitscan, 660 rpm | 9 seeds in a fixed sunflower cone, pump between shots (72 rpm) | one visible staple (95 u/s, slight drop), cock the stapler arm between shots (46 rpm) |
-| Damage | 9, 2× crit | 7 per seed, falls to 15% by 14u | 55, **2.6× crit (143)**, pierces one target |
-| Recoil | small climb you pull down | big kick that springs back, shoves *you* back | sharp kick, very accurate in ADS (0.04°), wild from the hip (2.6°) |
-| Reload | spool swap, 1.9s | **one seed at a time** (0.48s each); firing interrupts it instantly | arm hinges open and a new staple strip goes in, 3.1s |
-| Stagger | low | high up close, scaled by falloff | high |
-
-**Try:**
-- Seed-spitter at the 5u dummy versus the 20u dummy. The damage readout and the dummy's lurch should make the range falloff obvious.
-  Poise-breaking shots show up as **staggers** in the readout: the dummy lurches hard and stays loose for 0.9s.
-- Fire two spitter shots, press R, then click mid-reload. It fires right away with whatever is loaded.
-- Staple driver: line up the 5u dummy in front of the sliding one, ADS and fire. The staple pierces the first target and hits the second.
-  Misses stick in the ground for a moment.
-- Slow-mo (**T**) on each weapon to watch the pump slide, the husk eject, the stapler arm snap down and get re-cocked, and the staple in flight.
-
-**Fixes from your M2 playtest:**
-- **Beetle vanishing when walk speed hit 0.** Fixed (NaN guard), with regression tests.
-- **Holding fire through a reload dumped most of the next mag.** Fixed. The fire-rate accumulator now only carries shots owed within the current frame and resets whenever the gun can't fire (reload, roll, swap). It's covered by a unit test.
-- New: semi-auto clicks are **buffered for 0.15s** (`feel.fireBuffer`), so clicking just before the pump or stapler finishes still fires.
-- `biped.armSwingIdle` (which you tuned) previously did nothing. It's now a real idle breathing sway on the held weapon. The unused `feel.recoilRecoverDelay` knob has been removed.
-
-**Unsure about:**
-- **The spitter's self-knockback** (`selfKnockback` 3.2) shoves you back about half a unit. It might be fun or might be annoying.
-- **Staple flight speed** (95 u/s, so ~0.2s to the 20u dummy) asks you to lead the sliding dummy a little. Is that the right amount of skill for a 143-damage crit?
-- **Swap time** (`swap.lowerTime` / `raiseTime`). Long enough to be a commitment, but it might feel sluggish mid-fight.
-- All three weapons share the same reload foley clicks; only the shots and cycle sounds are distinct. Tell me if a reload sound gives the wrong weapon away.
-
-## M2: Gun-feel (rubber-band repeater, fully juiced) ✅ signed off (your tuning is now the default)
-**Run:** `npm run dev` and pick **Target-dummy range** (or add `?mode=range` to the URL). Ammo is infinite in the range.
-Dummies stand at 5 / 10 / 20 / 40 units, and the one at 15 slides side to side. The glowing cyan band on each head is the weak spot (2× crit).
-The readout at the top shows last hit, DPS over 3s, time-to-kill, accuracy and current spread.
-
-**Try, roughly in this order:**
-1. **Single taps** at the 10u dummy. Every click fires on the frame it lands, even a click shorter than one frame.
-   You should see the band-tracer, a muzzle flash for 2 frames, a casing flipping out to the right, a dust puff and decal on misses, a white flash and a wobble on the dummy, and a white hit marker.
-2. **Headshots**: the gold marker plus a "ting" plus a ~50ms hitstop. **Kills**: the red rotating X, a crunch and ~70ms hitstop; the dummy topples and respawns after 2.2s.
-3. **Hold fire for a full mag** without correcting. The crosshair climbs (about 0.4°/shot, ramping over 6 shots), sways a little, and the spread ticks open (bloom).
-   Then do it again while pulling the mouse down: is the climb *controllable* and does it feel like something you get better at?
-4. **RMB (ADS)**: tighter spread (0.35°), 75% recoil, slower look, the FOV zooms to 52.
-5. **R to reload** (1.9s, committed). The off hand reaches up, pulls the spool off, goes to the hip, seats a new spool and racks the lever, with a click at each beat.
-   **Roll (Space) mid-reload**: the reload is cancelled and lost ("reload lost" toast), so you start over.
-6. **T for slow-mo 0.25×**. This is the best way to judge each layer: the kick spring, weapon spring, FOV punch, shake, flash frames and casing arcs.
-7. Close your eyes and fire: it's a twangy "thwip" (click + triangle twang + band-passed noise + low thump + short tail).
-
-**Tune it:** backtick, then `weapons → repeater`. The numbers are grouped as damage / handling / spread / recoil / weapon kick-fov-shake / fx / audio (each audio layer is editable).
-Hit-stop, shake and marker timing live in `feel`; dummy health and flinch in `dummy`. When it feels right, use **📋 Copy JSON** and paste it back to me, and I'll bake the values in as defaults.
-
-**Unsure about:**
-- **Recoil model.** Each shot's kick is split by `kickReturn` (0.45): that fraction springs back like a camera kick, and the rest is permanent climb you pull down against. If it feels floaty, lower `kickReturn`. If it feels like a fight, lower `recoilVertical`.
-- **Hitstop on every crit** with an automatic weapon could feel stuttery. Try `feel.hitstopCrit` at 0.02–0.03 if so.
-- **Dummy health 220** makes body-shot TTK about 2.3s at 660rpm. That's tuned for "a few seconds of tracking", not for real enemies (M4).
-- **Audio** has only been verified to run without errors headless (the context runs and nodes are created). I haven't heard it. Whether the twang reads as "rubber band" needs your ears.
-- **Muzzle-light strength** (`flashLight` 2.5). Higher values blew out the floor under the player in screenshots.
-- God mode and AI labels exist as toggles but do nothing until M4 adds enemies and player damage.
-
-
-## M1: Greybox (controller, camera, procedural biped, test arena)
-**Run:** `npm install && npm run dev`, open the URL and click **Play: test arena**. Click the canvas to capture the mouse.
-
-**Try:**
-- Walk (WASD), sprint (Shift) and dodge-roll (Space). The roll is a forward tumble and fully committed: no steering mid-roll, then a short recovery.
-- Climb the **button ziggurat** (0.3-high steps, autostep) and watch the feet plant on each step. Press **I** to see foot plants (green), desired foot spots (yellow) and hand IK targets (blue).
-- Walk up the **matchstick ramp** onto the big boulder, and over the **leaf** slope.
-- Hold **RMB**: the camera pulls in over the shoulder, the body turns to the camera, and both arms IK to the gun pointing at the crosshair. Press **C** to swap shoulders.
-- Back into a grass stalk or boulder: the camera sphere-casts so it should never clip inside props.
-- **T** toggles slow-mo (0.25×), which is good for watching the step arcs. **H** shows every collider.
-- Backtick opens the tuning panel. `biped` (step threshold, duration, height, lean) and `camera` are the folders to play with.
-
-**Unsure about:**
-- Walk cadence. Steps trigger on distance (`biped.stepThreshold` 0.24, `stepDuration` 0.15s). At sprint speed the feet can look skate-y, so judge it in slow-mo.
-- Whether the body should always face the camera (strafe style) instead of free-running when not aiming. Right now it free-runs and turns to the camera for 1.6s after aiming (`player.combatModeTime`).
-- Camera distance and shoulder offset. The head can cover the crosshair at some pitches; ADS offsets were widened for that.
-- Headless screenshots run on SwiftShader (~20fps), so they say nothing about real performance. The overlay shows FPS and draw calls (~50 in the arena).
-
-## M0: Style and plan
-Nothing to play yet. Read `STYLE.md` and push back on anything that doesn't match your memory of White Lavender:
-- Is "fog toward dark warm umber" (the lamp-lit stage) the look you want, or should the Garden be brighter and airier?
-- Is hot magenta `#FF2E9A` acceptable as the universal enemy-telegraph colour?
+- **The palettes** in `STYLE.md` are first guesses from screenshots of the references, not tested in-engine. V2-1's
+  greybox courtyard is where they get judged.
+- **Pixel mode on by default** suits Brume, but it may fight the painterly sky. Both are evaluated in V2-1.
+- **The Moon's illusions** stretch pillar 2. The tells (no shadow, no footsteps) need to be readable in pixel mode
+  and fog, and that can't be known until it's played.
