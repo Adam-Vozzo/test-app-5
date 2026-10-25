@@ -3,6 +3,8 @@
 // The Foe class (foe.ts) drives bodies and physics from these answers; tests/foe-ai.test.ts covers them.
 
 export type FoeId = 'bailiff' | 'gavel' | 'blindfold' | 'page';
+/** Court-card minibosses (rank is the verb, suit is the flavour). */
+export type CourtRank = 'knight' | 'queen' | 'king';
 
 /** One attack's feel numbers (tuning.foes.<id>.attacks.<name>). */
 export interface AttackTune {
@@ -25,9 +27,47 @@ export interface AttackTune {
   /** Ground-ring radius (slams) and how far ahead it lands. */
   radius?: number;
   reach?: number;
-  /** Projectile speed (throws). */
+  /** Projectile speed (throws, volleys) or dash speed (charges). */
   speed?: number;
+  /** A rank verb with its own code (charge, volley, verdict, summon); plain attacks leave it out. */
+  kind?: 'charge' | 'volley' | 'verdict';
+  /** Only from this phase on (court cards escalate at health thresholds). */
+  minPhase?: number;
+  /** Volleys: how many blade lanes, and how far apart (m). */
+  lanes?: number;
+  spacing?: number;
+  /** Verdicts: how long a marked zone waits before it strikes (s), and how many it marks. */
+  delay?: number;
+  count?: number;
 }
+
+/** Feel numbers shared by every archetype (each also has `attacks` and its own extras). */
+export interface FoeTune {
+  health: number;
+  poise: number;
+  poiseRegen: number;
+  speed: number;
+  runSpeed: number;
+  accel: number;
+  turnRate: number;
+  leash: number;
+  staggerTime: number;
+  separation: number;
+  reward: number;
+  sightRange?: number;
+  guardConeDeg?: number;
+  senseRange?: number;
+  searchTime?: number;
+  holdRange?: number;
+  alertRadius?: number;
+  /** Court cards: health fractions where the next phase begins (descending). */
+  phases?: number[];
+  /** Court cards: how long the Knight falls back after striking (s); how many the King summons per phase. */
+  retreatTime?: number;
+  squad?: number;
+  attacks: Record<string, AttackTune>;
+}
+
 
 export type AttackPhase = 'windup' | 'active' | 'recover' | 'done';
 
@@ -68,8 +108,10 @@ export function attackTimeline(a: AttackTune, t: number): TimelinePoint {
  * Choose an attack that reaches `dist` and is off cooldown, by weight. `roll` is a seeded number in [0, 1).
  * Ranged attacks (with a projectile speed) aren't used point-blank. Returns null if nothing fits.
  */
-export function pickAttack(attacks: Record<string, AttackTune>, dist: number, cooldowns: Record<string, number>, roll: number): string | null {
-  const fits = Object.entries(attacks).filter(([name, a]) => dist <= a.range && (cooldowns[name] ?? 0) <= 0 && !(a.speed && dist < 4));
+export function pickAttack(attacks: Record<string, AttackTune>, dist: number, cooldowns: Record<string, number>, roll: number, phase = 0): string | null {
+  const fits = Object.entries(attacks).filter(
+    ([name, a]) => dist <= a.range && (cooldowns[name] ?? 0) <= 0 && !(a.speed && a.kind !== 'charge' && dist < 4) && !(a.kind === 'charge' && dist < 5) && (a.minPhase ?? 0) <= phase,
+  );
   if (!fits.length) return null;
   // Prefer the tightest attack that reaches: a shield bash up close, the thrust a step out.
   const total = fits.reduce((s, [, a]) => s + a.weight / a.range, 0);
@@ -146,4 +188,20 @@ export function leashBroken(homeX: number, homeZ: number, x: number, z: number, 
 /** Wrap an angle to (-π, π]. */
 export function wrapAngle(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
+}
+
+/** Which phase a court card is in: one more for every health threshold (fractions, descending) it has fallen past. */
+export function phaseOf(healthFrac: number, thresholds: readonly number[]): number {
+  return thresholds.filter((t) => healthFrac <= t).length;
+}
+
+/**
+ * A blade volley's lane offsets across the throw (m, left negative). One lane is left empty: the gap you step into.
+ * The mirrored volley leaves the mirrored gap, so reading the first teaches the second.
+ */
+export function volleyOffsets(lanes: number, spacing: number, gap: number, mirrored: boolean): number[] {
+  const g = mirrored ? lanes - 1 - gap : gap;
+  const out: number[] = [];
+  for (let i = 0; i < lanes; i++) if (i !== g) out.push((i - (lanes - 1) / 2) * spacing);
+  return out;
 }

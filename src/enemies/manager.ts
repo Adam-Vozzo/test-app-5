@@ -5,7 +5,8 @@ import type { LimbRenderer } from '../render/limbs';
 import type { Rng } from '../core/rng';
 import { Enemy, type EnemyWorld, type Hostile } from './enemy';
 import { Foe, type FoeIdle } from './foe';
-import type { FoeId } from './foe-ai';
+import { CourtCard, isCourtRank } from './court';
+import { PLANS } from './foes';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
 
@@ -17,7 +18,8 @@ export interface SpawnSpec {
 
 /** A v2 humanoid's spawn (from a level's encounter sockets). */
 export interface FoeSpawn {
-  id: FoeId;
+  /** An archetype ('bailiff', …) or a court rank ('knight', 'queen', 'king'). */
+  id: string;
   pos: THREE.Vector3;
   yaw: number;
   idle: FoeIdle;
@@ -40,12 +42,22 @@ export class EnemyManager {
     }
   }
 
-  spawnFoes(specs: FoeSpawn[], physics: EnemyWorld['physics'], rng: Rng) {
-    specs.forEach((s, i) => {
-      const e = new Foe(s.id, this.scene, physics, s.pos, s.yaw, s.idle, rng.fork(`foe${i}`));
+  spawnFoes(specs: FoeSpawn[], physics: EnemyWorld['physics'], rng: Rng): Foe[] {
+    return specs.map((s, i) => {
+      const r = rng.fork(`foe${this.enemies.length}-${i}`);
+      const e = isCourtRank(s.id) ? new CourtCard(s.id, this.scene, physics, s.pos, s.yaw, r) : new Foe(PLANS[s.id as keyof typeof PLANS], this.scene, physics, s.pos, s.yaw, s.idle, r);
       e.onKilled = (x) => this.onKilled(x);
       this.enemies.push(e);
+      return e;
     });
+  }
+
+  /** A summoned enemy joins the fight now; it's gone (not respawned) when the player rests or dies. */
+  summon(id: string, pos: THREE.Vector3, yaw: number, at: THREE.Vector3, physics: EnemyWorld['physics'], rng: Rng): Hostile {
+    const [e] = this.spawnFoes([{ id, pos: pos.clone(), yaw, idle: 'stand' }], physics, rng);
+    e.summoned = true;
+    e.alert(at);
+    return e;
   }
 
   /** Wake every enemy within `radius` of `from` (a Page's whistle). */
@@ -59,9 +71,16 @@ export class EnemyManager {
     this.hazards.clear();
   }
 
-  /** Respawn everyone except elites that have been slain. */
+  /** Respawn everyone except elites that have been slain; summoned squads are dismissed. */
   reset() {
     this.hazards.clear();
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      if (e instanceof Foe && e.summoned) {
+        e.dispose();
+        this.enemies.splice(i, 1);
+      }
+    }
     for (const e of this.enemies) {
       if (e.elite && e.slain) e.despawn();
       else e.respawn();
@@ -71,6 +90,7 @@ export class EnemyManager {
   update(dt: number, w: EnemyWorld) {
     for (const e of this.enemies) if (e.group.visible || e.alive) e.update(dt, w);
     this.hazards.updateKnives(dt, w);
+    this.hazards.updateVerdicts(dt, w);
     for (const hit of this.hazards.update(dt)) {
       w.sound('splash', hit.at);
       const dx = w.playerPos.x - hit.at.x;

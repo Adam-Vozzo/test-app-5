@@ -8,7 +8,8 @@ import * as THREE from 'three';
 import { merge, place } from '../render/geo';
 import { FOES } from '../render/palette';
 import { block, facet } from '../world/kit';
-import type { FoeId } from './foe-ai';
+import { tuning } from '../tuning';
+import type { FoeTune } from './foe-ai';
 
 export type V3 = [number, number, number];
 
@@ -29,14 +30,18 @@ export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
   /** Sound that announces the wind-up. */
-  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow';
+  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict';
 }
 
 export interface FoePlan {
-  id: FoeId;
+  id: string;
   name: string;
   /** Standing height (m). */
   height: number;
+  /** Body capsule radius for a 1.6 m body (scaled by height). */
+  radius: number;
+  /** Its feel numbers (live: read every frame from the tuning object). */
+  tune: () => FoeTune;
   /** How the enemy finds you: by sight (and gunfire), or by sound alone. */
   senses: 'sight' | 'sound';
   /** Holds its distance and throws. */
@@ -136,11 +141,13 @@ function hunchedTorso(top: number, bottom: number, h: number, color: number, sha
   return g;
 }
 
-export const PLANS: Record<FoeId, FoePlan> = {
+export const PLANS: Record<'bailiff' | 'gavel' | 'blindfold' | 'page', FoePlan> = {
   bailiff: {
     id: 'bailiff',
     name: 'Bailiff',
     height: 1.75,
+    radius: 0.3,
+    tune: () => tuning.foes.bailiff as unknown as FoeTune,
     senses: 'sight',
     ranged: false,
     elite: false,
@@ -181,6 +188,8 @@ export const PLANS: Record<FoeId, FoePlan> = {
     id: 'gavel',
     name: 'Gavel',
     height: 2.15,
+    radius: 0.4,
+    tune: () => tuning.foes.gavel as unknown as FoeTune,
     senses: 'sight',
     ranged: false,
     elite: false,
@@ -223,6 +232,8 @@ export const PLANS: Record<FoeId, FoePlan> = {
     id: 'blindfold',
     name: 'Blindfold',
     height: 1.7,
+    radius: 0.3,
+    tune: () => tuning.foes.blindfold as unknown as FoeTune,
     senses: 'sound',
     ranged: false,
     elite: false,
@@ -258,6 +269,8 @@ export const PLANS: Record<FoeId, FoePlan> = {
     id: 'page',
     name: 'Page of Swords',
     height: 1.55,
+    radius: 0.3,
+    tune: () => tuning.foes.page as unknown as FoeTune,
     senses: 'sight',
     ranged: true,
     elite: true,
@@ -295,4 +308,4 @@ export const PLANS: Record<FoeId, FoePlan> = {
   },
 };
 
-export const FOE_IDS = Object.keys(PLANS) as FoeId[];
+export const FOE_IDS = Object.keys(PLANS) as (keyof typeof PLANS)[];

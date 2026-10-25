@@ -428,6 +428,18 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   const exit = await g(() => window.__game.level.generated.dressing.exit);
   await put(exit.x, exit.y, exit.z + 2.5, 0);
   await wait(400);
+  // Sealed while the Knight of Swords stands.
+  await press('KeyE');
+  await wait(600);
+  const sealed = await g(() => window.__game.levelIndex === 0 && document.querySelector('.prompt')?.textContent?.includes('sealed'));
+  await g(() => {
+    const k = window.__game.enemies.enemies.find((e) => e.bar);
+    k.takeDamage({ amount: 99999, crit: false, point: k.center, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 });
+  });
+  await put(exit.x, exit.y, exit.z + 2.5, 0);
+  await wait(400);
+  console.log(`  exit sealed while the court card stands: ${sealed}`);
+  if (!sealed) throw new Error('the exit should stay sealed until the court card falls');
   await press('KeyE');
   const next = await until(() => window.__game.levelIndex === 1 && !!window.__game.level, 15000);
   await wait(1500);
@@ -588,4 +600,91 @@ export async function foesScenario({ g, wait, shot }) {
   if (dead.state !== 'dead' || after <= before) throw new Error('a kill should pay out');
   await shot('44-foe-page-dead');
   await g(() => { window.__tuning.debug.showAI = false; });
+}
+
+// V2-5 scenario: the court cards in the training courtyard. The Knight charges down a lane it shows first; the Queen
+// throws lines of blades with a gap; the King marks verdicts that strike later and calls Bailiffs at a phase. Each
+// holds the boss bar and stays dead once slain.
+export async function courtScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw) =>
+    g(([x, z, yaw]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = 0.04;
+    }, [x, z, yaw]);
+  const spawn = (id, x, z) =>
+    g(([id, x, z]) => {
+      const gm = window.__game;
+      gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw: Math.PI, idle: 'throne' }], gm.physics, gm.rng.fork(`smoke-${id}`));
+      return gm.enemies.enemies.length - 1;
+    }, [id, x, z]);
+  const hurt = (i, frac) =>
+    g(([i, frac]) => {
+      const f = window.__game.enemies.enemies[i];
+      f.takeDamage({ amount: f.maxHealth * frac, crit: false, point: f.center, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 });
+      return { phase: f.phaseIdx, alive: f.alive, slain: f.slain };
+    }, [i, frac]);
+
+  await g(() => window.__game.start('justice'));
+  await wait(1200);
+  await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = true;
+    window.__tuning.debug.showAI = true;
+    for (const d of gm.dummies) d.dispose(gm.renderer.scene);
+    gm.dummies.length = 0;
+  });
+
+  // ---- Knight of Swords: the lane, then the charge.
+  const k = await spawn('knight', 2, -34);
+  await put(2, -20, 0);
+  const laned = await until((i) => { const f = window.__game.enemies.enemies[i]; return f.attack?.includes('charge') && f.phase === 'windup' && f.tl.k > 0.55; }, 25000, k);
+  const z0 = await g((i) => window.__game.enemies.enemies[i].ground.z, k);
+  await shot('45-court-knight-lane');
+  const ran = await until(([i, z0]) => Math.abs(window.__game.enemies.enemies[i].ground.z - z0) > 4, 6000, [k, z0]);
+  const bar = await g(() => document.querySelector('.boss')?.textContent ?? '');
+  const ph = await hurt(k, 0.55);
+  console.log(`  knight: lane shown ${laned}, charged ${ran}, boss bar "${bar.trim()}", phase after half its health ${ph.phase}`);
+  if (!laned || !ran || !bar.includes('Knight of Swords') || ph.phase !== 1) throw new Error('the Knight should show its lane, charge, hold the bar, and reach phase 2');
+  const dead = await hurt(k, 1);
+  if (!dead.slain) throw new Error('a court card stays dead once slain');
+  await g(() => window.__game.enemies.reset());
+  const stays = await g((i) => window.__game.enemies.enemies[i].alive, k);
+  if (stays) throw new Error('a slain court card should not come back when you rest');
+
+  // ---- Queen of Swords: lines of blades with a gap.
+  const q = await spawn('queen', 2, -40);
+  await put(2, -26, 0);
+  const drawn = await until((i) => { const f = window.__game.enemies.enemies[i]; return f.attack && window.__tuning.foes.queen.attacks[f.attack].kind === 'volley' && f.phase === 'windup' && f.tl.k > 0.6; }, 25000, q);
+  await shot('46-court-queen-lanes');
+  const blades = await until(() => window.__game.hazards.knives.length >= 6, 6000);
+  const n = await g(() => window.__game.hazards.knives.length);
+  console.log(`  queen: lanes drawn ${drawn}, blades thrown ${n}`);
+  if (!drawn || !blades) throw new Error('the Queen should draw her lanes and throw a line of blades');
+  await hurt(q, 1);
+
+  // ---- King of Swords: verdicts, then his squad at the first threshold.
+  const kg = await spawn('king', 0, -36);
+  await put(0, -21, 0);
+  const marked = await until(() => window.__game.hazards.verdicts.length > 0, 25000);
+  await shot('47-court-king-verdict');
+  const before = await g(() => window.__game.enemies.enemies.filter((e) => e.alive).length);
+  const p1 = await hurt(kg, 0.4);
+  const called = await until((b) => window.__game.enemies.enemies.filter((e) => e.alive).length >= b + 2, 6000, before);
+  await wait(800);
+  await shot('48-court-king-squad');
+  await g(() => window.__game.enemies.reset());
+  const after = await g(() => window.__game.enemies.enemies.filter((e) => e.summoned).length);
+  console.log(`  king: verdict marked ${marked}, phase ${p1.phase}, squad called ${called}, summoned after a rest ${after}`);
+  if (!marked || p1.phase !== 1 || !called || after !== 0) throw new Error('the King should mark verdicts, call his squad at a phase, and the squad should go when you rest');
+  await g(() => { window.__tuning.debug.showAI = false; window.__tuning.debug.godMode = false; });
 }

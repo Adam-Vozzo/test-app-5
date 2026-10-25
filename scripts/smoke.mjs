@@ -174,6 +174,10 @@ try {
     const { foesScenario } = await import('./smoke-v2.mjs');
     await foesScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  if (process.argv.includes('--court')) {
+    const { courtScenario } = await import('./smoke-v2.mjs');
+    await courtScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });

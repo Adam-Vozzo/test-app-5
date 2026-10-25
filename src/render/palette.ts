@@ -58,6 +58,21 @@ export const FOES = {
   steel: 0x9aa6b2,
 } as const;
 
+/**
+ * Court cards (STYLE.md → Characters): taller than the commons, each crowned or crested with a large pale sword, so
+ * the suit reads before the face. Steel and slate, never brass (brass is the scales' accent motif).
+ */
+export const COURT = {
+  crest: 0xc9d0d6,
+  knightArmour: 0x4d5d72,
+  knightCape: 0x2b3346,
+  queenGown: 0x56606f,
+  queenVeil: 0x8e98a6,
+  kingRobe: 0x34303a,
+  kingMantle: 0x4b4656,
+  crown: 0x8a8f99,
+} as const;
+
 /** v1 bug characters (enemies until V2-4 replaces them). */
 export const CHARACTER = {
   limb: 0x1e1414,

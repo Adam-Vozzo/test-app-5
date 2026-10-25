@@ -316,6 +316,80 @@ export const tuning = {
         cut: { range: 2.2, windup: 0.4, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 14, knockback: 4, arcDeg: 100, lunge: 1.6, weight: 1 },
       },
     },
+    /**
+     * Court-card minibosses (V2-5): rank is the verb (Knight mobility, Queen control, King command), Swords is the
+     * flavour. Each escalates at the health fractions in `phases`.
+     */
+    knight: {
+      health: 950,
+      poise: 170,
+      poiseRegen: 30,
+      speed: 3.2,
+      runSpeed: 5.8,
+      accel: 26,
+      turnRate: 5,
+      sightRange: 34,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 120,
+      phases: [0.5],
+      /** Hit and run: after striking it falls back this long before closing again. */
+      retreatTime: 1.1,
+      attacks: {
+        /** A gap-closing charge down a wind lane, shown on the ground during the wind-up. */
+        charge: { kind: 'charge', range: 18, windup: 0.95, active: 0.6, recover: 1.2, cooldown: 2.4, damage: 30, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.2, speed: 19 },
+        /** From phase 2: charge, turn, charge back. */
+        recharge: { kind: 'charge', range: 18, windup: 0.85, active: 0.55, recover: 1.3, cooldown: 3.2, damage: 30, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.6, speed: 20, hits: 2, comboWindup: 0.65, minPhase: 1 },
+        slash: { range: 2.8, windup: 0.5, active: 0.14, recover: 0.8, cooldown: 0.8, damage: 24, knockback: 5, arcDeg: 130, lunge: 2.4, weight: 1, hits: 2, comboWindup: 0.32 },
+      },
+    },
+    queen: {
+      health: 820,
+      poise: 140,
+      poiseRegen: 30,
+      speed: 2.6,
+      runSpeed: 4.6,
+      accel: 22,
+      turnRate: 5,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 160,
+      holdRange: 11,
+      phases: [0.5],
+      attacks: {
+        /** Lines of thrown blades with one gap to step into; the follow-up volley leaves the mirrored gap. */
+        volley: { kind: 'volley', range: 26, windup: 1.0, active: 0.1, recover: 1.0, cooldown: 2.2, damage: 18, knockback: 3, arcDeg: 360, lunge: 0, weight: 1, speed: 17, lanes: 7, spacing: 1.7, hits: 2, comboWindup: 0.85 },
+        storm: { kind: 'volley', range: 26, windup: 0.9, active: 0.1, recover: 1.2, cooldown: 3, damage: 18, knockback: 3, arcDeg: 360, lunge: 0, weight: 1.4, speed: 19, lanes: 9, spacing: 1.6, hits: 3, comboWindup: 0.7, minPhase: 1 },
+        riposte: { range: 2.6, windup: 0.38, active: 0.12, recover: 0.7, cooldown: 1.5, damage: 20, knockback: 6, arcDeg: 140, lunge: 1.4, weight: 1 },
+      },
+    },
+    king: {
+      health: 1400,
+      poise: 240,
+      poiseRegen: 30,
+      speed: 2.2,
+      runSpeed: 3.4,
+      accel: 16,
+      turnRate: 3.4,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.2,
+      separation: 2.8,
+      reward: 220,
+      phases: [0.66, 0.33],
+      /** Bailiffs he calls to his side at each phase. */
+      squad: 2,
+      attacks: {
+        /** Marks where you stand; the verdict strikes there after `delay`. */
+        verdict: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 0.9, cooldown: 4, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, radius: 2.4, delay: 1.6, count: 1 },
+        sentence: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.4, delay: 1.6, count: 3, minPhase: 1 },
+        judgement: { range: 3.6, windup: 1.0, active: 0.14, recover: 1.3, cooldown: 1.2, damage: 40, knockback: 9, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },
+        sweep: { range: 3.0, windup: 0.7, active: 0.2, recover: 1.0, cooldown: 1.8, damage: 26, knockback: 6, arcDeg: 170, lunge: 0.8, weight: 0.8, hits: 2, comboWindup: 0.45 },
+      },
+    },
     /** How far each noise carries (m). Walking is nearly silent: the Blindfold hunts gunfire and haste. */
     noise: { pistol: 42, rifle: 55, blade: 16, sprint: 9, roll: 7, walk: 2.5 },
     hitFlashTime: 0.08,

@@ -14,6 +14,16 @@ interface Knife {
   mesh: THREE.Mesh;
 }
 
+interface Verdict {
+  at: THREE.Vector3;
+  radius: number;
+  t: number;
+  delay: number;
+  damage: number;
+  knockback: number;
+  g: THREE.Group;
+}
+
 const knifeGeo = new THREE.OctahedronGeometry(0.1, 0).scale(0.7, 0.7, 3.2);
 const _seg = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -58,6 +68,8 @@ export class Hazards {
   private time = 0;
   private rings = new Map<object, THREE.Group>();
   readonly knives: Knife[] = [];
+  readonly verdicts: Verdict[] = [];
+  private verdictPool: THREE.Group[] = [];
   private knifePool: THREE.Mesh[] = [];
   private knifeMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false });
 
@@ -77,7 +89,7 @@ export class Hazards {
       this.rings.set(owner, g);
     }
     g.visible = true;
-    g.position.copy(at).setY(at.y + 0.05);
+    g.position.copy(at).setY(at.y + 0.12);
     g.scale.setScalar(radius);
     g.children[1].scale.setScalar(Math.max(0.02, fill));
   }
@@ -85,6 +97,42 @@ export class Hazards {
   hideRing(owner: object) {
     const g = this.rings.get(owner);
     if (g) g.visible = false;
+  }
+
+  /** A verdict: a marked zone that fills over `delay` seconds, then strikes whoever stands in it. */
+  verdict(at: THREE.Vector3, radius: number, delay: number, damage: number, knockback: number) {
+    let g = this.verdictPool.pop();
+    if (!g) {
+      g = new THREE.Group();
+      const ring = new THREE.Mesh(ringGeo, this.ringMat);
+      const disc = new THREE.Mesh(discGeo, this.discMat);
+      g.add(ring, disc);
+      g.renderOrder = 5;
+      this.scene.add(g);
+    }
+    g.visible = true;
+    g.position.copy(at).setY(at.y + 0.12);
+    g.scale.setScalar(radius);
+    this.verdicts.push({ at: at.clone(), radius, t: 0, delay, damage, knockback, g });
+  }
+
+  /** Fill verdict zones and strike the ones whose time is up. */
+  updateVerdicts(dt: number, w: EnemyWorld) {
+    for (let i = this.verdicts.length - 1; i >= 0; i--) {
+      const v = this.verdicts[i];
+      v.t += dt;
+      const k = Math.min(1, v.t / v.delay);
+      v.g.children[1].scale.setScalar(Math.max(0.02, k));
+      v.g.children[0].scale.setScalar(1 + 0.04 * Math.sin(v.t * (8 + 20 * k)));
+      if (v.t < v.delay) continue;
+      w.sound('slamImpact', v.at);
+      w.shake(0.45, v.at);
+      const p = w.playerPos;
+      if (Math.hypot(p.x - v.at.x, p.z - v.at.z) <= v.radius && Math.abs(p.y - v.at.y) < 1.6) w.hurtPlayer(v.damage, v.at, v.knockback);
+      v.g.visible = false;
+      this.verdictPool.push(v.g);
+      this.verdicts.splice(i, 1);
+    }
   }
 
   /** A thrown blade: flies straight, stops at walls, hurts on contact. */
@@ -169,7 +217,8 @@ export class Hazards {
       this.lanes.set(owner, g);
     }
     g.visible = true;
-    g.position.copy(from).setY(from.y + 0.04);
+    // Above paving (flagstones sit a few cm proud of the slab).
+    g.position.copy(from).setY(from.y + 0.12);
     g.rotation.set(0, yaw, 0);
     const back = g.children[0];
     const front = g.children[1];
@@ -218,6 +267,11 @@ export class Hazards {
     this.globs.length = 0;
     for (const lane of this.lanes.values()) lane.visible = false;
     for (const r of this.rings.values()) r.visible = false;
+    for (const v of this.verdicts) {
+      v.g.visible = false;
+      this.verdictPool.push(v.g);
+    }
+    this.verdicts.length = 0;
     for (const k of this.knives) {
       k.mesh.visible = false;
       this.knifePool.push(k.mesh);

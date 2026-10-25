@@ -215,6 +215,20 @@ in dimension 4, while the suit changes how it feels.
 Each miniboss also **escalates the dimension's rule**. The Knight introduces the rule in a fight, the Queen twists
 it, and the King combines it with a squad.
 
+**As built in V2-5 for Swords (Proposed until played):** each holds the throne room, rises when you walk in, shows
+the big health bar, escalates at health thresholds (a stagger and a horn call), stays dead once slain, and seals the
+level's exit until it falls.
+- **Knight of Swords (mobility):** charges down a **wind lane** drawn on the ground during the wind-up (the aim locks
+  for the last third), then a long recovery. Up close it cuts twice, the second cut mirrored, then falls back (hit and
+  run). Below half health it **charges, turns and charges back**.
+- **Queen of Swords (control):** holds ~11 m off and throws **lines of blades**: 7 lanes are drawn on the ground, one
+  left empty; step into the gap. The follow-up volley leaves the **mirrored gap** (answer in kind). Below half health:
+  9 lanes, three volleys. A quick riposte if you close in.
+- **King of Swords (command):** raises his greatsword and **marks verdicts**, rings on the ground where you stand
+  that strike 1.6 s later. From his second phase he marks three: where you are, where you're heading, and the mirror
+  of that across his line to you. At 66% and 33% he **calls two Bailiffs** to his flanks (they're dismissed when you
+  rest). Up close, an overhead judgement with a ground ring and a mirrored two-swing sweep.
+
 ## The protagonist: the Eight of Swords (Decided, details Proposed)
 
 - **Decided:** the card shows a woman bound and blindfolded, ringed by swords, with the bindings loose and the path

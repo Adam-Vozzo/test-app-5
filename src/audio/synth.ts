@@ -311,6 +311,16 @@ const SFX = {
     up: L({ kind: 'osc', wave: 'sine', f0: 1500, f1: 2300, dur: 0.22, gain: 0.3 }),
     down: L({ kind: 'osc', wave: 'sine', f0: 2300, f1: 1500, dur: 0.3, gain: 0.28, delay: 0.25 }),
   },
+  // Court cards: the King's verdict is a judge's gavel (two knocks), and a horn marks each phase.
+  verdict: {
+    knock1: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 120, dur: 0.12, gain: 0.7 }),
+    knock2: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 120, dur: 0.12, gain: 0.8, delay: 0.32 }),
+    wood: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 2, dur: 0.08, gain: 0.5, delay: 0.32 }),
+  },
+  courtHorn: {
+    low: L({ kind: 'osc', wave: 'sawtooth', f0: 98, f1: 98, dur: 1.1, gain: 0.16, attack: 0.15 }),
+    fifth: L({ kind: 'osc', wave: 'sawtooth', f0: 147, f1: 147, dur: 0.9, gain: 0.1, attack: 0.2, delay: 0.15 }),
+  },
   slamImpact: {
     crash: L({ kind: 'noise', filter: 'lowpass', f0: 1600, f1: 120, dur: 0.6, gain: 0.9 }),
     thud: L({ kind: 'osc', wave: 'sine', f0: 75, f1: 30, dur: 0.5, gain: 0.9 }),

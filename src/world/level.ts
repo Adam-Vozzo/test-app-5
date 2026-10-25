@@ -6,7 +6,6 @@ import { makeRng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
 import { GEAR, JUSTICE } from '../render/palette';
-import type { FoeId } from '../enemies/foe-ai';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
@@ -35,6 +34,8 @@ export interface LevelWorld extends BuiltWorld {
   shortcutOpen: () => boolean;
   /** What a branch cache gives (set by the game); returns the toast. */
   onCache?: () => string;
+  /** The way on opens once the court card has fallen (set by the game). */
+  exitOpen?: () => boolean;
 }
 
 export function buildLevel(layout: LevelLayout, report: LevelReport, dim: DimensionDef, physics: Physics): LevelWorld {
@@ -193,8 +194,8 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   interactables.push({
     pos: exitPos,
     radius: 3.4,
-    prompt: () => `E: walk on toward the scales`,
-    usable: () => true,
+    prompt: () => (world.exitOpen?.() ?? true ? 'E: walk on toward the scales' : `The way on is sealed while the ${layout.script.minibossName} stands`),
+    usable: () => world.exitOpen?.() ?? true,
     use: () => {
       world.exited = true;
       return null;
@@ -284,11 +285,13 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     group,
     spawn: V(sp.x, sp.y + 0.05, sp.z),
     spawnYaw: sp.yaw,
-    // Justice's enemies stand on the encounter sockets; the miniboss is a guard dummy until V2-5.
-    foeSpots: layout.sockets
-      .filter((s) => s.foe !== 'miniboss')
-      .map((s) => ({ id: s.foe as FoeId, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? 'ambush' : s.kind === 'patrol' ? 'patrol' : 'stand' })),
-    dummySpots: layout.sockets.filter((s) => s.foe === 'miniboss').map((s) => ({ pos: V(s.x, s.y, s.z), slide: false, guardYaw: s.yaw })),
+    // Justice's enemies stand on the encounter sockets; the level's court card holds the throne room.
+    foeSpots: layout.sockets.map((s) =>
+      s.foe === 'miniboss'
+        ? { id: layout.script.miniboss, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: 'throne' as const }
+        : { id: s.foe, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? ('ambush' as const) : s.kind === 'patrol' ? ('patrol' as const) : ('stand' as const) },
+    ),
+    dummySpots: [],
     enemySpots: [],
     checkpoint: restPoints[0]?.pos ?? null,
     restLabel: 'the lantern',

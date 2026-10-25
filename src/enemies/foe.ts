@@ -10,34 +10,13 @@ import { G, groups, Physics, RAPIER, type DamageInfo, type Damageable } from '..
 import type { LimbRenderer } from '../render/limbs';
 import { tuning } from '../tuning';
 import type { EnemyWorld, Hostile } from './enemy';
-import { attackTimeline, guards, inArc, leashBroken, loudest, pickAttack, slamCentre, type AttackTune, type FoeId, type TimelinePoint } from './foe-ai';
-import { blankPose, lerpPose, mirrorPose, PLANS, type ArmPose, type FoePlan } from './foes';
+import { attackTimeline, guards, inArc, leashBroken, loudest, pickAttack, slamCentre, type AttackTune, type FoeTune, type TimelinePoint } from './foe-ai';
+import { blankPose, lerpPose, mirrorPose, type ArmPose, type FoePlan } from './foes';
 import { HumanoidRig } from './humanoid';
 
 export type FoeState = 'idle' | 'alert' | 'approach' | 'search' | 'return' | 'attack' | 'stagger' | 'dead';
-export type FoeIdle = 'stand' | 'patrol' | 'ambush';
-
-/** Feel numbers shared by every archetype (each also has `attacks` and its own extras). */
-export interface FoeTune {
-  health: number;
-  poise: number;
-  poiseRegen: number;
-  speed: number;
-  runSpeed: number;
-  accel: number;
-  turnRate: number;
-  leash: number;
-  staggerTime: number;
-  separation: number;
-  reward: number;
-  sightRange?: number;
-  guardConeDeg?: number;
-  senseRange?: number;
-  searchTime?: number;
-  holdRange?: number;
-  alertRadius?: number;
-  attacks: Record<string, AttackTune>;
-}
+/** Idle behaviour: stand guard, pace, crouch in ambush, or hold the throne room (wakes when you walk in). */
+export type FoeIdle = 'stand' | 'patrol' | 'ambush' | 'throne';
 
 const MOVE_GROUPS = groups(G.ENEMY_BODY, G.WORLD | G.ENEMY_BODY | G.PLAYER);
 const BODY_GROUPS = groups(G.ENEMY_BODY, G.WORLD | G.PLAYER | G.ENEMY_BODY);
@@ -53,65 +32,68 @@ const _up = new THREE.Vector3(0, 1, 0);
 export class Foe implements Damageable, Hostile {
   readonly plan: FoePlan;
   readonly rig: HumanoidRig;
-  private body: RAPIER.RigidBody;
-  private collider: RAPIER.Collider;
-  private kcc: RAPIER.KinematicCharacterController;
-  private hitboxes: { col: RAPIER.Collider; at: THREE.Vector3 }[] = [];
-  private readonly halfH: number;
-  private readonly radius: number;
+  protected body: RAPIER.RigidBody;
+  protected collider: RAPIER.Collider;
+  protected kcc: RAPIER.KinematicCharacterController;
+  protected hitboxes: { col: RAPIER.Collider; at: THREE.Vector3 }[] = [];
+  protected readonly halfH: number;
+  protected readonly radius: number;
   /** Capsule centre and the ground point under it. */
   readonly center = new THREE.Vector3();
   readonly ground = new THREE.Vector3();
   readonly vel = new THREE.Vector3();
-  private push = new THREE.Vector3();
-  private vy = 0;
+  protected push = new THREE.Vector3();
+  protected vy = 0;
   yaw = 0;
   state: FoeState = 'idle';
-  private stateT = 0;
+  protected stateT = 0;
   health = 0;
-  private poise = 0;
-  private sincePoise = 10;
-  private flash = 0;
-  private glow = 0;
+  protected poise = 0;
+  protected sincePoise = 10;
+  protected flash = 0;
+  protected glow = 0;
   /** The attack in progress, its timeline point, and which swings have already landed (or been dodged). */
   attack: string | null = null;
-  private tl: TimelinePoint | null = null;
-  private dealt = new Set<number>();
-  private cooldowns: Record<string, number> = {};
-  private gap = 0;
-  private perceiveT = 0;
+  protected tl: TimelinePoint | null = null;
+  protected dealt = new Set<number>();
+  protected cooldowns: Record<string, number> = {};
+  protected gap = 0;
+  protected perceiveT = 0;
   sees = false;
-  private dist = 99;
-  private lostT = 0;
+  protected dist = 99;
+  protected lostT = 0;
   readonly lastKnown = new THREE.Vector3();
   readonly searchTarget = new THREE.Vector3();
-  private provoked = false;
-  private strafeSign = 1;
-  private strafeT = 0;
-  private avoidT = 0;
-  private avoidYaw = 0;
-  private deadT = 0;
-  private patrolT = 0;
-  private alerted = false;
-  private readonly pose = blankPose();
+  protected provoked = false;
+  protected strafeSign = 1;
+  protected strafeT = 0;
+  protected avoidT = 0;
+  protected avoidYaw = 0;
+  protected deadT = 0;
+  protected patrolT = 0;
+  protected alerted = false;
+  protected readonly pose = blankPose();
   slain = false;
   readonly home = new THREE.Vector3();
   homeYaw = 0;
   onKilled: (e: Hostile) => void = () => {};
 
+  readonly id: string;
+
   constructor(
-    readonly id: FoeId,
-    private scene: THREE.Scene,
-    private physics: Physics,
+    plan: FoePlan,
+    protected scene: THREE.Scene,
+    protected physics: Physics,
     pos: THREE.Vector3,
     yaw: number,
     readonly idle: FoeIdle,
-    private rng: Rng,
+    protected rng: Rng,
   ) {
-    this.plan = PLANS[id];
+    this.plan = plan;
+    this.id = plan.id;
     this.rig = new HumanoidRig(scene, physics, this.plan);
     const s = this.rig.s;
-    this.radius = (id === 'gavel' ? 0.4 : 0.3) * s;
+    this.radius = plan.radius * s;
     this.halfH = 0.42 * s;
     const w = physics.world;
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos.x, pos.y + this.radius + this.halfH, pos.z));
@@ -131,7 +113,7 @@ export class Foe implements Damageable, Hostile {
   }
 
   get cfg(): FoeTune {
-    return tuning.foes[this.id] as unknown as FoeTune;
+    return this.plan.tune();
   }
   get group() {
     return this.rig.group;
@@ -155,7 +137,13 @@ export class Foe implements Damageable, Hostile {
     return this.cfg.reward;
   }
   /** Common enemies (even elites like the Page) don't take over the boss bar. */
-  readonly bar: boolean = false;
+  get bar() {
+    return false;
+  }
+  /** Court cards escalate in phases; everyone else stays in phase 0. */
+  phaseIdx = 0;
+  /** Summoned by a court card (gone, not respawned, when you rest). */
+  summoned = false;
   get armorMul() {
     return 0.25;
   }
@@ -207,7 +195,7 @@ export class Foe implements Damageable, Hostile {
     this.rig.group.visible = false;
   }
 
-  private set(s: FoeState) {
+  protected set(s: FoeState) {
     this.state = s;
     this.stateT = 0;
   }
@@ -232,7 +220,7 @@ export class Foe implements Damageable, Hostile {
     const c = this.cfg;
     this.health -= info.amount;
     this.flash = tuning.foes.hitFlashTime;
-    const heavy = this.id === 'gavel' ? 3 : 1;
+    const heavy = this.plan.radius >= 0.4 ? 3 : 1;
     this.push.addScaledVector(_v.set(info.dir.x, 0, info.dir.z).normalize(), (info.knockback * 1.6) / heavy);
     this.provoked = true;
     if (this.health <= 0) {
@@ -249,7 +237,7 @@ export class Foe implements Damageable, Hostile {
     return false;
   }
 
-  private die() {
+  protected die() {
     this.set('dead');
     this.deadT = 0;
     this.endAttack();
@@ -259,9 +247,9 @@ export class Foe implements Damageable, Hostile {
     this.onKilled(this);
   }
 
-  private hazards: EnemyWorld['hazards'] | null = null;
+  protected hazards: EnemyWorld['hazards'] | null = null;
 
-  private endAttack() {
+  protected endAttack() {
     this.attack = null;
     this.tl = null;
     this.hazards?.hideRing(this);
@@ -370,7 +358,7 @@ export class Foe implements Damageable, Hostile {
   }
 
   /** Sight (throttled) and hearing. Sets `sees`, and moves idle/searching enemies into the fight. */
-  private perceive(dt: number, w: EnemyWorld) {
+  protected perceive(dt: number, w: EnemyWorld) {
     const c = this.cfg;
     this.perceiveT -= dt;
     if (this.perceiveT <= 0) {
@@ -400,12 +388,14 @@ export class Foe implements Damageable, Hostile {
       this.searchTarget.copy(w.playerPos);
       if (this.state === 'idle' || this.state === 'search' || this.state === 'return' || this.state === 'alert') this.set('approach');
     }
-    if (this.state === 'idle' && (this.sees || heard)) this.wake(w);
+    // The throne room: a court card rises when you walk in.
+    const throne = this.idle === 'throne' && w.playerAlive && this.dist < 17 && Math.abs(w.playerPos.y - this.ground.y) < 3;
+    if (this.state === 'idle' && (this.sees || heard || throne)) this.wake(w);
     else if (this.plan.senses === 'sound' && heard && (this.state === 'return' || this.state === 'search')) this.set('search');
     else if (this.state === 'return' && this.sees && !leashBroken(this.home.x, this.home.z, w.playerPos.x, w.playerPos.z, this.cfg.leash)) this.set('approach');
   }
 
-  private wake(w: EnemyWorld) {
+  protected wake(w: EnemyWorld) {
     this.set('alert');
     w.sound(this.idle === 'ambush' ? 'ambushTell' : 'alert', this.center);
     // The Page whistles the room awake.
@@ -416,7 +406,7 @@ export class Foe implements Damageable, Hostile {
     }
   }
 
-  private idleMove(dt: number, w: EnemyWorld) {
+  protected idleMove(dt: number, w: EnemyWorld) {
     if (this.idle !== 'patrol') return;
     // Pace back and forth across the room, perpendicular to the way it faces.
     this.patrolT += dt;
@@ -431,7 +421,7 @@ export class Foe implements Damageable, Hostile {
   }
 
   /** Close in (or hold range) and start an attack when one reaches. Returns the yaw to turn toward. */
-  private approach(dt: number, w: EnemyWorld, dyaw: number, toYaw: number): number | null {
+  protected approach(dt: number, w: EnemyWorld, dyaw: number, toYaw: number): number | null {
     const c = this.cfg;
     if (leashBroken(this.home.x, this.home.z, w.playerPos.x, w.playerPos.z, c.leash)) {
       this.set('return');
@@ -445,7 +435,7 @@ export class Foe implements Damageable, Hostile {
     const dx = _to.x / Math.max(1e-3, this.dist);
     const dz = _to.z / Math.max(1e-3, this.dist);
     const facing = Math.abs(dyaw) < 0.45;
-    const choose = () => (this.gap <= 0 && facing ? pickAttack(c.attacks, this.dist, this.cooldowns, this.rng()) : null);
+    const choose = () => (this.gap <= 0 && facing ? pickAttack(c.attacks, this.dist, this.cooldowns, this.rng(), this.phaseIdx) : null);
     if (this.plan.ranged) {
       // Hold a range band and circle; throw when it can see you, cut if you get close.
       this.strafeT -= dt;
@@ -467,7 +457,7 @@ export class Foe implements Damageable, Hostile {
     return toYaw;
   }
 
-  private begin(name: string, w: EnemyWorld) {
+  protected begin(name: string, w: EnemyWorld) {
     this.attack = name;
     this.tl = { phase: 'windup', hit: 0, k: 0, mirrored: false };
     this.dealt.clear();
@@ -476,27 +466,34 @@ export class Foe implements Damageable, Hostile {
   }
 
   /** Run the attack's timeline: wind-up (track), active (commit: lunge, strike), recover (open). */
-  private attackStep(dt: number, w: EnemyWorld, toYaw: number): number | null {
+  protected attackStep(dt: number, w: EnemyWorld, toYaw: number): number | null {
     const name = this.attack!;
     const a = this.cfg.attacks[name];
     const prev = this.tl;
     const tl = attackTimeline(a, this.stateT);
     this.tl = tl;
     _fwd.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    if (tl.phase === 'done') {
+      this.cooldowns[name] = a.cooldown;
+      this.gap = 0.35 + this.rng() * 0.4;
+      this.endAttack();
+      this.set('approach');
+      this.afterAttack(name);
+      return null;
+    }
+    if (tl.phase === 'windup') this.glow = smoothstep(0, 0.6, tl.k) * (0.7 + 0.3 * Math.sin(this.stateT * (10 + tl.k * 25)));
+    else if (tl.phase === 'active') this.glow = 1;
+    if (tl.phase === 'windup' && tl.hit > 0 && prev?.phase !== 'windup') w.sound(this.plan.motions[name].sound, this.center);
+    if (a.kind) return this.special(name, a, tl, prev, dt, w, toYaw);
     if (tl.phase === 'windup') {
-      // Glow pulses faster as the blow nears.
-      this.glow = smoothstep(0, 0.6, tl.k) * (0.7 + 0.3 * Math.sin(this.stateT * (10 + tl.k * 25)));
       this.vel.multiplyScalar(Math.exp(-10 * dt));
       if (a.radius) {
         const [x, z] = slamCentre(this.ground.x, this.ground.z, this.yaw, a.reach ?? 2);
         w.hazards.ring(this, _v.set(x, this.ground.y, z), a.radius, tl.k);
       }
-      // Follow-up swings in a combo only adjust a little: commitment is what makes them punishable.
-      if (tl.hit > 0 && prev?.phase !== 'windup') w.sound(this.plan.motions[name].sound, this.center);
       return toYaw;
     }
     if (tl.phase === 'active') {
-      this.glow = 1;
       if (prev?.phase !== 'active' || prev.hit !== tl.hit) this.strikeStart(a, w);
       this.vel.copy(_fwd).multiplyScalar(a.lunge / Math.max(0.05, a.active));
       if (!this.dealt.has(tl.hit) && !a.speed && !a.radius) {
@@ -510,17 +507,19 @@ export class Foe implements Damageable, Hostile {
       return null;
     }
     this.vel.multiplyScalar(Math.exp(-8 * dt));
-    if (tl.phase === 'done') {
-      this.cooldowns[name] = a.cooldown;
-      this.gap = 0.35 + this.rng() * 0.4;
-      this.endAttack();
-      this.set('approach');
-    }
     return null;
   }
 
+  /** Rank verbs (charges, volleys, verdicts) run here; returns the yaw to turn toward. Court cards override. */
+  protected special(_name: string, _a: AttackTune, _tl: TimelinePoint, _prev: TimelinePoint | null, _dt: number, _w: EnemyWorld, _toYaw: number): number | null {
+    return null;
+  }
+
+  /** Called when an attack finishes (the Knight falls back after striking). */
+  protected afterAttack(_name: string) {}
+
   /** The moment a swing, slam or throw lands. */
-  private strikeStart(a: AttackTune, w: EnemyWorld) {
+  protected strikeStart(a: AttackTune, w: EnemyWorld) {
     if (a.radius) {
       const [x, z] = slamCentre(this.ground.x, this.ground.z, this.yaw, a.reach ?? 2);
       w.hazards.hideRing(this);
@@ -542,7 +541,7 @@ export class Foe implements Damageable, Hostile {
     } else w.sound('lunge', this.center);
   }
 
-  private computePose() {
+  protected computePose() {
     const p = this.plan;
     const out = this.pose;
     const copy = (src: ArmPose) => lerpPose(src, src, 0, out);
@@ -571,7 +570,7 @@ export class Foe implements Damageable, Hostile {
     } else if (this.state === 'alert') out.lean -= 0.15 * Math.sin(Math.min(1, this.stateT / 0.4) * Math.PI);
   }
 
-  private lineOfSight(w: EnemyWorld) {
+  protected lineOfSight(w: EnemyWorld) {
     const eye = _v.copy(this.ground).addScaledVector(_up, this.plan.height * 0.92);
     for (const lift of [0, 0.45]) {
       const dir = _fwd.copy(w.playerChest);
@@ -586,7 +585,7 @@ export class Foe implements Damageable, Hostile {
   }
 
   /** Steering toward a direction with separation from other enemies and feeler avoidance. Writes _des. */
-  private steer(dirX: number, dirZ: number, speed: number, w: EnemyWorld, dt: number) {
+  protected steer(dirX: number, dirZ: number, speed: number, w: EnemyWorld, dt: number) {
     const c = this.cfg;
     _des.set(dirX, 0, dirZ);
     if (_des.lengthSq() > 1e-6) _des.normalize();
@@ -618,7 +617,7 @@ export class Foe implements Damageable, Hostile {
     _des.multiplyScalar(speed);
   }
 
-  private move(dt: number) {
+  protected move(dt: number) {
     if (this.vy <= 0 && this.kcc.computedGrounded()) this.vy = -2;
     else this.vy -= 30 * dt;
     const want = { x: (this.vel.x + this.push.x) * dt, y: this.vy * dt, z: (this.vel.z + this.push.z) * dt };
@@ -632,12 +631,12 @@ export class Foe implements Damageable, Hostile {
     this.ground.set(this.center.x, this.center.y - this.radius - this.halfH, this.center.z);
   }
 
-  private syncVisuals() {
+  protected syncVisuals() {
     this.rig.setGlow(this.glow, this.flash > 0);
     this.syncHitboxes();
   }
 
-  private syncHitboxes() {
+  protected syncHitboxes() {
     for (const h of this.hitboxes) h.col.setTranslation(_v.copy(h.at).applyQuaternion(this.rig.yawQuat).add(this.ground));
   }
 

@@ -179,6 +179,8 @@ export class Game {
         this.synth.sfx('rest', 0.6);
         return 'A flask left by someone before you: +1 heal';
       };
+      // The veil lifts once the level's court card has fallen.
+      lw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = lw;
       this.area = JUSTICE;
       if (!report.ok) this.hud.toast(`level failed validation after ${report.attempts} attempts (see stats)`, 4);
@@ -244,6 +246,7 @@ export class Game {
       enemies: this.enemies.enemies,
       noises: this.noises,
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
+      summon: (id, pos, yaw) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`)),
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback) => this.hurtPlayer(amount, from, knockback),
       sound: (name, at) => this.sfxAt(name, at),

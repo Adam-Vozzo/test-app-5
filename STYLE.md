@@ -110,6 +110,10 @@ Rules:
     pale sword crest; the Gavel is a 2.15 m stooped mass with a hammer; the Blindfold is a slate-blue robe with a pale
     band across the eyes and two long blades; the Page is small, blue, with a cape snapped back. Bodies are ≥ 4:1
     against the Justice fog; pale cloth is cool chalk-grey, so it never reads as crit gold or weak-spot cyan (tested).
+  - *Court cards (V2-5, `COURT`):* 2.05–2.4 m, each crowned or crested with a large pale sword: the Knight in steel-blue
+    with a long cape, the Queen in a floor-length slate gown with a pale veil, the King broad in a dark robe and
+    squared mantle with a greatsword. Crowns are steel, never brass (brass belongs to the scales).
+  - Ground telegraphs (lanes, rings, verdicts) sit 12 cm up so paving never hides them.
 
 ### Shading and post
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.

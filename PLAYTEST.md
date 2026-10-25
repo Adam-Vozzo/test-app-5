@@ -4,6 +4,25 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-5: the court cards
+**Run:** play to the end of a level (the throne room), or `?mode=level&level=1` (Knight), `2` (Queen), `3` (King).
+The court card rises when you walk in; the way on stays sealed until it falls.
+
+**Try:**
+1. **Knight of Swords:** read the lane on the ground and roll out of it before the charge; punish the recovery. Up
+   close it cuts twice (mirrored) and falls back. Under half health it charges back the way it came.
+2. **Queen of Swords:** seven lanes appear with one gap; stand in it. The second volley leaves the mirrored gap. Does
+   it read as "learn one, know the other"? Under half health there are nine lanes and three volleys.
+3. **King of Swords:** don't stand still: verdicts strike where you were. In his second phase he marks three
+   (where you are, where you're heading, and the mirror of that). At 66% and 33% he calls two Bailiffs.
+
+**Unsure about:**
+- **Health pools** (950 / 820 / 1400) are guesses; with the pistol and the SwordRifle that's roughly 1–2 minutes each
+  if you play clean. Tune in `foes.knight/queen/king`.
+- **Volley readability:** lanes are thin magenta strips on pale paving. They read in headless screenshots; check them
+  at speed and in pixel mode.
+- **The King's squad** makes his fight much harder; two Bailiffs per phase may be one too many.
+
 ## V2-4: Justice's enemies
 **Run:** **Play: Justice, level 1**. Level 1 has Bailiffs and one Blindfold; levels 2 and 3 add the Gavel and the
 Page. (`?mode=level&level=3` has all four.) **L** shows each enemy's state.

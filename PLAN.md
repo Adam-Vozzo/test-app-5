@@ -148,10 +148,20 @@ Enemy spawns can use placeholder dummies until V2-4.
     the Blindfold ignores walking and comes for gunfire, the Page throws, kills pay
   - the miniboss socket stays a guard dummy until V2-5
 
-## V2-5: Court-card minibosses (rank behaviours)
+## V2-5: Court-card minibosses (rank behaviours) ✅ (waiting on your playtest)
 - Shared behaviour sets: **Knight** (mobility), **Queen** (control), **King** (command), each with a Swords suit kit.
 - Arenas come from the generator's `miniboss` node. Each miniboss escalates the rule for its beat.
 - Unit tests where the behaviour is pure (phase thresholds, attack selection with a seeded RNG).
+- **Done as:**
+  - `src/enemies/court.ts`: the three Swords court cards as data (looks with a pale sword crest, poses) and
+    `CourtCard`, a `Foe` with the rank verbs: the Knight's lane charge and hit-and-run, the Queen's blade volleys with
+    a mirrored gap, the King's verdict zones and squad
+  - phases at health thresholds (`phaseOf`), phase-gated attacks (`minPhase`), volley lanes (`volleyOffsets`), all
+    pure and tested; feel numbers in `tuning.foes.knight/queen/king`
+  - hazards: multi-lane telegraphs and delayed verdict strikes; summoned squads dismissed on rest
+  - the generator's miniboss socket now seats the level's court card in the throne room (`idle: 'throne'`, waking
+    when you walk in); the exit stays sealed until it falls
+  - the `--court` smoke scenario, and the level walkthrough checks the sealed exit
 
 ## V2-6: Justice boss and the dimension loop
 - The **Justice** boss: phase 1 is the sword with mirrored combos; phase 2 is the scales.

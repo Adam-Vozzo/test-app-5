@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { attackDuration, attackTimeline, guards, hears, inArc, leashBroken, loudest, pickAttack, rangedMinDistance, slamCentre, type AttackTune } from '../src/enemies/foe-ai';
+import { COURT_PLANS, COURT_RANKS } from '../src/enemies/court';
+import { attackDuration, attackTimeline, guards, hears, inArc, leashBroken, loudest, phaseOf, pickAttack, rangedMinDistance, slamCentre, volleyOffsets, type AttackTune } from '../src/enemies/foe-ai';
 import { FOE_IDS, mirrorPose, PLANS } from '../src/enemies/foes';
 import { tuning } from '../src/tuning';
 
@@ -105,5 +106,56 @@ describe('mirrored poses', () => {
     expect(m.handL[0]).toBeCloseTo(-p.handR[0], 6);
     expect(m.weapon[1]).toBeCloseTo(-p.off[1], 6);
     expect(mirrorPose(m)).toEqual(p);
+  });
+});
+
+describe('court cards (V2-5)', () => {
+  it('step up a phase at each health threshold', () => {
+    expect(phaseOf(1, [0.5])).toBe(0);
+    expect(phaseOf(0.5, [0.5])).toBe(1);
+    expect(phaseOf(0.7, [0.66, 0.33])).toBe(0);
+    expect(phaseOf(0.5, [0.66, 0.33])).toBe(1);
+    expect(phaseOf(0.1, [0.66, 0.33])).toBe(2);
+  });
+
+  it('volleys always leave a gap wide enough to stand in, and the follow-up mirrors it', () => {
+    for (const lanes of [5, 7, 9]) {
+      for (let gap = 1; gap < lanes - 1; gap++) {
+        const a = volleyOffsets(lanes, 1.7, gap, false);
+        const b = volleyOffsets(lanes, 1.7, gap, true);
+        expect(a).toHaveLength(lanes - 1);
+        // Mirrored: the same lanes reflected across the throw.
+        const flip = [...b].map((x) => -x + 0).sort((x, y) => x - y);
+        flip.forEach((x, i) => expect(x).toBeCloseTo([...a].sort((p, q) => p - q)[i], 9));
+        // The gap between neighbouring blades is two spacings: room for the player (0.6 m wide) and then some.
+        const sorted = [...a].sort((x, y) => x - y);
+        const widest = Math.max(...sorted.slice(1).map((x, i) => x - sorted[i]));
+        expect(widest).toBeCloseTo(3.4, 6);
+      }
+    }
+  });
+
+  it('only use phase-two attacks once they reach phase two', () => {
+    const atk = tuning.foes.knight.attacks as Record<string, AttackTune>;
+    for (let i = 0; i < 50; i++) expect(pickAttack(atk, 10, {}, i / 50, 0)).toBe('charge');
+    let re = 0;
+    for (let i = 0; i < 50; i++) if (pickAttack(atk, 10, {}, i / 50, 1) === 'recharge') re++;
+    expect(re).toBeGreaterThan(0);
+    // Charges need a run-up.
+    expect(pickAttack({ charge: atk.charge }, 3, {}, 0.5, 0)).toBeNull();
+  });
+
+  it('every court attack telegraphs, has a pose, and leaves a punish window', () => {
+    for (const rank of COURT_RANKS) {
+      const t = tuning.foes[rank];
+      expect(t.phases.length).toBeGreaterThan(0);
+      for (const [name, a] of Object.entries(t.attacks as Record<string, AttackTune>)) {
+        expect(a.windup, `${rank}.${name}`).toBeGreaterThanOrEqual(0.35);
+        expect(a.recover, `${rank}.${name}`).toBeGreaterThanOrEqual(0.7);
+        expect(COURT_PLANS[rank].motions[name], `${rank}.${name} has a pose`).toBeTruthy();
+      }
+      // The suit reads before the face: every court card is taller than the commons.
+      expect(COURT_PLANS[rank].height).toBeGreaterThan(2);
+    }
   });
 });
