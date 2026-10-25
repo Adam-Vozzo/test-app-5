@@ -1,74 +1,117 @@
-# PLAN.md
+# PLAN.md: v2
 
-The question we're answering: **is a cute, bug-scale, souls-like TPS satisfying for 10 minutes; does each weapon feel
-distinct within three shots; can the player read and dodge everything that kills them?**
+v1's plan (M0–M6, all complete) is in `archive/v1/PLAN.md`. v2 milestones are numbered `V2-n`.
 
-Every milestone ends with a playable build, a commit, a `PLAYTEST.md` entry, and a headless-Chromium smoke test
-with screenshots checked against `STYLE.md`.
+## The question v2's first slice answers
 
-## M0: Style and plan ✅
-- Study the White Lavender store screenshots. Write `STYLE.md` (palette, lighting, shading, silhouettes), `CLAUDE.md`
-  (pillars + conventions) and this plan.
+> **Does one tarot dimension's meaning come across through how it plays? Does the SwordRifle's two-mode loop earn
+> its place next to the auto-pistol? Do generated levels feel designed?**
 
-## M1: Greybox ✅
-- Vite + TS + Three + Rapier scaffold, relative `base` for GitHub Pages.
-- Seeded RNG from `?seed=` and debug overlay (seed, FPS, draw calls).
-- Input: pointer lock, key/mouse state, wheel.
-- Rapier kinematic character controller: walk, sprint, gravity, autostep, slope limit, snap-to-ground.
-  A basic dodge-roll already exists here so later reload-cancel can be tested; stamina and i-frames arrive in M4.
-- Over-the-shoulder camera: shoulder swap (C), RMB zoom, sphere-cast collision against props.
-- Procedural biped:
-  - feet plant via ground raycasts, stepping with an arc when drift > threshold (alternating)
-  - hip bob + lean with velocity
-  - two-bone IK arms to the weapon grips, weapon aimed at the crosshair target
-  - head + antennae look at the aim point
-- Test arena: flat ground, pebbles, grass trees, a matchstick bridge, a sugar-cube staircase, a slope, a bottle cap.
-- Toon materials + palette + fog + one shadow light per STYLE.md.
-- Unit tests: two-bone IK solver, gait step selection, RNG determinism.
-- lil-gui skeleton (backtick) with player/camera numbers, presets and Copy JSON.
+The slice is **one full dimension (Justice × Swords)**, made of 3 generated levels, a Knight, a Queen, a King and the
+Justice boss, plus a **minimal hub** with one gate and the Magician. Everything else waits until the slice has been
+played. The other three dimensions are listed at the end, without detail on purpose.
 
-## M2: Gun-feel (heart of the project) ✅ signed off by the user after tuning
-- Weapon data object with every number in the brief, exposed in the tuning panel.
-- Rubber-band repeater fully juiced:
-  - hitscan on the input frame (RPM accumulator, so frame rate doesn't eat shots)
-  - muzzle flash sprite + persistent point light (1–2 frames), tracer, impact puff, decal pool, ejected casings
-  - camera kick with spring recovery, separate weapon/arm recoil spring, FOV punch
-  - trauma² screen shake
-  - crosshair bloom from current spread, hit marker (normal / crit / kill)
-  - enemy hit-flash + flinch impulse into body spring, hitstop on crit/kill
-  - layered synthesized audio: click + filtered noise body + thump + tail; reload clicks, hit and crit sounds
-  - committed procedural reload arm animation; dodge cancels it and the reload is lost
-- Target-dummy range from the start menu: static dummies at 5/10/20/40 units, a sliding dummy, weak-spot heads,
-  a DPS/last-hit readout.
-- Debug toggles: hitboxes, IK targets, god mode, slow-mo 0.25×.
-- **Stop here for the user to playtest and send back tuning JSON.**
+Every milestone ends with a playable build, a commit, a `PLAYTEST.md` entry and a headless-Chromium smoke test with
+screenshots checked against `STYLE.md`. That doesn't change from v1.
 
-## M3: Seed-spitter + Staple driver + weapon swap ✅
-- Seed-spitter: pellets, big knockback impulse, close-range stagger, a chunky "pomp" sound.
-- Staple driver: visible fast projectile, bolt cycle, long reload, pierce 1, big crit, a sharp "thwack".
-- Swap via 1/2/3 and the wheel, with a short committed swap animation.
+## V2-0: Direction and docs ✅
+- Archive the v1 docs in `archive/v1/`.
+- Write `DESIGN.md` (structure, dimensions, court cards, hub, characters), `LEVELS.md` (level design principles and
+  generation pipeline) and v2 `STYLE.md` (Brume, Grey Scout and Remnant 2 composition), and rewrite `CLAUDE.md`
+  and this plan.
+- **Next:** the user accepts or changes the **Proposed** items in `DESIGN.md`. At minimum, settle the
+  Justice details and the SwordRifle charge loop before V2-2.
 
-## M4: Souls-like body + enemies ✅
-- Stamina (dodge/sprint gates, regen delay), roll i-frames (~0.3s) + recovery, no shooting mid-roll.
-- 3 heal charges, 1.2s committed heal that slows movement and is interrupted by damage.
-- Death: drop pollen at the death spot, death screen, respawn at the checkpoint.
-- Multi-legged IK enemy rig: tripod gait, step arcs, body follows the feet plane, spring hit reactions,
-  death flip + leg curl.
-- AI FSM (idle → alert → approach → wind-up → attack → recover → stagger), steering + avoidance, poise.
-- Skitterer, Spitter (lob + ground marker), Brute (armoured front, cyan abdomen weak spot, long charge telegraph).
+## V2-1: Humanoid rescale and new look
+- **Units:**
+  - 1 unit = 1 m. Rescale the player controller, camera, gravity, roll and weapon numbers in `src/tuning.ts`.
+  - Keep v1 *feel* by converting values rather than re-tuning (e.g. speeds × player height ratio).
+  - Unit test: the converted values preserve the time-based feel (roll duration, i-frames, step cadence).
+- **Player:**
+  - Re-proportion the procedural biped to a stocky, about 3-heads-tall hooded figure. Remove the antennae.
+  - Add the rust-red robe and the blindfold with **cloth tails** (a verlet ribbon, pure logic in `src/anim/`, tested).
+- **Look:**
+  - Fog toward light, height fog, a sky gradient with posterised cloud bands.
+  - Faceted, blocky prop kit (boxes, low-segment cylinders, lumps); Justice palette and accent.
+  - Evaluate pixel mode on by default.
+- **Test scene:** a greybox Justice courtyard with a planted-sword hero prop and a distant scales landmark, to check
+  the three value planes in screenshots.
+- **Weapon:** the **auto-pistol** as a def in `src/weapons/defs.ts`, built from the repeater's hitscan path, with
+  infinite ammo.
+- Retire the bug content from menus. It stays in git history and `archive/v1/`, but the v1 range, arena and zones
+  are replaced by v2 scenes as they arrive.
 
-## M5: Zones + loop ✅
-- Seeded clearing graph (6–10 nodes) over a noise heightfield. Start = checkpoint, farthest = Brute,
-  one side branch = pollen cache.
-- Theme data: Garden Bed and Kitchen Floor (palette, fog, ground noise, prop generators, enemy weights).
-- Sugar-cube checkpoint: rest refills heals and ammo and respawns non-elites. Pollen counter, dropped-pollen recovery.
-- Debug: regenerate with a new seed, draw the graph overlay. Unit test: same seed → same zone.
+## V2-2: SwordRifle (the new verb)
+- **Melee system** (new code path):
+  - a swing arc sweep against hurtboxes
+  - a committed swing with an anticipation → active → recovery timeline from tuning
+  - hit-stop, flinch and sound, reusing v1's juice
+  - a combo of 2–3 swings
+- **Mode switch:** rifle ⇄ sword, with a short committed transform animation (the procedural arm IK moves the grip).
+- **Charges:** rifle shots cost charges, sword hits refill them, and a charged sword strike spends them. Charges
+  refill at a lantern. All of it is tunable.
+- **Rusted state:** lower damage, slower switch and a dull sound. Repair stages are data (four stages), so V2-7 can
+  apply one.
+- **Melee range:** dummies that block from the front (a Bailiff stand-in), so the flank-and-punish rhythm can be felt
+  before real enemies exist.
+- **Stop here for the user to playtest and send tuning JSON**, as with v1's M2. Melee feel is the biggest risk in v2.
 
-## M6: Style, performance, deploy ✅ (real-hardware FPS still to be checked)
-- Compare against STYLE.md; optional posterise pass; low-res toggle check.
-- Performance: instancing audit, draw-call budget (<150), shadow frustum tuning.
-- GitHub Pages workflow.
+## V2-3: Level generator v2
+Implements `LEVELS.md` for one dimension:
+- level script
+- mission-graph grammar
+- Justice room and connector kits, including the mirror axis
+- landmark placement and vista nodes
+- lanterns and the shortcut loop
+- dressing rules
+- validation with reseed
+
+Pure logic in `src/world/gen*` with unit tests for the graph constraints, validation checks and determinism.
+Debug: the graph overlay with node types, the validation report, and the vista-camera screenshots in the smoke test.
+Enemy spawns can use placeholder dummies until V2-4.
+
+## V2-4: Justice enemies
+- **Humanoid enemy rig:** reuse the procedural biped for stocky humanoids. Keep the multi-leg rig for beasts later
+  (the Moon's dog, wolf and crayfish).
+- **Archetypes:**
+  - *Bailiff* (front guard, flank to hit)
+  - *Gavel* (slow slam)
+  - *Blindfold* (signature: hunts by sound; firing reveals you)
+  - *Page of Swords* (elite scout)
+- Body plans are data, AI reuses the v1 state machine, and telegraphs follow the existing magenta rules.
+- Encounter templates from `LEVELS.md` drive placement.
+
+## V2-5: Court-card minibosses (rank behaviours)
+- Shared behaviour sets: **Knight** (mobility), **Queen** (control), **King** (command), each with a Swords suit kit.
+- Arenas come from the generator's `miniboss` node. Each miniboss escalates the rule for its beat.
+- Unit tests where the behaviour is pure (phase thresholds, attack selection with a seeded RNG).
+
+## V2-6: Justice boss and the dimension loop
+- The **Justice** boss: phase 1 is the sword with mirrored combos; phase 2 is the scales.
+- The boss arena (`LEVELS.md → Boss arenas`).
+- **Dimension flow:** level 1 → 2 → 3 → boss.
+- **Death loop:** drop currency (v1 pollen becomes pentacles), respawn at the lantern, recover the drop.
+- Elites, minibosses and shortcuts stay done.
+
+## V2-7: Minimal hub
+- The World plaza with one active gate (Justice) and three sleeping ones.
+- **The Magician:** one upgrade menu with SwordRifle repair stage 1, plus 2–3 pistol and flask upgrades, paid in
+  pentacles. **The High Priestess:** gate keeper, with 3–5 lines.
+- Save of progress (unlocked gates, upgrades, repair stage, seed) in `localStorage`.
+- The first **unbinding**, if accepted (`DESIGN.md`), granted on Justice's defeat.
+- **Slice complete:** a `PLAYTEST.md` entry against the slice question above.
+
+## Later (after the slice is played; no detail on purpose)
+- **The Devil × Pentacles**, **The Tower × Wands**, **The Moon × Cups**: each needs kits, a signature enemy, a suit
+  kit for the court ranks and a boss.
+- The Star and the Fool in the hub, the remaining unbindings, and the Sun ending.
+- A performance pass on real hardware and a deploy.
 
 ## Risks / open questions
-- Headless Chromium uses SwiftShader, so screenshots verify the look, not the frame rate. Performance must be judged on real hardware.
-- Feel can only be judged by playing. Every feel number is in the panel so the user can tune and paste JSON back.
+- **Melee feel** is new and the biggest risk. That's why it gets its own milestone and a playtest stop (V2-2).
+- **The rescale** touches every feel number. Convert, don't re-tune, then check against the v1 sign-off.
+- **Generated levels might feel generic.** Mitigations: set-pieces, landmarks, vistas and validation. Judge by
+  playing, not by screenshots alone.
+- **Scope:** 4 dimensions is the cap. If the slice takes much longer than planned, cut to 3 dimensions before cutting
+  depth.
+- Headless Chromium runs SwiftShader, so screenshots verify the look, not the frame rate.

@@ -1,25 +1,48 @@
-# CLAUDE.md: A bugs death
+# CLAUDE.md: v2 (working title TBD)
 
-A playable web prototype of a cute, bug-scale, souls-like third-person shooter.
-It exists to answer one question:
+A playable web game: a souls-like third-person shooter set in a world built from the tarot. The protagonist is
+the Eight of Swords. v2 is an iteration of the v1 bug-scale prototype (frozen docs in `archive/v1/`), not a new
+project: the code carried over, and the v2 milestones in `PLAN.md` migrate it.
 
-> **Is a cute, bug-scale, souls-like third-person shooter satisfying for 10 minutes? Does each weapon feel distinct
-> within three shots, and can the player read and dodge everything that kills them?**
+**Read first:** `DESIGN.md` (structure, dimensions, characters; items are tagged Decided / Proposed / Open),
+`LEVELS.md` (level design principles + procedural generation), `STYLE.md` (look), `PLAN.md` (milestones).
+Only build on **Decided** items. If work needs a **Proposed** one, ask, or say plainly that you're assuming it.
+When a decision is made, propagate it to every planning doc it touches.
 
-Anything that doesn't serve that question is out of scope. Depth over breadth: one excellent weapon beats three mediocre ones.
+The current slice exists to answer:
+
+> **Does one tarot dimension's meaning come across through how it plays? Does the SwordRifle's two-mode loop earn
+> its place next to the auto-pistol? Do generated levels feel designed?**
+
+Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
+four thin ones.
+
+> **Code status:** until V2-1 lands, `src/` is still the v1 bug-scale prototype (beetle units, garden/kitchen zones,
+> bug weapons and enemies). Comments that mention bugs, pollen or beetles describe v1 content.
 
 ## Pillars (check every decision against these)
 
-1. **Responsive trigger, committed body.** Shooting is instant and juicy. Rolling, healing and reloading lock you in.
+1. **Responsive trigger, committed body.** Shooting is instant and juicy. Rolling, healing, reloading, swinging
+   and switching SwordRifle modes lock you in.
 2. **Everything is readable.** Every enemy attack is telegraphed by pose, colour and sound. Telegraph colours must
-   stand out in every biome palette (see `STYLE.md → Reserved signal colours`).
+   stand out in every area palette (see `STYLE.md → Reserved signal colours`). Illusions (the Moon) have consistent,
+   learnable tells, so they test reading instead of breaking it.
 3. **Procedural over authored.** Geometry, animation, levels and audio are generated in code. No downloaded assets.
-4. **The world is huge because you are tiny.** Props are everyday objects and plants at bug scale.
+   Levels are *authored rules, procedural arrangement* (`LEVELS.md`).
+4. **The cards become the rules.** Each dimension's mechanics, spaces and enemies express the meaning of its arcana.
+   If a feature would fit any fantasy game equally well, question it.
+5. **Small and finished.** 4 dimensions × 3 levels is the cap. Rank is the verb, suit is the flavour; kits over
+   bespoke content.
 
 ## Out of scope
 
-Inventory, loot, rarity, crafting, survival meters, skill trees, dialogue, story, save system, multiplayer, touch
-controls, and any menus beyond start / death / pause.
+Loot, rarity, crafting, survival meters, skill trees and buildcraft systems; branching dialogue, voice and
+cutscenes; multiplayer and co-op; touch controls; more than 4 dimensions; menus beyond start / death / pause / hub shop.
+
+**Allowed, but keep it minimal:**
+- a progress save in `localStorage` (gates, upgrades, repair stage, seed)
+- the Magician's one upgrade menu
+- short state-based NPC lines in the hub
 
 ## Stack
 
@@ -33,31 +56,39 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. Add scenarios with `npm run smoke -- --range --enemies --zones`
-  (weapons/range, M4 combat loop, M5 zones). Headless runs on SwiftShader at ~20fps and game time lags wall time,
-  so scenarios wait on game state, not on timers.
+  (v1 scenarios: weapons/range, combat loop, zones; v2 milestones replace them as their scenes arrive).
+  Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
 ## Conventions
 
-- **Units**: 1 world unit ≈ the player beetle's height. Y is up. Time is in seconds, angles in radians (the tuning
-  panel shows degrees where noted).
+- **Units**: v2 uses **1 world unit = 1 metre** (player ≈ 1.6 m); until V2-1 lands, the code still uses v1's
+  1 unit ≈ beetle height. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where
+  noted).
 - **Seeded RNG everywhere**: never call `Math.random()` in game code. Use `rng()` from `src/core/rng.ts`, seeded
   from `?seed=` (shown in the debug overlay). FX jitter uses a separate stream so gameplay generation stays
   deterministic regardless of what effects ran.
 - **Tuning**: every feel number lives in `src/tuning.ts` as plain data. `src/ui/panel.ts` builds the lil-gui panel (backtick) from it automatically, so a new number appears in the panel without extra code.
   Never hard-code a feel number in a system. Read it from the tuning object each frame so live edits apply.
 - **Weapons are data** (`src/weapons/defs.ts`). Systems read from the def, and new weapons must not need new code
-  paths unless they add a genuinely new verb.
+  paths unless they add a genuinely new verb. SwordRifle melee is one such verb (V2-2); upgrades and repair stages
+  are data applied to a def, not new code.
+- **Content is data**: dimensions, beats, room kits, encounter templates, enemy body plans and court-rank
+  behaviours are data tables read by systems. Adding the second dimension should mean mostly new data.
 - **Pure logic in `src/anim/*`, `src/core/*` and `src/world/gen*`** must stay free of Three/DOM imports where practical,
   so it can be unit-tested.
 - **Geometry** is built from primitives with vertex colours and merged per prop type (`src/render/geo.ts`). Repeated
   props use `InstancedMesh`. One shadow-casting light. Keep draw calls low and check the debug overlay.
 - **Pools, not allocations**, in hot paths: tracers, impacts, decals, casings and audio voices. Reuse scratch vectors.
 - **Changing light count recompiles shaders.** The muzzle point light always exists; toggle its intensity.
-- **Colours**: biome and signal colours live in `src/render/palette.ts`. Signal colours (telegraph magenta, weak-spot
-  cyan, crit gold, kill red, UI white) are never used on props.
+- **Colours**: area and signal colours live in `src/render/palette.ts`. Signal colours (telegraph magenta, weak-spot
+  cyan, crit gold, kill red, UI white) are never used on props, characters or accent motifs. Each area has one
+  accent motif colour, used only on that motif.
 - **Milestones** end with a playable build, a commit, and a `PLAYTEST.md` entry (what to try, what I'm unsure of).
   Feel and difficulty can only be judged by playing, so say so instead of claiming they're good.
-- **Verification**: `npm run typecheck && npm test && npm run smoke`, then read the screenshots against `STYLE.md`.
+- **Verification**: `npm run typecheck && npm test && npm run smoke`, then read the screenshots against `STYLE.md`
+  (its screenshot checklist).
+- **Planning docs**: decisions propagate to every doc they touch (`DESIGN.md`, `LEVELS.md`, `STYLE.md`, `PLAN.md`,
+  this file). `archive/v1/` is frozen and is never edited.
 
 ## Layout
 
@@ -76,7 +107,10 @@ src/
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
   enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
-  world/           arenas, dummy range, props, pollen drop, (later) zone generator
+                   (v2: humanoid enemies on the biped rig, court-rank behaviours)
+  world/           arenas, dummy range, props, pollen drop, zone generator (v2: dimension data, mission graph,
+                   room/connector kits, validation, hub)
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)
+archive/v1/        frozen v1 planning docs
 ```
