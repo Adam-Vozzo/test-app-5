@@ -445,6 +445,7 @@ export const SWORD_RIFLE: WeaponDef = {
   id: 'swordRifle',
   name: 'SwordRifle',
   slot: 2,
+  damage: 80,
   falloffStart: 96,
   falloffEnd: 224,
   knockback: 1.76,
@@ -455,9 +456,9 @@ export const SWORD_RIFLE: WeaponDef = {
   infiniteReserve: false,
   projectileSpeed: 152,
   projectileGravity: 4.8,
-  projectileScale: 1.4,
+  projectileScale: 2,
   weaponKickBack: 0.176,
-  tracerColor: GEAR.tracer,
+  tracerColor: 0x6104c8,
   tracerSpeed: 152,
   tracerLength: 3.5,
   tracerWidth: 0.064,
@@ -474,10 +475,10 @@ export const SWORD_RIFLE: WeaponDef = {
 
 /** SwordRifle, sword mode: three-swing light combo plus a charged strike (src/weapons/swing.ts). Degrees, metres. */
 export const SWORD_MELEE = {
-  swing1: { windup: 0.14, active: 0.12, recover: 0.32, damage: 30, lunge: 0.9, stagger: 12, knockback: 2, yawFromDeg: -105, yawToDeg: 95, pitchFromDeg: 6, pitchToDeg: -4, rollDeg: -80 },
-  swing2: { windup: 0.1, active: 0.12, recover: 0.34, damage: 30, lunge: 0.9, stagger: 12, knockback: 2, yawFromDeg: 100, yawToDeg: -100, pitchFromDeg: 6, pitchToDeg: -2, rollDeg: 80 },
-  swing3: { windup: 0.18, active: 0.14, recover: 0.45, damage: 45, lunge: 1.4, stagger: 25, knockback: 3.5, yawFromDeg: 8, yawToDeg: 0, pitchFromDeg: 115, pitchToDeg: -45, rollDeg: 0 },
-  charged: { windup: 0.08, active: 0.16, recover: 0.6, damage: 110, lunge: 2.2, stagger: 60, knockback: 6, yawFromDeg: 0, yawToDeg: 0, pitchFromDeg: 150, pitchToDeg: -60, rollDeg: 0 },
+  swing1: { windup: 0.14, active: 0.15, recover: 0.2, damage: 45, lunge: 0.5, stagger: 12, knockback: 2, yawFromDeg: -105, yawToDeg: 95, pitchFromDeg: 6, pitchToDeg: -4, rollDeg: -80 },
+  swing2: { windup: 0.1, active: 0.12, recover: 0.2, damage: 50, lunge: 0.5, stagger: 12, knockback: 2, yawFromDeg: 100, yawToDeg: -100, pitchFromDeg: 6, pitchToDeg: -2, rollDeg: 80 },
+  swing3: { windup: 0.25, active: 0.14, recover: 0.2, damage: 60, lunge: 0.6, stagger: 25, knockback: 3.5, yawFromDeg: 8, yawToDeg: 0, pitchFromDeg: 115, pitchToDeg: -45, rollDeg: 0 },
+  charged: { windup: 0.08, active: 0.16, recover: 0.3, damage: 110, lunge: 2.2, stagger: 60, knockback: 6, yawFromDeg: 0, yawToDeg: 0, pitchFromDeg: 150, pitchToDeg: -60, rollDeg: 0 },
   /** Seconds into recovery during which a press still chains the next swing. */
   comboWindow: 0.28,
   /** Fraction of recovery after which a queued swing starts. */
@@ -502,11 +503,11 @@ export const SWORD_MELEE = {
   /** Guard (idle) and charge-hold blade angles. The guard angles the blade out to her right so it stays in view. */
   guardYawDeg: -30,
   guardPitchDeg: 30,
-  chargeYawDeg: -10,
+  chargeYawDeg: 15,
   chargePitchDeg: 140,
   /** Hands: distance in front of the chest and height relative to it. */
-  reach: 0.4,
-  handY: 0.08,
+  reach: 0.8,
+  handY: 0.05,
 };
 export type SwordMeleeDef = typeof SWORD_MELEE;
 

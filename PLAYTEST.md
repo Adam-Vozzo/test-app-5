@@ -4,6 +4,20 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-2 tuning pass (your JSON, baked in as defaults)
+- **Swings:** snappier and harder-hitting.
+  - Recovery is 0.2 s on all three swings (was 0.32–0.45), and the charged strike recovers in 0.3 s (was 0.6).
+  - Damage is 45 / 50 / 60 (was 30 / 30 / 45). The forehand is active for 0.15 s and the overhead winds up for 0.25 s.
+  - Lunges are 0.5 / 0.5 / 0.6 m (was 0.9 / 0.9 / 1.4).
+- **Hold:** the hands are further out (reach 0.8 m, height 0.05 m), and the charged hold leans the other way (yaw 15°).
+- **SwordRifle:**
+  - The rifle bolt hits harder (80 damage, was 55) and is drawn bigger.
+  - The switch takes 0.4 s (was 0.5) and the cell flare lasts 0.5 s.
+- **Pixel outlines** are stronger (0.4) and more eager (threshold 0.15).
+- **Trail colour:** you set the bolt's `tracerColor` to violet `#6104C8`. Projectile trails used a fixed pale colour,
+  so that setting did nothing. Trails now take each weapon's `tracerColor`: the bolt streaks violet and the pistol
+  keeps its cream.
+
 ## V2-2: the SwordRifle
 **Run:** `npm run dev` → **Play: Justice courtyard**. Press **2** for the SwordRifle (**1** is the pistol).
 

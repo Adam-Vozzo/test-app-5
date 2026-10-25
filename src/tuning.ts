@@ -97,9 +97,9 @@ export const tuning = {
     /** Screen pixels per block. */
     scale: 2,
     /** Outline darkness, 0 = none. */
-    outline: 0.3,
+    outline: 0.4,
     /** How sharp a depth step must be to get a line: higher draws fewer, only strong silhouettes. */
-    edgeThreshold: 0.3,
+    edgeThreshold: 0.15,
     /** Line thickness in blocks. */
     edgeWidth: 1,
     /** Outlines fade out between these view distances (metres), so the distance stays soft. */
@@ -280,11 +280,11 @@ export const tuning = {
   melee: SWORD_MELEE,
   swordRifle: {
     /** Committed rifle ⇄ sword transform, seconds (× the repair stage's switchMul). */
-    switchTime: 0.5,
+    switchTime: 0.4,
     /** 0 = rusted (the start) … 4 = fully restored. See REPAIR_STAGES in src/weapons/defs.ts. */
     repairStage: 0,
     /** Charge cell flare when a hit refills a charge, seconds. */
-    cellFlareTime: 0.35,
+    cellFlareTime: 0.5,
   },
 };
 

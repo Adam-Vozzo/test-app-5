@@ -29,6 +29,7 @@ const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3(1, 1, 1);
 const _fwd = new THREE.Vector3(0, 0, -1);
+const _col = new THREE.Color();
 const _hit: RayHit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), distance: 0, collider: null as never, target: null };
 
 export class Projectiles {
@@ -40,9 +41,12 @@ export class Projectiles {
   constructor(scene: THREE.Scene) {
     this.trail = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5),
-      new THREE.MeshBasicMaterial({ color: 0xe8f0ff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7, depthWrite: false, fog: false }),
       MAX,
     );
+    // Each weapon's trail takes its def's tracerColor (per instance).
+    this.trail.setColorAt(0, new THREE.Color(1, 1, 1));
+    this.trail.instanceColor!.setUsage(THREE.DynamicDrawUsage);
     this.trail.count = 0;
     this.trail.frustumCulled = false;
     this.trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -128,6 +132,7 @@ export class Projectiles {
       if (p.stuck <= 0) {
         const len = Math.min(p.def.tracerLength, p.travelled);
         _m.compose(p.pos, _q, _s.set(p.def.tracerWidth, p.def.tracerWidth, len));
+        this.trail.setColorAt(tn, _col.setHex(p.def.tracerColor));
         this.trail.setMatrixAt(tn++, _m);
       }
     }
@@ -135,6 +140,7 @@ export class Projectiles {
     this.mesh.instanceMatrix.needsUpdate = true;
     this.trail.count = tn;
     this.trail.instanceMatrix.needsUpdate = true;
+    if (this.trail.instanceColor) this.trail.instanceColor.needsUpdate = true;
   }
 
   clear() {
