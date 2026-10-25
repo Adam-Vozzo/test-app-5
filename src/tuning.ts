@@ -1,14 +1,14 @@
 // Every feel number in the game. Systems read from here each frame so panel edits apply live.
 // Angles suffixed `Deg` are degrees; everything else is SI: metres, seconds.
-// V2-1 converted v1's beetle-unit numbers to metres (× V1_TO_METRES = 1.6) instead of re-tuning them, so time-based
-// feel (roll timing, step cadence, recoil) is unchanged; tests/rescale.test.ts checks that. `enemies` is still v1
-// content in v1 units until V2-4 replaces it.
+// V2-1 converted v1's beetle-unit numbers to metres (× V1_TO_METRES = 1.6) instead of re-tuning them; the user's
+// first v2 tuning pass then set walk/sprint, roll, camera, cloth, look and outline values by playing (PLAYTEST.md).
+// `enemies` is still v1 content in v1 units until V2-4 replaces it.
 import { AUTO_PISTOL } from './weapons/defs';
 
 export const tuning = {
   player: {
-    walkSpeed: 4.8,
-    sprintSpeed: 8.8,
+    walkSpeed: 4.5,
+    sprintSpeed: 7.5,
     adsSpeedMul: 0.55,
     reloadSpeedMul: 0.75,
     accel: 60.8,
@@ -44,8 +44,8 @@ export const tuning = {
     pollenPickupRadius: 2.24,
   },
   roll: {
-    speed: 12.8,
-    duration: 0.4,
+    speed: 8.5,
+    duration: 0.5,
     recovery: 0.03,
     endSpeedMul: 1.2,
     iFrames: 0.3,
@@ -72,8 +72,8 @@ export const tuning = {
   },
   /** Blindfold tails (verlet ribbons). */
   cloth: {
-    tailLength: 0.5,
-    gravity: 9.8,
+    tailLength: 0.43,
+    gravity: 8.428,
     drag: 0.06,
     stiffness: 5,
     /** How far the tails lean back from straight down at rest (degrees). */
@@ -81,28 +81,28 @@ export const tuning = {
   },
   /** Atmosphere (STYLE.md → Atmospheric perspective). Fog colour comes from the area palette. */
   look: {
-    /** Fog per metre. With fogPower 0.7: ~35% at 40 m, ~80% at 250 m. */
+    /** Fog per metre. With fogPower 1.4 on flat ground: ~17% at 40 m, ~55% at 120 m, ~91% at 250 m. */
     fogDensity: 0.0075,
-    /** 2 = classic exp²; lower keeps far silhouettes readable while near space still hazes. */
-    fogPower: 0.7,
+    /** 2 = classic exp²; lower hazes near space sooner, higher keeps the play space clear and walls off the distance. */
+    fogPower: 1.4,
     /** Height fog: density falls by e every 1/heightFalloff metres above the ground. */
     heightFalloff: 0.02,
-    heightMix: 0.6,
-    skyBands: 8,
-    cloudAmount: 0.32,
+    heightMix: 1,
+    skyBands: 24,
+    cloudAmount: 0.35,
     /** Pixel/painterly outlines fade out between these view distances (metres): the distance stays soft. */
-    outlineFadeStart: 40,
+    outlineFadeStart: 30,
     outlineFadeEnd: 140,
   },
   camera: {
-    height: 1.68,
-    distance: 4.32,
-    shoulder: 0.99,
-    lift: 0.256,
-    adsDistance: 2.56,
-    adsShoulder: 1.15,
-    fovDeg: 70,
-    adsFovDeg: 52,
+    height: 1.5,
+    distance: 3.5,
+    shoulder: 1,
+    lift: 0.3,
+    adsDistance: 2,
+    adsShoulder: 1,
+    fovDeg: 80,
+    adsFovDeg: 60,
     zoomRate: 14,
     swapRate: 10,
     sensitivity: 0.0022,
@@ -242,17 +242,18 @@ export const tuning = {
   /** Painterly post-process (STYLE.md): Kuwahara smear + luminance posterise + soft depth edges. */
   post: {
     enabled: false,
-    kuwaharaRadius: 3,
-    posterizeLevels: 7,
-    posterizeMix: 0.6,
-    edgeStrength: 0.35,
-    edgeThreshold: 0.04,
-    edgeWidth: 1.5,
-    saturation: 1.1,
-    grain: 0.02,
+    kuwaharaRadius: 0,
+    posterizeLevels: 2,
+    posterizeMix: 0,
+    edgeStrength: 0,
+    /** Also the threshold for pixel-mode outlines. */
+    edgeThreshold: 0.3,
+    edgeWidth: 0.5,
+    saturation: 2,
+    grain: 0,
     /** Keep thin bright FX and strongly saturated signal colours unfiltered (readability). */
-    keepSignals: 1,
-    signalSaturation: 0.6,
+    keepSignals: 0,
+    signalSaturation: 0.2,
     resolutionScale: 1,
   },
   debug: {
@@ -261,7 +262,7 @@ export const tuning = {
     godMode: false,
     showIK: false,
     showHitboxes: false,
-    showAI: true,
+    showAI: false,
     showGraph: false,
     overview: false,
     showStats: true,
@@ -270,7 +271,7 @@ export const tuning = {
     /** Screen pixels per pixel-mode block. */
     pixelScale: 2,
     /** Outline strength in pixel mode when the painterly pass is off (keeps silhouettes defined). */
-    pixelOutline: 0.8,
+    pixelOutline: 0.3,
   },
   swap: {
     lowerTime: 0.16,

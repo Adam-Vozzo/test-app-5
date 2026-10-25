@@ -4,6 +4,31 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-1 tuning pass 1 (your JSON, baked in as defaults)
+- **Movement:** walk 4.5 m/s (was 4.8), sprint 7.5 (was 8.8).
+- **Roll:** 8.5 m/s for 0.5 s (was 12.8 for 0.4), so about 4.6 m.
+- **Camera:** closer and wider. 3.5 m back, 1.5 m pivot height, 1 m shoulder, 0.3 m lift; ADS 2 m. FOV 80, ADS FOV 60.
+- **Cloth:** shorter tails (0.43 m) under slightly less gravity (8.4).
+- **Look:**
+  - Fog power 1.4 with full height mix: the court stays clear (~17% at 40 m) and the distance walls off (~91% at
+    250 m), while tall things like the scales stay readable.
+  - 24 sky bands (nearly smooth), clouds 0.35, outlines fade from 30 m.
+- **Pixel mode:** lighter outlines (strength 0.3, edge threshold 0.3). AI labels are off by default.
+- **Painterly pass:** your `post` values are baked too (radius 0, no posterise, no grain, saturation 2). It's still
+  off by default.
+
+`STYLE.md` now states the fog targets from these settings. `tests/rescale.test.ts` no longer asserts that speed,
+roll and camera are v1 conversions, since you've tuned them.
+
+**Worth a second look:**
+- **The roll's i-frames are still 0.3 s**, but it now lasts 0.5 s. That's 60% of the roll invulnerable (it was 75%), so
+  the back end of a roll is now hittable. Fine if intended; `roll.iFrames` 0.375 restores the old ratio.
+- **The painterly values now act as an off switch.** Kuwahara 0 and posterise 0 mean that turning `post → enabled`
+  on now mostly doubles saturation. If those values were only to get the painterly look out of the way, nothing to
+  do. If you'd like the old painterly defaults kept for when it's turned on, say so.
+- **`post.edgeThreshold` also sets pixel-mode outline sensitivity** (it's shared). At 0.3, only strong silhouettes
+  get a line.
+
 ## V2-1: Humanoid rescale and the new look
 **Run:** `npm run dev`, then **Play: Justice courtyard** (or add `?mode=justice` to the URL). Pixel mode is on;
 **P** toggles it.

@@ -115,7 +115,7 @@ try {
   await hold('KeyW');
   await wait(500);
   await release('KeyW');
-  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 4.8; tu.roll.duration = 0.4; });
+  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 4.5; tu.roll.duration = 0.5; });
   await wait(600);
   const finiteRig = await g(() => {
     const p = window.__game.player;

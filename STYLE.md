@@ -60,9 +60,10 @@ milestone; until it lands, the code still uses v1's beetle units.
 | Landmark | 60–300 m | the dimension's symbol, visible through fog |
 
 ### Atmospheric perspective (the core look)
-- **Fog colour = the horizon/sky colour of the area**, and it is light. The exp² density puts the far edge of a
-  combat space at ~35–50% fog and the landmark at ~70–85%, so it stays a readable silhouette but never a detailed
-  one.
+- **Fog colour = the horizon/sky colour of the area**, and it is light. The play space stays clear and the distance
+  walls off quickly. On flat ground (the user's tuning: density 0.0075, power 1.4) it's ~17% at 40 m, ~58% at 120 m and
+  ~91% at 250 m. Height mix 1 thins it for anything tall, so a landmark's upper parts read at ~70–85% fog: a
+  silhouette, never a detailed one.
 - **Three value planes per shot:**
   - **foreground frame**: darkest, near the camera (walls, trunks, arches)
   - **play space**: mid values, where the toon bands live
@@ -111,8 +112,9 @@ Rules:
 - **Stripes become facets.** v1's wobbly organic stripes give way to flat-shaded facets and per-face value jitter,
   which reads as blocky rather than soft.
 - **Pixel mode** (`debug.pixelMode`) is the Brume look. **On by default since V2-1 for evaluation**, at `pixelScale`
-  2 with a one-block outline (`pixelOutline` 0.8). P toggles it.
-- **Outlines fade with distance** (`look.outlineFadeStart` → `outlineFadeEnd`, 40 → 140 m). Ink lines belong to the
+  2 with a light outline (`pixelOutline` 0.3, threshold `post.edgeThreshold` 0.3, from the user's tuning). P
+  toggles it.
+- **Outlines fade with distance** (`look.outlineFadeStart` → `outlineFadeEnd`, 30 → 140 m). Ink lines belong to the
   play space. Outlining fogged hills turned the distance into shards, against the "silhouettes only" value plane.
 - **Painterly pass** (`post.enabled`) is the Grey Scout look for skies and distance. Optional; real-hardware cost is
   still unmeasured.
