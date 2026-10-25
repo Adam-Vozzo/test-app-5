@@ -1,24 +1,28 @@
 // Every feel number in the game. Systems read from here each frame so panel edits apply live.
-// Angles suffixed `Deg` are degrees; everything else is SI-ish (units, seconds).
-import { REPEATER, SPITTER, STAPLER } from './weapons/defs';
+// Angles suffixed `Deg` are degrees; everything else is SI: metres, seconds.
+// V2-1 converted v1's beetle-unit numbers to metres (× V1_TO_METRES = 1.6) instead of re-tuning them, so time-based
+// feel (roll timing, step cadence, recoil) is unchanged; tests/rescale.test.ts checks that. `enemies` is still v1
+// content in v1 units until V2-4 replaces it.
+import { AUTO_PISTOL } from './weapons/defs';
 
 export const tuning = {
   player: {
-    walkSpeed: 3,
-    sprintSpeed: 5.5,
+    walkSpeed: 4.8,
+    sprintSpeed: 8.8,
     adsSpeedMul: 0.55,
     reloadSpeedMul: 0.75,
-    accel: 38,
-    decel: 30,
+    accel: 60.8,
+    decel: 48,
     airControl: 0.25,
-    gravity: 30,
+    gravity: 48,
     turnRate: 16,
     combatModeTime: 1.6,
-    stepHeight: 0.42,
+    stepHeight: 0.67,
     maxSlopeDeg: 48,
-    snapToGround: 0.35,
-    capsuleRadius: 0.28,
-    capsuleHalfHeight: 0.24,
+    snapToGround: 0.56,
+    /** Humanoid capsule (not converted: the beetle was an egg). 2·(radius + halfHeight) = 1.6 m. */
+    capsuleRadius: 0.3,
+    capsuleHalfHeight: 0.5,
     pushDecay: 8,
   },
   vitals: {
@@ -37,10 +41,10 @@ export const tuning = {
     hurtStun: 0.22,
     hurtKnockbackMul: 1,
     hurtTrauma: 0.55,
-    pollenPickupRadius: 1.4,
+    pollenPickupRadius: 2.24,
   },
   roll: {
-    speed: 8,
+    speed: 12.8,
     duration: 0.4,
     recovery: 0.03,
     endSpeedMul: 1.2,
@@ -48,30 +52,55 @@ export const tuning = {
     tumbleTurns: 1,
   },
   biped: {
-    stepThreshold: 0.49056,
+    stepThreshold: 0.785,
     stepDuration: 0.1116,
     stepDurationSprint: 0.1496,
-    stepHeight: 0.11804,
+    stepHeight: 0.189,
+    /** Seconds of velocity the feet reach ahead. */
     velocityLead: 0.14256,
     panicFactor: 4,
-    stanceWidth: 0.14306448,
-    hipHeight: 0.4144,
-    bobAmount: 0.0602,
-    leanPerSpeed: 0.09422,
-    leanAccel: 0.018672,
+    stanceWidth: 0.229,
+    /** Matches BODY.hip (src/anim/body.ts). */
+    hipHeight: 0.66,
+    bobAmount: 0.0963,
+    /** Lean (radians) per m/s and per m/s². */
+    leanPerSpeed: 0.0589,
+    leanAccel: 0.01167,
     leanMaxDeg: 23.872,
     headLookRate: 6,
-    antennaSpring: 330.72,
-    antennaDamping: 13,
-    armSwingIdle: 0.02336,
+    armSwingIdle: 0.0374,
+  },
+  /** Blindfold tails (verlet ribbons). */
+  cloth: {
+    tailLength: 0.5,
+    gravity: 9.8,
+    drag: 0.06,
+    stiffness: 5,
+    /** How far the tails lean back from straight down at rest (degrees). */
+    restBackDeg: 35,
+  },
+  /** Atmosphere (STYLE.md → Atmospheric perspective). Fog colour comes from the area palette. */
+  look: {
+    /** Fog per metre. With fogPower 0.7: ~35% at 40 m, ~80% at 250 m. */
+    fogDensity: 0.0075,
+    /** 2 = classic exp²; lower keeps far silhouettes readable while near space still hazes. */
+    fogPower: 0.7,
+    /** Height fog: density falls by e every 1/heightFalloff metres above the ground. */
+    heightFalloff: 0.02,
+    heightMix: 0.6,
+    skyBands: 8,
+    cloudAmount: 0.32,
+    /** Pixel/painterly outlines fade out between these view distances (metres): the distance stays soft. */
+    outlineFadeStart: 40,
+    outlineFadeEnd: 140,
   },
   camera: {
-    height: 1.05,
-    distance: 2.7,
-    shoulder: 0.62,
-    lift: 0.16,
-    adsDistance: 1.6,
-    adsShoulder: 0.72,
+    height: 1.68,
+    distance: 4.32,
+    shoulder: 0.99,
+    lift: 0.256,
+    adsDistance: 2.56,
+    adsShoulder: 1.15,
     fovDeg: 70,
     adsFovDeg: 52,
     zoomRate: 14,
@@ -80,7 +109,7 @@ export const tuning = {
     adsSensitivityMul: 0.7,
     pitchMinDeg: -70,
     pitchMaxDeg: 70,
-    collisionRadius: 0.18,
+    collisionRadius: 0.288,
     collisionRecoverRate: 6,
     followRate: 30,
   },
@@ -91,7 +120,7 @@ export const tuning = {
     traumaDecay: 1.7,
     shakeMaxAngleDeg: 2.6,
     shakeMaxRollDeg: 3.5,
-    shakeMaxOffset: 0.06,
+    shakeMaxOffset: 0.096,
     shakeFreq: 24,
     hitMarkerTime: 0.18,
     hurtVignetteTime: 0.45,
@@ -101,7 +130,7 @@ export const tuning = {
   },
   reload: {
     weaponTiltDeg: 28,
-    weaponDrop: 0.08,
+    weaponDrop: 0.128,
     handReachTime: 0.18,
     magOutAt: 0.28,
     pouchAt: 0.5,
@@ -194,8 +223,8 @@ export const tuning = {
     flinchStiffness: 140,
     flinchDamping: 9,
     flinchPerDamage: 0.12,
-    slideSpeed: 3.5,
-    slideRange: 6,
+    slideSpeed: 5.6,
+    slideRange: 9.6,
     poise: 40,
     poiseRegenDelay: 1,
     poiseRegen: 30,
@@ -236,22 +265,21 @@ export const tuning = {
     showGraph: false,
     overview: false,
     showStats: true,
-    pixelMode: false,
+    /** On by default in V2-1 to evaluate the Brume look (STYLE.md); P toggles it. */
+    pixelMode: true,
     /** Screen pixels per pixel-mode block. */
     pixelScale: 2,
     /** Outline strength in pixel mode when the painterly pass is off (keeps silhouettes defined). */
-    pixelOutline: 0.55,
+    pixelOutline: 0.8,
   },
   swap: {
     lowerTime: 0.16,
     raiseTime: 0.2,
-    dropDistance: 0.25,
+    dropDistance: 0.4,
     tiltDeg: 50,
   },
   weapons: {
-    repeater: REPEATER,
-    spitter: SPITTER,
-    stapler: STAPLER,
+    pistol: AUTO_PISTOL,
   },
 };
 

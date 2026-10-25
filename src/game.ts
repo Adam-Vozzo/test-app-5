@@ -16,13 +16,14 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { GARDEN, setActiveBiome } from './render/palette';
+import { GARDEN, JUSTICE, setActiveBiome, type AreaLighting } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
 import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
+import { buildCourtyard } from './world/courtyard';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
 import { Minimap } from './ui/minimap';
@@ -57,7 +58,10 @@ export class Game {
   camera!: OTSCamera;
   player!: Player;
   world: BuiltWorld | null = null;
-  layout: LayoutKind = 'arena';
+  layout: LayoutKind = 'justice';
+  /** Lighting of the current scene (restored after the overview debug view). */
+  private area: AreaLighting = GARDEN;
+  private areaFog = 0.018;
   mode: Mode = 'menu';
   readonly fx: Fx;
   readonly synth = new Synth();
@@ -93,7 +97,7 @@ export class Game {
     this.rng = makeRng(seed);
     this.zoneSeed = seed;
     this.renderer = new Renderer(container);
-    this.renderer.applyBiome(GARDEN);
+    this.renderer.applyBiome(JUSTICE);
     this.limbs = new LimbRenderer(this.renderer.scene);
     this.colliderDebug = new ColliderDebug(this.renderer.scene);
     this.fx = new Fx(this.renderer, this.physics);
@@ -152,16 +156,21 @@ export class Game {
     this.fx.clear();
     this.projectiles.clear();
     this.physics.reset();
-    if (this.layout === 'garden' || this.layout === 'kitchen') {
+    if (this.layout === 'justice') {
+      this.world = buildCourtyard(this.physics, this.rng.fork('justice'));
+      this.area = JUSTICE;
+    } else if (this.layout === 'garden' || this.layout === 'kitchen') {
       const z = buildZone(this.zoneSeed, this.layout, this.physics);
       this.world = z;
-      this.renderer.applyBiome(z.theme.palette, z.theme.fogDensity);
-      setActiveBiome(z.theme.palette);
+      this.area = z.theme.palette;
+      this.areaFog = z.theme.fogDensity;
     } else {
       this.world = buildWorld(this.layout, this.physics, GARDEN, this.rng.fork(`world-${this.layout}`));
-      this.renderer.applyBiome(GARDEN);
-      setActiveBiome(GARDEN);
+      this.area = GARDEN;
+      this.areaFog = 0.018;
     }
+    this.renderer.applyBiome(this.area, this.areaFog);
+    setActiveBiome(this.area);
     this.renderer.scene.add(this.world.group);
     // The level never moves: freeze its matrices (the cache flower animates, so it stays live).
     this.world.group.updateMatrixWorld(true);
@@ -350,13 +359,17 @@ export class Game {
     this.input.requestLock();
   }
 
-  /** Rest at the sugar cube: refill heals + ammo, respawn non-elite enemies. */
+  private get restLabel() {
+    return this.world?.restLabel ?? 'the sugar cube';
+  }
+
+  /** Rest at the checkpoint: refill heals + ammo, respawn non-elite enemies. */
   private rest() {
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
     this.synth.sfx('rest');
-    this.hud.toast('Rested. Heals and ammo refilled; the garden stirs…', 2.4);
+    this.hud.toast('Rested. Heals and ammo refilled; the dead stir…', 2.4);
   }
 
   private onEnemyKilled(e: Enemy) {
@@ -462,7 +475,7 @@ export class Game {
     // Heal (Q): committed, slow, interrupted by damage.
     if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.isSwapping) {
       if (v.startHeal()) this.synth.sfx('healStart');
-      else if (v.healCharges <= 0) this.hud.toast('no heals left: rest at the sugar cube');
+      else if (v.healCharges <= 0) this.hud.toast(`no heals left: rest at ${this.restLabel}`);
     }
     // Rest (E) at the checkpoint.
     const cp = this.world?.checkpoint;
@@ -531,9 +544,8 @@ export class Game {
       rc.updateProjectionMatrix();
       this.renderer.scene.fog = null;
     } else if (!this.renderer.scene.fog && this.world) {
-      const theme = this.zone?.theme;
-      this.renderer.applyBiome(theme?.palette ?? GARDEN, theme?.fogDensity);
-      this.renderer.camera.far = 400;
+      this.renderer.applyBiome(this.area, this.areaFog);
+      this.renderer.camera.far = 1200;
       this.renderer.camera.updateProjectionMatrix();
     }
     _o.copy(cam.aimOrigin).addScaledVector(cam.aimDir, cam.aimStartOffset);
@@ -587,7 +599,7 @@ export class Game {
     this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.pollen);
     const elite = this.enemies.activeElite;
     this.hud.setBoss(elite ? ELITE_NAMES[elite.kind] ?? elite.kind : null, elite ? elite.health / elite.maxHealth : 0);
-    if (nearCheckpoint && !c.committed) this.hud.prompt('E: rest at the sugar cube');
+    if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);
     else this.hud.prompt(null);
     this.hud.setLabels(tuning.debug.showAI ? this.aiLabels() : null);
     this.minimap.draw(this.zone?.layout ?? null, tuning.debug.showGraph, c.pos, this.enemies.enemies.map((e) => ({ x: e.center.x, z: e.center.z, alive: e.alive })));

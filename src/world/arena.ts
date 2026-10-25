@@ -8,7 +8,8 @@ import type { BiomePalette } from '../render/palette';
 import type { SpawnSpec } from '../enemies/manager';
 import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleGeo, sugarCubeGeo } from './props';
 
-export type LayoutKind = 'arena' | 'range' | 'garden' | 'kitchen';
+/** `justice` is the v2 scene; the rest are v1 bug-scale scenes, reachable by URL only (`?mode=`). */
+export type LayoutKind = 'justice' | 'arena' | 'range' | 'garden' | 'kitchen';
 
 export interface BuiltWorld {
   group: THREE.Group;
@@ -16,8 +17,10 @@ export interface BuiltWorld {
   spawnYaw: number;
   dummySpots: { pos: THREE.Vector3; slide: boolean }[];
   enemySpots: SpawnSpec[];
-  /** Sugar-cube shrine: rest here (E). */
+  /** Checkpoint: rest here (E). */
   checkpoint: THREE.Vector3 | null;
+  /** What the checkpoint is called in prompts ("the lantern"). */
+  restLabel?: string;
 }
 
 const _m = new THREE.Matrix4();

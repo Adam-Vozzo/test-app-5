@@ -1,7 +1,7 @@
 // Procedural weapon meshes. Local frame: muzzle toward -Z, up +Y, origin at the right-hand grip.
 import * as THREE from 'three';
 import { merge, meshOf, paint, paintBy, place, prep, stripe, toonMat } from '../render/geo';
-import { PROPS } from '../render/palette';
+import { GEAR, PROPS } from '../render/palette';
 
 export interface WeaponModel {
   root: THREE.Group;
@@ -215,7 +215,51 @@ export function stapleGeo(): THREE.BufferGeometry {
   return merge([crown, place(prong, -0.047, 0, 0.035), place(prong.clone(), 0.047, 0, 0.035)]);
 }
 
+/** Auto-pistol, in metres: a chunky faceted sidearm. The magazine drops out of the grip for the reload. */
+export function buildPistol(): WeaponModel {
+  const root = new THREE.Group();
+  const tilt = 0.25;
+  const slide = paint(new THREE.BoxGeometry(0.046, 0.042, 0.22), GEAR.metal);
+  const ridge = paint(new THREE.BoxGeometry(0.03, 0.01, 0.2), GEAR.metalLight);
+  const frame = paint(new THREE.BoxGeometry(0.04, 0.032, 0.17), GEAR.metalDark);
+  const barrel = paint(new THREE.CylinderGeometry(0.012, 0.012, 0.025, 6).rotateX(Math.PI / 2), GEAR.metalDark);
+  const grip = paint(new THREE.BoxGeometry(0.042, 0.12, 0.058), GEAR.grip);
+  const guard = paint(new THREE.BoxGeometry(0.012, 0.012, 0.06), GEAR.metalDark);
+  const geo = merge([
+    place(slide, 0, 0.056, -0.08),
+    place(ridge, 0, 0.081, -0.08),
+    place(frame, 0, 0.022, -0.06),
+    place(barrel, 0, 0.05, -0.2),
+    place(grip, 0, -0.04, 0.012, tilt, 0, 0),
+    place(guard, 0, -0.012, -0.05),
+  ]);
+  root.add(meshOf(geo, mat()));
+  const magSeat = new THREE.Vector3(0, -0.052, 0.024);
+  const mag = meshOf(merge([place(paint(new THREE.BoxGeometry(0.032, 0.1, 0.044), GEAR.metalDark), 0, 0, 0, tilt, 0, 0)]), mat());
+  mag.position.copy(magSeat);
+  root.add(mag);
+  return {
+    root,
+    mag,
+    grip: new THREE.Vector3(0, -0.02, 0.012),
+    fore: new THREE.Vector3(-0.03, -0.06, 0.0),
+    muzzle: new THREE.Vector3(0, 0.055, -0.215),
+    eject: new THREE.Vector3(0.03, 0.07, -0.05),
+    magSeat,
+    lever: new THREE.Vector3(0, 0.06, 0.04),
+    loaded: null,
+    magHiddenAtRest: false,
+    loadPort: magSeat.clone(),
+    pump: null,
+    pumpTravel: 0,
+    hammer: null,
+    hammerCocked: 0,
+    hammerGrip: new THREE.Vector3(),
+  };
+}
+
 export function buildModel(id: string): WeaponModel {
+  if (id === 'pistol') return buildPistol();
   if (id === 'spitter') return buildSpitter();
   if (id === 'stapler') return buildStapler();
   return buildRepeater();

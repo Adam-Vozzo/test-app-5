@@ -2,6 +2,7 @@
 // hitscan or projectile, recoil pattern + kick springs, self-knockback, pump/bolt cycling by the off hand,
 // and committed reloads (whole magazine, or one round at a time).
 import * as THREE from 'three';
+import { BODY } from '../anim/body';
 import { clamp, damp, DEG, safeDiv, smoothstep, Spring3 } from '../core/math';
 import { makeRng } from '../core/rng';
 import type { Synth } from '../audio/synth';
@@ -92,7 +93,7 @@ export class Gun {
     infiniteReserve: boolean,
   ) {
     this.mag = def.magSize;
-    this.reserve = infiniteReserve ? Infinity : def.reserve;
+    this.reserve = infiniteReserve || def.infiniteReserve ? Infinity : def.reserve;
     this.hammerAngle = model.hammerCocked;
     this.pumpRestZ = model.pump?.position.z ?? 0;
     this.pose = {
@@ -196,7 +197,7 @@ export class Gun {
     const c = p.controller;
     const hspeed = Math.hypot(c.vel.x, c.vel.z);
     let s = THREE.MathUtils.lerp(d.hipSpread, d.adsSpread, ctx.camera.adsAmount);
-    if (hspeed > 0.6) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
+    if (hspeed > 1) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
     if (!c.grounded) s *= d.airSpreadMul;
     this.spread = s + this.bloom;
     this.displaySpread = this.spread + this.pelletCone(ctx);
@@ -457,8 +458,9 @@ export class Gun {
   }
 
   private pouchPoint(biped: Biped, out: THREE.Vector3) {
-    out.copy(biped.hips).addScaledVector(biped.right, -0.16).addScaledVector(biped.forward, 0.02);
-    out.y += 0.02;
+    const p = BODY.pouch;
+    out.copy(biped.hips).addScaledVector(biped.right, p.x).addScaledVector(biped.forward, -p.z);
+    out.y += p.y;
     return out;
   }
 

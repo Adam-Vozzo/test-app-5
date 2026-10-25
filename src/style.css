@@ -112,17 +112,18 @@ html, body {
 
 .overlay {
   position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 14px; background: radial-gradient(ellipse at center, rgba(63, 44, 34, 0.75), rgba(18, 13, 12, 0.95));
+  justify-content: center; gap: 14px; background: radial-gradient(ellipse at center, rgba(47, 54, 64, 0.72), rgba(14, 16, 20, 0.95));
 }
 .overlay.hidden { display: none; }
 .overlay h1 {
   margin: 0; font-size: 64px; color: var(--cream); letter-spacing: 0.02em;
   text-shadow: 0 4px 0 var(--ink);
 }
-.overlay h1 span { color: #ff6a3d; }
-.overlay.death { background: radial-gradient(ellipse at center, rgba(40, 10, 10, 0.55), rgba(18, 13, 12, 0.92)); }
-.overlay.death h1 { color: #ff6a3d; font-size: 72px; letter-spacing: 0.08em; }
+.overlay h1 span { color: #c0574a; }
+.overlay.death { background: radial-gradient(ellipse at center, rgba(40, 14, 14, 0.5), rgba(14, 12, 14, 0.92)); }
+.overlay.death h1 { color: #c0574a; font-size: 72px; letter-spacing: 0.08em; }
 .overlay p { margin: 0; opacity: 0.85; max-width: 560px; text-align: center; }
+.overlay p.note { font-size: 13px; opacity: 0.65; }
 .overlay button {
   pointer-events: auto; font: inherit; font-size: 20px; font-weight: 800; padding: 10px 26px; border: 0;
   border-radius: 8px; background: var(--cream); color: var(--ink); cursor: pointer; min-width: 260px;

@@ -29,7 +29,7 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - no rifle reload, with a visible charge indicator on the weapon
   - a parry as Justice's unbinding move
 
-## V2-1: Humanoid rescale and new look
+## V2-1: Humanoid rescale and new look ✅ (awaiting the user's notes)
 - **Units:**
   - 1 unit = 1 m. Rescale the player controller, camera, gravity, roll and weapon numbers in `src/tuning.ts`.
   - Keep v1 *feel* by converting values rather than re-tuning (e.g. speeds × player height ratio).
@@ -48,6 +48,14 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
 - **Rename to *Eight*:** page title, start menu and `package.json` name.
 - Retire the bug content from menus. It stays in git history and `archive/v1/`, but the v1 range, arena and zones
   are replaced by v2 scenes as they arrive.
+- **Done as:**
+  - every v1 feel number converted × 1.6, with `tests/rescale.test.ts` holding time-based feel equal
+  - `BODY` proportions; a hooded humanoid rig with verlet blindfold tails
+  - a fog-chunk override (soft exponent + height falloff) and a posterised sky dome
+  - outlines that fade with distance; a faceted prop kit
+  - the Justice courtyard, which doubles as the pistol range
+  - the auto-pistol; pixel mode on by default
+  - the v1 bug weapons and the `--range` smoke scenario retired; v1 scenes kept behind `?mode=` for now
 
 ## V2-2: SwordRifle (the new verb)
 - **Melee system** (new code path):

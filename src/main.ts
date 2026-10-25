@@ -17,7 +17,8 @@ async function boot() {
   window.__game = game;
   window.__tuning = tuning;
   const mode = new URLSearchParams(location.search).get('mode');
-  if (mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
+  // `justice` is the v2 scene. The v1 bug-scale scenes stay reachable here only, until v2 scenes replace them.
+  if (mode === 'justice' || mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
 }
 
 boot().catch((e) => {

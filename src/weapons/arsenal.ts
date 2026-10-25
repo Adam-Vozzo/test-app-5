@@ -1,8 +1,8 @@
-// The three carried weapons and the committed swap between them (lower → switch → raise; no firing meanwhile).
+// The carried weapons and the committed swap between them (lower → switch → raise; no firing meanwhile).
 import { DEG, smoothstep } from '../core/math';
 import type { Player } from '../player/player';
 import { tuning } from '../tuning';
-import { WEAPONS, type WeaponDef } from './defs';
+import { LOADOUT, type WeaponDef } from './defs';
 import { Gun, type GunContext } from './gun';
 import { buildModel } from './model';
 
@@ -19,7 +19,7 @@ export class Arsenal {
     infiniteReserve: boolean,
   ) {
     const defs = tuning.weapons as Record<string, WeaponDef>;
-    this.guns = WEAPONS.map((w) => new Gun(defs[w.id] ?? w, buildModel(w.id), infiniteReserve));
+    this.guns = LOADOUT.map((w) => new Gun(defs[w.id] ?? w, buildModel(w.id), infiniteReserve));
     player.setWeapon(this.guns[0].model);
   }
 

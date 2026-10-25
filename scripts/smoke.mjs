@@ -17,6 +17,8 @@ await new Promise((res) => {
 
 const errors = [];
 const browser = await chromium.launch({
+  // CHROMIUM_PATH: use a pre-installed browser when it doesn't match the pinned Playwright version.
+  executablePath: process.env.CHROMIUM_PATH || undefined,
   // Autoplay allowed so the WebAudio synth actually runs (and can throw) headless.
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
 });
@@ -48,13 +50,19 @@ try {
   await wait(500);
   await shot('00-menu');
 
-  // ---- Arena: walk, look around, roll, IK debug
-  await g(() => window.__game.start('arena'));
-  await wait(1200);
-  await shot('01-arena-spawn');
+  // ---- Justice courtyard (v2): walk, look around, roll, IK debug. Pixel mode is on by default.
+  await g(() => window.__game.start('justice'));
+  await wait(1500);
+  await shot('01-justice-spawn');
+  const body = await g(() => {
+    const b = window.__game.player.biped;
+    return { hips: +b.hips.y.toFixed(2), head: +b.head.position.y.toFixed(2), chest: +b.chest.y.toFixed(2) };
+  });
+  console.log('  body heights (m)', JSON.stringify(body));
+  if (body.head < 1.2 || body.head > 1.7) throw new Error(`head height ${body.head} m is not humanoid scale`);
   await hold('KeyW');
   await wait(900);
-  await shot('02-arena-walking');
+  await shot('02-justice-walking');
   await release('KeyW');
   await look(-500, 40);
   await hold('KeyW');
@@ -63,33 +71,33 @@ try {
   await release('ShiftLeft');
   await release('KeyW');
   await wait(300);
-  await shot('03-arena-sprint-turn');
+  await shot('03-justice-sprint-turn');
   await press('Space');
   await wait(180);
-  await shot('04-arena-roll');
+  await shot('04-justice-roll');
   await wait(800);
   await g(() => { window.__game.input.press('KeyI'); window.__game.input.onKey('KeyI'); });
   await hold('Mouse2');
   await wait(500);
-  await shot('05-arena-ads-ik');
+  await shot('05-justice-ads-ik');
   await release('Mouse2');
   await g(() => { window.__game.input.onKey('KeyI'); window.__game.input.onKey('KeyH'); });
   await wait(300);
-  await shot('06-arena-colliders');
+  await shot('06-justice-colliders');
   await g(() => window.__game.input.onKey('KeyH'));
   // Painterly post-process on (a shader compile error logs a console error and fails the run).
   await g(() => { window.__tuning.post.enabled = true; });
   await wait(800);
-  await shot('08-arena-post');
+  await shot('08-justice-post');
   const postDraws = await g(() => window.__game.renderer.renderer.info.render.calls);
   console.log('  post-process draws/frame', postDraws);
   if (postDraws < 5) throw new Error('frame stats only counted the post pass');
-  await g(() => { window.__tuning.post.enabled = false; window.__tuning.debug.pixelMode = true; window.__tuning.debug.pixelScale = 3; });
+  await g(() => { window.__tuning.post.enabled = false; window.__tuning.debug.pixelMode = false; });
   await wait(700);
-  await shot('09-arena-pixel');
-  await g(() => { window.__tuning.debug.pixelMode = false; window.__tuning.debug.pixelScale = 2; });
+  await shot('09-justice-no-pixel');
+  await g(() => { window.__tuning.debug.pixelMode = true; });
 
-  // Tuning panel open, with the repeater folder expanded.
+  // Tuning panel open, with the pistol folder expanded.
   await g(() => {
     const gm = window.__game;
     gm.input.onKey('Backquote');
@@ -107,7 +115,7 @@ try {
   await hold('KeyW');
   await wait(500);
   await release('KeyW');
-  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 3; tu.roll.duration = 0.5; });
+  await g(() => { const tu = window.__tuning; tu.player.walkSpeed = 4.8; tu.roll.duration = 0.4; });
   await wait(600);
   const finiteRig = await g(() => {
     const p = window.__game.player;
@@ -122,7 +130,28 @@ try {
     const gm = window.__game;
     return { pos: gm.player.pos.toArray().map((v) => +v.toFixed(2)), draws: gm.renderer.renderer.info.render.calls };
   });
-  console.log('  arena stats', JSON.stringify(stats));
+  console.log('  justice stats', JSON.stringify(stats));
+
+  // ---- The look: back to the spawn, then the scales down the axis, the player from the front, and wide.
+  await g(() => {
+    const gm = window.__game;
+    gm.player.controller.teleport(gm.world.spawn, 0);
+    gm.camera.snap(gm.world.spawn, 0);
+  });
+  await wait(900);
+  await shot('10-justice-gate-frame');
+  await g(() => { const gm = window.__game; gm.player.controller.teleport({ x: 0, y: 0.05, z: -40 }, 0); gm.camera.snap(gm.player.pos, 0); gm.camera.pitch = 0.12; });
+  await wait(900);
+  await shot('11-justice-scales');
+  // Face the camera: she turns to +Z while the camera keeps looking -Z.
+  await g(() => { const gm = window.__game; gm.player.combatTimer = 0; gm.player.controller.teleport(gm.player.pos.clone(), Math.PI); gm.camera.pitch = -0.05; });
+  await wait(500);
+  await shot('12-justice-player-front');
+  await g(() => { const gm = window.__game; gm.player.controller.teleport({ x: -30, y: 0.05, z: 20 }, 2.4); gm.camera.snap(gm.player.pos, 2.4); gm.camera.pitch = 0.05; });
+  await wait(900);
+  await shot('13-justice-graveyard');
+  const draws = await g(() => window.__game.renderer.renderer.info.render.calls);
+  console.log('  justice draws/frame', draws);
 
   if (process.argv.includes('--zones')) {
     const { zonesScenario } = await import('./smoke-m5.mjs');
@@ -133,12 +162,11 @@ try {
     await enemiesScenario({ page, g, hold, release, press, look, wait, shot });
   }
 
-  // Optional milestone-specific scenario
-  if (process.argv.includes('--range')) {
-    const { rangeScenario, weaponsScenario } = await import('./smoke-range.mjs');
-    await rangeScenario({ page, g, hold, release, press, look, wait, shot });
-    await weaponsScenario({ page, g, hold, release, press, look, wait, shot });
+  if (process.argv.includes('--pistol')) {
+    const { pistolScenario } = await import('./smoke-v2.mjs');
+    await pistolScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  // --enemies and --zones (above) drive v1's legacy bug-scale scenes, reachable by URL only until v2 replaces them.
 } catch (e) {
   errors.push(`script: ${e.message}`);
 } finally {

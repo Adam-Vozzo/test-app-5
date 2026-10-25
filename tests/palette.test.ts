@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GARDEN, KITCHEN, SIGNAL, type BiomePalette } from '../src/render/palette';
+import { GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, type AreaPalette, type BiomePalette } from '../src/render/palette';
 
 const rgb = (hex: number) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => v / 255);
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -41,9 +41,29 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
       expect(contrast(SIGNAL.telegraph, p.fog)).toBeGreaterThanOrEqual(2.5);
     });
   }
+  for (const p of [JUSTICE] as AreaPalette[]) {
+    it(`${p.name} (v2 area)`, () => {
+      const s = p.surfaces;
+      const surfaces = [s.light, s.mid, s.dark, s.shadow, s.growth, p.accent, p.accentShade, p.fog, p.sky ?? p.fog, GEAR.lantern];
+      for (const c of surfaces) {
+        const ok = hueGap(SIGNAL.telegraph, c) >= 35 || contrast(SIGNAL.telegraph, c) >= 2.5;
+        expect(ok, `telegraph vs #${c.toString(16)}`).toBe(true);
+      }
+      // v2 fog runs toward light, so the telegraph must still read against a pale horizon.
+      expect(contrast(SIGNAL.telegraph, p.fog)).toBeGreaterThanOrEqual(2.5);
+      // The accent motif is never mistaken for crit gold.
+      expect(hueGap(p.accent, SIGNAL.crit) >= 15 || contrast(p.accent, SIGNAL.crit) >= 1.5).toBe(true);
+    });
+  }
+  it("the Eight of Swords' robe never reads as kill red or telegraph magenta", () => {
+    for (const robe of [PLAYER.robe, PLAYER.robeShade, PLAYER.cowl]) {
+      expect(contrast(robe, SIGNAL.kill)).toBeGreaterThanOrEqual(2);
+      expect(hueGap(robe, SIGNAL.telegraph)).toBeGreaterThan(30);
+    }
+  });
   it('signal colours are distinct from each other', () => {
     expect(hueGap(SIGNAL.telegraph, SIGNAL.weakSpot)).toBeGreaterThan(90);
     expect(hueGap(SIGNAL.telegraph, SIGNAL.crit)).toBeGreaterThan(60);
-    expect(hueGap(SIGNAL.telegraph, 0xff6a3d)).toBeGreaterThan(30); // player's orange torso
+    expect(hueGap(SIGNAL.telegraph, 0xff6a3d)).toBeGreaterThan(30); // v1 beetle's orange torso
   });
 });

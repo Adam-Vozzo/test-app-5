@@ -8,6 +8,33 @@ export const SIGNAL = {
   ui: 0xffffff,
 } as const;
 
+/** The Eight of Swords (STYLE.md → Characters). Robe red is desaturated so it never reads as kill red. */
+export const PLAYER = {
+  robe: 0x923a33,
+  robeShade: 0x7a2c26,
+  cowl: 0x6e2a25,
+  blindfold: 0xe8e0d0,
+  limb: 0x1e1a1c,
+  face: 0x120f12,
+  belt: 0x3a2a24,
+} as const;
+
+/** Weapons and training props (not area surfaces, not signals). */
+export const GEAR = {
+  metal: 0x4a515c,
+  metalDark: 0x2b3038,
+  metalLight: 0x7d8691,
+  grip: 0x5a4032,
+  tracer: 0xf4e9cf,
+  post: 0x5b4a3c,
+  canvas: 0xcdbf9f,
+  canvasShade: 0xa8987a,
+  straw: 0xb9a46e,
+  /** The Hermit's lantern (checkpoint glow): warm light marks the way. */
+  lantern: 0xf0b266,
+} as const;
+
+/** v1 bug characters (enemies until V2-4 replaces them). */
 export const CHARACTER = {
   limb: 0x1e1414,
   torsoA: 0xff6a3d,
@@ -41,8 +68,24 @@ export const PROPS = {
   staplerArm: 0x4f7ca8,
 } as const;
 
-export interface BiomePalette {
+/** What the renderer and FX need from any area: light, fog, sky and impact colours. */
+export interface AreaLighting {
   name: string;
+  /** Fog and horizon colour. v2 fog runs toward light (STYLE.md → Atmospheric perspective). */
+  fog: number;
+  /** Sky colour overhead. `null` = no sky dome; the background is the flat fog colour (v1 biomes). */
+  sky: number | null;
+  /** Cloud band colour in the sky. */
+  cloud: number;
+  hemiSky: number;
+  hemiGround: number;
+  sun: number;
+  dust: number;
+  decal: number;
+}
+
+/** v1 bug-scale biome (legacy URL modes only). */
+export interface BiomePalette extends AreaLighting {
   groundLit: number;
   groundLight: number;
   groundShade: number;
@@ -54,17 +97,13 @@ export interface BiomePalette {
   pebbleB: number;
   leafA: number;
   leafB: number;
-  fog: number;
   fogDeep: number;
-  hemiSky: number;
-  hemiGround: number;
-  sun: number;
-  dust: number;
-  decal: number;
 }
 
 export const GARDEN: BiomePalette = {
   name: 'Garden Bed',
+  sky: null,
+  cloud: 0x3f2c22,
   groundLit: 0xf9d199,
   groundLight: 0xfeeec5,
   groundShade: 0xdbb898,
@@ -87,6 +126,8 @@ export const GARDEN: BiomePalette = {
 
 export const KITCHEN: BiomePalette = {
   name: 'Kitchen Floor',
+  sky: null,
+  cloud: 0x302f38,
   groundLit: 0xe6dccb,
   groundLight: 0xf0e8da,
   groundShade: 0xa9a2a0,
@@ -107,8 +148,38 @@ export const KITCHEN: BiomePalette = {
   decal: 0x4a4650,
 };
 
-/** The biome currently loaded (FX read dust/decal colours from it). */
-export let activeBiome: BiomePalette = GARDEN;
-export function setActiveBiome(p: BiomePalette) {
+/** A v2 area: 4–5 surface colours, light fog/sky and one accent motif (STYLE.md → Palettes). */
+export interface AreaPalette extends AreaLighting {
+  surfaces: { light: number; mid: number; dark: number; shadow: number; growth: number };
+  /** The area's one accent motif colour. Used on that motif only, never on general props. */
+  accent: number;
+  accentShade: number;
+}
+
+/** Justice × Swords: a windswept plateau of white stone under a cold, pale sky. */
+export const JUSTICE: AreaPalette = {
+  name: 'Justice',
+  surfaces: {
+    light: 0xe4e1d8, // chalk
+    mid: 0x9fb0bc, // pale steel
+    dark: 0x5c6873, // slate
+    shadow: 0x2f3640,
+    growth: 0xa9ae95, // wind-flattened sage grass
+  },
+  accent: 0xb39a5e, // tarnished brass: the scales
+  accentShade: 0x8a7444,
+  fog: 0xe3e9ee,
+  sky: 0xa9bccb,
+  cloud: 0xf2f4f5,
+  hemiSky: 0xeef2f6,
+  hemiGround: 0x6b7480,
+  sun: 0xfff1df,
+  dust: 0xd9d6cc,
+  decal: 0x4a525c,
+};
+
+/** The area currently loaded (FX read dust/decal colours from it). */
+export let activeBiome: AreaLighting = GARDEN;
+export function setActiveBiome(p: AreaLighting) {
   activeBiome = p;
 }

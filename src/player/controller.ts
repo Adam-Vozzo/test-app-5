@@ -60,7 +60,7 @@ export class Controller {
       RAPIER.ColliderDesc.capsule(this.halfH, this.radius).setCollisionGroups(GROUPS.player),
       this.body,
     );
-    this.kcc = w.createCharacterController(0.02);
+    this.kcc = w.createCharacterController(0.032);
     this.kcc.setUp({ x: 0, y: 1, z: 0 });
     this.kcc.setSlideEnabled(true);
     this.kcc.setApplyImpulsesToDynamicBodies(false);
@@ -69,7 +69,7 @@ export class Controller {
 
   applyTuning() {
     const t = tuning.player;
-    this.kcc.enableAutostep(t.stepHeight, 0.15, false);
+    this.kcc.enableAutostep(t.stepHeight, 0.24, false);
     this.kcc.enableSnapToGround(t.snapToGround);
     this.kcc.setMaxSlopeClimbAngle(t.maxSlopeDeg * DEG);
     this.kcc.setMinSlopeSlideAngle((t.maxSlopeDeg + 5) * DEG);
@@ -179,7 +179,7 @@ export class Controller {
     }
 
     // Gravity.
-    if (this.grounded && this.vy <= 0) this.vy = -2;
+    if (this.grounded && this.vy <= 0) this.vy = -3.2;
     else this.vy -= t.gravity * dt;
 
     const desired = { x: (this.vel.x + this.pushVel.x) * dt, y: this.vy * dt, z: (this.vel.z + this.pushVel.z) * dt };
@@ -187,7 +187,7 @@ export class Controller {
     this.kcc.computeColliderMovement(this.collider, desired, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, GROUPS.player);
     const mv = this.kcc.computedMovement();
     this.grounded = this.kcc.computedGrounded();
-    if (this.grounded && this.vy < 0) this.vy = -2;
+    if (this.grounded && this.vy < 0) this.vy = -3.2;
     this.center.x += mv.x;
     this.center.y += mv.y;
     this.center.z += mv.z;
@@ -209,6 +209,6 @@ export class Controller {
     } else if (this.grounded) this.lastGood.copy(this.pos);
     if (!Number.isFinite(this.yaw)) this.yaw = 0;
     // Fell out of the world: put back at origin.
-    if (this.pos.y < -30) this.teleport(new THREE.Vector3(0, 2, 0), this.yaw);
+    if (this.pos.y < -48) this.teleport(new THREE.Vector3(0, 3, 0), this.yaw);
   }
 }

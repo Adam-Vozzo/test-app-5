@@ -90,7 +90,8 @@ Rules:
 
 ### Characters (Proposed)
 - **The Eight of Swords:**
-  - **Rust-red robe** `#9E3B32`: the card's red, desaturated so it never reads as kill-red `#FF3B30`.
+  - **Rust-red robe** `#923A33`: the card's red, desaturated and dark enough (≥ 2:1 contrast) that it never reads
+    as kill-red `#FF3B30`. V2-1's palette test darkened it from the first pick, `#9E3B32`.
   - **Off-white blindfold** `#E8E0D0`, pushed up, with **cloth tails** that trail behind her as cheap secondary motion
     (a procedural verlet ribbon).
   - **Dark stick limbs** `#1E1A1C`.
@@ -109,8 +110,10 @@ Rules:
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.
 - **Stripes become facets.** v1's wobbly organic stripes give way to flat-shaded facets and per-face value jitter,
   which reads as blocky rather than soft.
-- **Pixel mode** (`debug.pixelMode`) is the Brume look. Proposed: evaluate it **on by default** in the first v2
-  playable build, at `pixelScale` 2–3 with a one-block outline.
+- **Pixel mode** (`debug.pixelMode`) is the Brume look. **On by default since V2-1 for evaluation**, at `pixelScale`
+  2 with a one-block outline (`pixelOutline` 0.8). P toggles it.
+- **Outlines fade with distance** (`look.outlineFadeStart` → `outlineFadeEnd`, 40 → 140 m). Ink lines belong to the
+  play space. Outlining fogged hills turned the distance into shards, against the "silhouettes only" value plane.
 - **Painterly pass** (`post.enabled`) is the Grey Scout look for skies and distance. Optional; real-hardware cost is
   still unmeasured.
 - A **rain/hatch overlay** (Grey Scout's diagonal streaks) is a cheap screen-space option for the Moon dimension.

@@ -17,8 +17,10 @@ The current slice exists to answer:
 Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
 four thin ones.
 
-> **Code status:** until V2-1 lands, `src/` is still the v1 bug-scale prototype (beetle units, garden/kitchen zones,
-> bug weapons and enemies). Comments that mention bugs, pollen or beetles describe v1 content.
+> **Code status (V2-1):** the player, camera, weapons, look and the Justice courtyard are v2, in metres. Enemies,
+> zones (`src/world/gen.ts`, `zone.ts`, `themes.ts`), the test arena and the pollen economy are still v1 bug-scale
+> content in beetle units, reachable only through `?mode=arena|range|garden|kitchen` until V2-3/V2-4 replace them.
+> Comments that mention bugs, pollen or beetles describe that v1 content.
 
 ## Pillars (check every decision against these)
 
@@ -55,15 +57,16 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm run build`: typecheck and production build (relative `base`, so it deploys to GitHub Pages)
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
-  Writes screenshots to `screenshots/`. Add scenarios with `npm run smoke -- --range --enemies --zones`
-  (v1 scenarios: weapons/range, combat loop, zones; v2 milestones replace them as their scenes arrive).
+  Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
+  with `npm run smoke -- --pistol --enemies --zones` (`--pistol` is v2; `--enemies` and `--zones` drive the legacy v1
+  scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
 ## Conventions
 
-- **Units**: v2 uses **1 world unit = 1 metre** (player ≈ 1.6 m); until V2-1 lands, the code still uses v1's
-  1 unit ≈ beetle height. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where
-  noted).
+- **Units**: **1 world unit = 1 metre**; the player is 1.6 m (`src/anim/body.ts` holds her proportions; lengths in the
+  rig, weapon placement and reloads come from `BODY`, never literals). `tuning.enemies` is still v1 beetle units
+  until V2-4. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where noted).
 - **Seeded RNG everywhere**: never call `Math.random()` in game code. Use `rng()` from `src/core/rng.ts`, seeded
   from `?seed=` (shown in the debug overlay). FX jitter uses a separate stream so gameplay generation stays
   deterministic regardless of what effects ran.
@@ -79,7 +82,11 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - **Geometry** is built from primitives with vertex colours and merged per prop type (`src/render/geo.ts`). Repeated
   props use `InstancedMesh`. One shadow-casting light. Keep draw calls low and check the debug overlay.
 - **Pools, not allocations**, in hot paths: tracers, impacts, decals, casings and audio voices. Reuse scratch vectors.
-- **Changing light count recompiles shaders.** The muzzle point light always exists; toggle its intensity.
+- **Changing light count recompiles shaders.** The muzzle point light always exists; toggle its intensity. Warm
+  lights in levels (lanterns) are unlit emissive meshes plus an additive ground glow, never extra lights.
+- **Fog** is a shader-chunk override (`src/render/atmosphere.ts`): soft-exponent distance fog with height falloff,
+  driven by `tuning.look` through one shared uniform object. Don't create materials that opt out of fog unless
+  they're FX or the sky.
 - **Colours**: area and signal colours live in `src/render/palette.ts`. Signal colours (telegraph magenta, weak-spot
   cyan, crit gold, kill red, UI white) are never used on props, characters or accent motifs. Each area has one
   accent motif colour, used only on that motif.
@@ -99,8 +106,9 @@ src/
   tuning.ts        all feel numbers (weapons reference src/weapons/defs.ts)
   core/            rng, math/springs, input, time (slow-mo, hitstop)
   physics/         Rapier world wrapper, collision groups
-  render/          renderer, palette, geometry helpers, toon materials, optional painterly post pass
-  anim/            pure IK + gait logic, biped rig
+  render/          renderer, palette, geometry helpers, toon materials, atmosphere (fog + sky), post pass
+                   (pixel mode, painterly, distance-faded outlines)
+  anim/            pure IK + gait logic, BODY proportions, verlet ribbon (blindfold tails), biped rig
   player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
   weapons/         weapon defs, firing, recoil
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
@@ -108,8 +116,8 @@ src/
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
   enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
                    (v2: humanoid enemies on the biped rig, court-rank behaviours)
-  world/           arenas, dummy range, props, pollen drop, zone generator (v2: dimension data, mission graph,
-                   room/connector kits, validation, hub)
+  world/           v2: faceted prop kit, Justice courtyard, training dummies. v1: arenas, props, pollen drop,
+                   zone generator. (Coming: dimension data, mission graph, room/connector kits, validation, hub)
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)
 archive/v1/        frozen v1 planning docs

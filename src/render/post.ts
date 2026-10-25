@@ -34,6 +34,8 @@ uniform float signalSat;
 uniform float time;
 uniform float cameraNear;
 uniform float cameraFar;
+uniform float edgeFadeStart;
+uniform float edgeFadeEnd;
 varying vec2 vUv;
 
 // Linear colour in the target, perceptual work in (approximate) sRGB.
@@ -111,6 +113,8 @@ void main() {
               + invDepth(uv + vec2(0.0, o.y)) + invDepth(uv - vec2(0.0, o.y)) - 4.0 * ic;
     float g = -lap / max(ic, 1e-6);
     float edge = smoothstep(edgeThreshold, edgeThreshold * 3.0, g);
+    // Outlines belong to the play space: distance stays soft, fogged silhouettes (STYLE.md value planes).
+    edge *= 1.0 - smoothstep(edgeFadeStart, edgeFadeEnd, 1.0 / max(ic, 1e-6));
     col *= 1.0 - edge * edgeStrength;
   }
 
@@ -157,6 +161,8 @@ export class PostPass {
         time: { value: 0 },
         cameraNear: { value: 0.05 },
         cameraFar: { value: 400 },
+        edgeFadeStart: { value: 30 },
+        edgeFadeEnd: { value: 80 },
       },
     });
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.material);
@@ -209,6 +215,8 @@ export class PostPass {
     u.time.value = (u.time.value + 0.013) % 10;
     u.cameraNear.value = camera.near;
     u.cameraFar.value = camera.far;
+    u.edgeFadeStart.value = tuning.look.outlineFadeStart;
+    u.edgeFadeEnd.value = Math.max(tuning.look.outlineFadeStart + 1, tuning.look.outlineFadeEnd);
     // The upscale from a reduced target uses linear filtering; at scale 1 it's a 1:1 copy.
     renderer.render(this.quadScene, this.quadCam);
   }

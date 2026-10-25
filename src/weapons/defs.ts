@@ -1,5 +1,7 @@
 // Weapons are data. Every number here is exposed in the tuning panel.
-import { PROPS } from '../render/palette';
+// v2 weapons are in metres. The v1 bug weapons below are kept as reference data in v1 beetle units
+// (the staple driver is the starting point for the SwordRifle's rifle mode in V2-2); they are not carried.
+import { GEAR, PROPS } from '../render/palette';
 
 /** One synthesized audio layer. `osc` = pitched sweep, `noise` = filtered noise burst. */
 export interface SoundLayer {
@@ -46,6 +48,8 @@ export interface WeaponDef {
   auto: boolean;
   magSize: number;
   reserve: number;
+  /** Never runs out of reserve ammo (the auto-pistol is the always-there fallback). Still reloads. */
+  infiniteReserve: boolean;
   /** 'mag': whole magazine in reloadTime. 'single': one round per reloadTime, interruptible by firing. */
   reloadMode: ReloadMode;
   reloadTime: number;
@@ -145,6 +149,7 @@ export const REPEATER: WeaponDef = {
   auto: true,
   magSize: 32,
   reserve: 192,
+  infiniteReserve: false,
   reloadMode: 'mag',
   reloadTime: 1.9,
   cycle: 'none',
@@ -375,4 +380,53 @@ export const STAPLER: WeaponDef = {
 };
 
 
-export const WEAPONS: WeaponDef[] = [REPEATER, SPITTER, STAPLER];
+/** v1's carried weapons (reference only; see LOADOUT). */
+export const V1_WEAPONS: WeaponDef[] = [REPEATER, SPITTER, STAPLER];
+
+/**
+ * Auto-pistol (DESIGN.md → Weapons): the default fallback with infinite reserve ammo. Reliable, low damage, always
+ * there. Built from the rubber-band repeater's hitscan path and juice, converted to metres, with its own crack.
+ */
+export const AUTO_PISTOL: WeaponDef = {
+  ...REPEATER,
+  id: 'pistol',
+  name: 'Auto-pistol',
+  slot: 1,
+  damage: 8,
+  critMultiplier: 2,
+  falloffStart: 28.8,
+  falloffEnd: 72,
+  falloffMinMul: 0.55,
+  knockback: 0.56,
+  range: 256,
+  rpm: 600,
+  magSize: 18,
+  reserve: 0,
+  infiniteReserve: true,
+  reloadTime: 1.5,
+  hipSpread: 1.8,
+  adsSpread: 0.4,
+  recoilVertical: 0.5,
+  recoilHorizontal: 0.22,
+  weaponKickBack: 0.07,
+  weaponKickPitch: 9,
+  weaponKickRoll: 3,
+  tracerColor: GEAR.tracer,
+  tracerSpeed: 384,
+  tracerLength: 3.2,
+  tracerWidth: 0.05,
+  flashScale: 0.45,
+  flashLight: 2.5,
+  impactSpeed: 6.4,
+  casingSpeed: 3.5,
+  layers: {
+    click: L({ kind: 'noise', filter: 'highpass', f0: 6000, f1: 6000, dur: 0.012, gain: 0.5 }),
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 2600, f1: 900, q: 1.1, dur: 0.05, gain: 0.7 }),
+    thump: L({ kind: 'osc', wave: 'sine', f0: 190, f1: 52, dur: 0.08, gain: 0.65 }),
+    tail: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 300, dur: 0.22, gain: 0.16, delay: 0.008 }),
+  },
+  cycleLayers: {},
+};
+
+/** What the player carries, in slot order. The SwordRifle joins in V2-2. */
+export const LOADOUT: WeaponDef[] = [AUTO_PISTOL];
