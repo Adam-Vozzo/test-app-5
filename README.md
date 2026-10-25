@@ -1,4 +1,4 @@
-# v2 (working title TBD)
+# Eight
 
 A souls-like third-person shooter set in a world built from the tarot, played as the Eight of Swords. Everything is
 generated in code: geometry, animation, levels and sound. No asset files.

@@ -1,6 +1,6 @@
-# DESIGN.md: v2 game design
+# DESIGN.md: *Eight* (v2 game design)
 
-v2 grows the v1 prototype (archived in `archive/v1/`) into a small, finished game: a souls-like third-person shooter
+**Working title: *Eight*** (Decided). v2 grows the v1 prototype (archived in `archive/v1/`) into a small, finished game: a souls-like third-person shooter
 set in a world built from the tarot. The protagonist is the **Eight of Swords**, someone who has only ever been held
 back by herself.
 
@@ -47,7 +47,11 @@ meaning of its arcana, so the theme is something you play, not something you rea
 3. Common enemies share 3–4 archetype verbs across all dimensions, re-skinned per dimension, plus **one signature
    enemy per dimension** that carries its rule.
 
-## The four dimensions (Proposed)
+## The four dimensions (Decided: pairings, order, and Justice as the first slice; details Proposed)
+
+The four pairings and their order are decided, and **Justice is the first playable slice**. The per-dimension
+details below (enemies, minibosses, boss phases, set-pieces) are still proposals, to be confirmed as each dimension
+is built.
 
 **Pairing.** Arcana and suits are paired by the traditional elemental attributions (Golden Dawn): Swords = air,
 Pentacles = earth, Wands = fire, Cups = water. That gives each pairing a reason beyond taste.
@@ -69,8 +73,8 @@ threshold → trials → ordeal → the last illusion before the dawn.
 - **The Tower** takes away safe ground.
 - **The Moon** tests whether you've really learned to read.
 
-Earlier candidates were swapped out because their elements collide with picks above: the Chariot (Cancer, water) and
-the Hanged Man (water).
+The Chariot (Cancer, water) and the Hanged Man (water) were left out because both are water cards, the Moon's
+element. Their concepts live on in the **trial grounds** (below).
 
 **The Moon breaks pillar 2 on purpose.** "Everything is readable" stays true: illusions have consistent, learnable
 tells (see below). The Moon checks the player's reading instead of breaking it.
@@ -160,6 +164,24 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
 - **Boss: the Moon / the Shadow.** The Moon's light casts the Eight of Swords' own shadow, which fights with her moves.
   This is the Jungian shadow, and the last thing holding her back is herself.
 
+## Trial grounds (Decided: exists; concepts Proposed)
+
+A **separate area for trialling other arcana concepts** (the user's call). It's a **development sandbox**: like v1's
+target range, it's reached from the start menu (`?mode=trials`), not from the hub. It isn't a dimension and doesn't
+count toward the 4-dimension cap.
+
+Each trial is **one generated room** built from the V2-3 kits, plus one rule. It answers one question: is this rule
+fun? A trial that proves stronger than a current dimension's rule can **replace** that dimension by the user's call.
+Element collisions are weighed when that happens; the Chariot and the Hanged Man are both water, like the Moon.
+
+| Trial | The card | Rule to try (first ideas) |
+|---|---|---|
+| **The Chariot (VII)** | Victory, though momentary; willpower driving two opposed sphinxes | *Momentum*: kills grant a strong buff that decays fast, and chaining kills keeps it alive. Stopping is losing. Arena variant: two opposed hazards (one light, one dark) push you in different directions, and you steer between them. |
+| **The Hanged Man (XII)** | Suspension, indecision, seeing from a new perspective | *Hesitation is punished*: the world only moves while **you** stand still (an inverted "time moves when you move"), so deciding fast keeps enemies frozen. Arena variant: gravity flips, and you hang from the ceiling and fight upside down. |
+
+More concepts can be added to this table as they come up. Trials are cheap by construction: data plus a rule, on
+existing kits.
+
 ## Court cards as minibosses (Proposed)
 
 **Rank is the verb, suit is the flavour.** The player learns what a Knight *does* in dimension 1 and recognises it
@@ -179,9 +201,9 @@ it, and the King combines it with a squad.
 
 - **Decided:** the card shows a woman bound and blindfolded, ringed by swords, with the bindings loose and the path
   open. She's a zero-to-hero protagonist who has only been held back by herself.
-- **Proposed: unbinding instead of buildcraft.** She starts bound (the card's binding). Each **arcana boss frees one
-  restraint**, which is one new verb or one large passive. That gives a progression arc without loot, rarity or a
-  skill tree. Candidates (open):
+- **Decided: unbinding instead of buildcraft.** She starts bound (the card's binding). Each **arcana boss frees one
+  restraint, which gives her a new move.** That gives a progression arc without loot, rarity or a skill tree.
+  Which four moves is still Proposed. Candidates:
   - Justice frees a **parry** (answer in kind).
   - The Devil frees a **chain-break dash**.
   - The Tower frees a **safe fall or plunge**.
@@ -190,7 +212,7 @@ it, and the King combines it with a squad.
   kill-red). The off-white blindfold is pushed up onto her forehead, carrying cloth tails that trail behind her.
   See `STYLE.md`.
 
-## Weapons (Decided, details Proposed)
+## Weapons (Decided; the rifle's reload rule Proposed)
 
 Depth over breadth: two weapons for the whole game, made deeper through upgrades.
 
@@ -198,9 +220,18 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
   v1 repeater's hitscan and juice.
 - **SwordRifle** (Decided): one weapon with a long-range rifle mode and a close-range sword mode, plus **limited
   charges that power both**. It **starts rusted and is repaired** over the game.
-  - *Proposed charge loop:* rifle shots cost 1 charge. Basic sword swings are free, and sword **hits refill charges**.
-    A charged sword strike spends charges. Charges also refill at lanterns. The loop is: close in to fuel the rifle,
-    back off to spend it.
+  - **Charge loop (Decided):** rifle shots cost 1 charge. Basic sword swings are free, and sword **hits refill
+    charges**. A charged sword strike spends charges. The loop is: close in to fuel the rifle, back off to spend it.
+  - **Start full (Decided):** she begins each level, and every lantern rest, with a **full set of charges**.
+  - **The rifle is heavy (Decided).** It should feel like v1's **staple driver**. Its def (`STAPLER` in
+    `src/weapons/defs.ts`) is the starting point:
+    - a visible fast projectile with slight drop
+    - a bolt cycle between shots (0.8 s), semi-auto
+    - pierce 1, huge crits (2.6×) and a big stagger
+    - a sharp crack-and-thump sound
+    - a hard pitch kick that mostly springs back
+  - *Proposed:* **no rifle reload.** Charges *are* the magazine, so the only ways to refill are sword hits and
+    lanterns. That keeps the loop pure: an empty rifle means it's time to swing.
   - *Proposed repair:* four repair stages, one per suit relic (dropped by each King). Each stage restores a part:
     blade, barrel, stock and edge.
 - **Melee is a genuinely new verb.** It gets its own code path (`CLAUDE.md → Weapons are data`). It's also the
@@ -256,8 +287,15 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 
 ## Open questions
 
-1. **Working title.** "A bugs death" no longer fits. Something like *Eight of Swords*?
-2. **Unbinding verbs.** Are they the right progression, and which four? (One is enough for the slice.)
+1. **Which four unbinding moves?** Only Justice's is needed for the slice. The proposal is a parry.
+2. **Rifle reload:** none, because charges are the magazine (Proposed above)?
 3. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
 4. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
 5. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?
+
+Resolved:
+- Working title: ***Eight***.
+- The four pairings and order, with Justice as the slice.
+- The charge loop, starting full, and a heavy rifle.
+- Unbinding as the progression.
+- Trial grounds for the Chariot and the Hanged Man.

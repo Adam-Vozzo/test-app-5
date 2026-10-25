@@ -1,4 +1,4 @@
-# CLAUDE.md: v2 (working title TBD)
+# CLAUDE.md: *Eight* (v2)
 
 A playable web game: a souls-like third-person shooter set in a world built from the tarot. The protagonist is
 the Eight of Swords. v2 is an iteration of the v1 bug-scale prototype (frozen docs in `archive/v1/`), not a new
@@ -31,7 +31,7 @@ four thin ones.
    Levels are *authored rules, procedural arrangement* (`LEVELS.md`).
 4. **The cards become the rules.** Each dimension's mechanics, spaces and enemies express the meaning of its arcana.
    If a feature would fit any fantasy game equally well, question it.
-5. **Small and finished.** 4 dimensions × 3 levels is the cap. Rank is the verb, suit is the flavour; kits over
+5. **Small and finished.** 4 dimensions × 3 levels is the cap (the dev-only trial grounds don't count). Rank is the verb, suit is the flavour; kits over
    bespoke content.
 
 ## Out of scope

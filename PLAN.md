@@ -1,4 +1,4 @@
-# PLAN.md: v2
+# PLAN.md: *Eight* (v2)
 
 v1's plan (M0–M6, all complete) is in `archive/v1/PLAN.md`. v2 milestones are numbered `V2-n`.
 
@@ -19,8 +19,14 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
 - Write `DESIGN.md` (structure, dimensions, court cards, hub, characters), `LEVELS.md` (level design principles and
   generation pipeline) and v2 `STYLE.md` (Brume, Grey Scout and Remnant 2 composition), and rewrite `CLAUDE.md`
   and this plan.
-- **Next:** the user accepts or changes the **Proposed** items in `DESIGN.md`. At minimum, settle the
-  Justice details and the SwordRifle charge loop before V2-2.
+- **Decided since:**
+  - the title *Eight*
+  - the four pairings and their order, with Justice as the slice
+  - the SwordRifle charge loop: start full, with a heavy rifle like the staple driver
+  - unbinding as the progression
+  - a trial-grounds sandbox for other arcana concepts
+
+  Still open before V2-2: whether the rifle has no reload (`DESIGN.md → Weapons`).
 
 ## V2-1: Humanoid rescale and new look
 - **Units:**
@@ -38,6 +44,7 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   the three value planes in screenshots.
 - **Weapon:** the **auto-pistol** as a def in `src/weapons/defs.ts`, built from the repeater's hitscan path, with
   infinite ammo.
+- **Rename to *Eight*:** page title, start menu and `package.json` name.
 - Retire the bug content from menus. It stays in git history and `archive/v1/`, but the v1 range, arena and zones
   are replaced by v2 scenes as they arrive.
 
@@ -48,8 +55,12 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - hit-stop, flinch and sound, reusing v1's juice
   - a combo of 2–3 swings
 - **Mode switch:** rifle ⇄ sword, with a short committed transform animation (the procedural arm IK moves the grip).
-- **Charges:** rifle shots cost charges, sword hits refill them, and a charged sword strike spends them. Charges
-  refill at a lantern. All of it is tunable.
+- **Charges:**
+  - Rifle shots cost charges, sword hits refill them, and a charged sword strike spends them.
+  - Every level start and lantern rest begins **full**.
+  - All of it is tunable.
+- **Rifle mode is heavy:** built from v1's staple-driver def (visible projectile with drop, 0.8 s bolt cycle,
+  pierce 1, 2.6× crit, big stagger, hard kick). Proposed: no reload, because charges are the magazine.
 - **Rusted state:** lower damage, slower switch and a dull sound. Repair stages are data (four stages), so V2-7 can
   apply one.
 - **Melee range:** dummies that block from the front (a Bailiff stand-in), so the flank-and-punish rhythm can be felt
@@ -98,8 +109,18 @@ Enemy spawns can use placeholder dummies until V2-4.
 - **The Magician:** one upgrade menu with SwordRifle repair stage 1, plus 2–3 pistol and flask upgrades, paid in
   pentacles. **The High Priestess:** gate keeper, with 3–5 lines.
 - Save of progress (unlocked gates, upgrades, repair stage, seed) in `localStorage`.
-- The first **unbinding**, if accepted (`DESIGN.md`), granted on Justice's defeat.
+- The first **unbinding**, granted on Justice's defeat: one new move (proposed: a parry).
 - **Slice complete:** a `PLAYTEST.md` entry against the slice question above.
+
+## Side track T: trial grounds (doesn't block the slice)
+A dev sandbox (`?mode=trials`, reached from the start menu) for arcana concepts that aren't among the four dimensions.
+Each trial is one generated room plus one rule (`DESIGN.md → Trial grounds`).
+- **Can start once V2-3 kits and V2-4 enemies exist.**
+- **First trials:**
+  - The Chariot (*momentum*: decaying kill buffs)
+  - The Hanged Man (*hesitation is punished*: the world moves only while you stand still, plus a gravity-flip
+    variant)
+- Each trial ends with a `PLAYTEST.md` entry: is the rule fun, and should it challenge a current dimension?
 
 ## Later (after the slice is played; no detail on purpose)
 - **The Devil × Pentacles**, **The Tower × Wands**, **The Moon × Cups**: each needs kits, a signature enemy, a suit

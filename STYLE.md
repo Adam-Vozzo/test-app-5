@@ -1,4 +1,4 @@
-# STYLE.md: the look of v2
+# STYLE.md: the look of *Eight* (v2)
 
 The v1 style study (White Lavender, the warm lamp-lit stage, bug-scale props) is in `archive/v1/STYLE.md`.
 v2 keeps v1's *technique* (no textures, vertex colours, toon ramp, reserved signal colours) and changes its *look*.

@@ -4,6 +4,21 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-0 follow-up: decisions recorded
+Your answers are now in the docs:
+- **Title:** *Eight*.
+- **The four pairings, their order, and Justice as the slice.**
+- **SwordRifle:** sword hits refill charges, and every level and lantern starts full. The rifle mode is built from
+  the staple driver's def so it feels as heavy.
+- **Progression:** each arcana boss frees one restraint, which is a new move.
+- **Trial grounds:** a dev sandbox (`?mode=trials`) for the Chariot (momentum) and the Hanged Man (the world moves only
+  while you stand still). It's a side track in `PLAN.md` that doesn't block the slice.
+
+**Still to decide:**
+- **No rifle reload** (charges are the magazine)? I proposed it because it keeps the loop pure, but it means an empty
+  rifle can only be refilled by swinging or resting.
+- **Justice's unbinding move:** the proposal is a parry.
+
 ## V2-0: Direction and docs
 Nothing new to play: the build is still the v1 prototype. Read `DESIGN.md`, `LEVELS.md` and `STYLE.md`, and accept,
 change or reject each **Proposed** item.

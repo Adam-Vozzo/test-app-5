@@ -185,6 +185,12 @@ A generated level is rejected and regenerated from `seed + attempt` if any check
 - **Budget:** critical-path length, room count and prop/draw-call estimates within *Budgets*.
 - **Determinism:** the same seed gives the same layout (already tested in `tests/gen.test.ts`).
 
+## Trial rooms
+The trial grounds (`DESIGN.md → Trial grounds`) reuse this pipeline at its smallest. A trial is a level script with
+a single `combat` node (or a tiny `start → combat → combat` chain), built from shared kits in a neutral palette, plus
+the trial's rule. Validation still runs. If a rule needs its own kit (the Hanged Man's gravity flip), that's the
+first sign it costs more than data.
+
 ## Combat spaces (shooter rules)
 
 | Rule | Value | Why |
