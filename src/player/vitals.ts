@@ -1,5 +1,5 @@
 // Souls-like player rules as plain logic: health, stamina (gates roll + sprint, regen after a delay),
-// committed heal with limited charges, hurt stun, death, pollen. No Three/DOM, so it is unit-tested.
+// committed heal with limited charges, hurt stun, death, currency. No Three/DOM, so it is unit-tested.
 import { tuning } from '../tuning';
 
 export interface DamageResult {
@@ -12,7 +12,8 @@ export class Vitals {
   health = tuning.vitals.maxHealth;
   stamina = tuning.vitals.maxStamina;
   healCharges = tuning.vitals.healCharges;
-  pollen = 0;
+  /** Carried currency (pentacles in v2 scenes, pollen in the v1 ones). */
+  currency = 0;
   healing = false;
   /** Heal progress 0..1. */
   healT = 0;

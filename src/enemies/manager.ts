@@ -5,7 +5,8 @@ import type { LimbRenderer } from '../render/limbs';
 import type { Rng } from '../core/rng';
 import { Enemy, type EnemyWorld, type Hostile } from './enemy';
 import { Foe, type FoeIdle } from './foe';
-import { CourtCard, isCourtRank } from './court';
+import { COURT_PLANS, CourtCard, isCourtRank } from './court';
+import { JUSTICE_PLAN, JusticeBoss } from './justice';
 import { PLANS } from './foes';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
@@ -45,7 +46,12 @@ export class EnemyManager {
   spawnFoes(specs: FoeSpawn[], physics: EnemyWorld['physics'], rng: Rng): Foe[] {
     return specs.map((s, i) => {
       const r = rng.fork(`foe${this.enemies.length}-${i}`);
-      const e = isCourtRank(s.id) ? new CourtCard(s.id, this.scene, physics, s.pos, s.yaw, r) : new Foe(PLANS[s.id as keyof typeof PLANS], this.scene, physics, s.pos, s.yaw, s.idle, r);
+      const e =
+        s.id === 'justice'
+          ? new JusticeBoss(JUSTICE_PLAN, this.scene, physics, s.pos, s.yaw, r)
+          : isCourtRank(s.id)
+            ? new CourtCard(COURT_PLANS[s.id], this.scene, physics, s.pos, s.yaw, r)
+            : new Foe(PLANS[s.id as keyof typeof PLANS], this.scene, physics, s.pos, s.yaw, s.idle, r);
       e.onKilled = (x) => this.onKilled(x);
       this.enemies.push(e);
       return e;

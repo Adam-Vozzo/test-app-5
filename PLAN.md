@@ -165,12 +165,22 @@ Enemy spawns can use placeholder dummies until V2-4.
     when you walk in); the exit stays sealed until it falls
   - the `--court` smoke scenario, and the level walkthrough checks the sealed exit
 
-## V2-6: Justice boss and the dimension loop
+## V2-6: Justice boss and the dimension loop ✅ (waiting on your playtest)
 - The **Justice** boss: phase 1 is the sword with mirrored combos; phase 2 is the scales.
 - The boss arena (`LEVELS.md → Boss arenas`).
 - **Dimension flow:** level 1 → 2 → 3 → boss.
 - **Death loop:** drop currency (v1 pollen becomes pentacles), respawn at the lantern, recover the drop.
 - Elites, minibosses and shortcuts stay done.
+- **Done as:**
+  - `src/enemies/justice.ts`: Justice as data (looks, poses) and `JusticeBoss` (a `CourtCard` with echoes across her
+    arena's axis in phase 2; `mirrorAcross` is pure and tested)
+  - `src/world/boss.ts`: the arena by rules (lantern, walled approach under arches, octagon under the scales, the pans
+    that come down in phase 2, the veiled way on)
+  - the flow: level 1 → 2 → 3 → the arena (`?mode=level&level=4` jumps there); walking on after her completes the
+    dimension (it returns to level 1 until the hub exists)
+  - pentacles replace pollen in v2 scenes (kills, caches; carried between levels); the v1 drop-and-recover death loop
+  - the `--boss` smoke scenario: she wakes, holds the bar, the death drop is recovered, the pans come down, strikes
+    echo, and the way on completes the dimension
 
 ## V2-7: Minimal hub
 - The World plaza with one active gate (Justice) and three sleeping ones.

@@ -51,6 +51,12 @@ export interface BuiltWorld {
   interactables?: Interactable[];
   /** The world's extent on the ground, for the overview camera. */
   bounds?: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** Set when the player walks through the way on. */
+  exited?: boolean;
+  /** Per-frame world animation (Justice's pans coming down). */
+  update?(dt: number): void;
+  /** The player rested or rose: put the world back as the fight began. */
+  onReset?(): void;
 }
 
 const _m = new THREE.Matrix4();

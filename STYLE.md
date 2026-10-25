@@ -114,6 +114,9 @@ Rules:
     with a long cape, the Queen in a floor-length slate gown with a pale veil, the King broad in a dark robe and
     squared mantle with a greatsword. Crowns are steel, never brass (brass belongs to the scales).
   - Ground telegraphs (lanes, rings, verdicts) sit 12 cm up so paving never hides them.
+  - *Justice (V2-6):* 6 m, slate gown, pale mantle and stole, steel crown with three square points, a greatsword
+    raised upright, and small brass scales in her left hand. The brass on her scales and on the arena's descending
+    pans is the accent motif: the scales are the motif, wherever they appear.
 
 ### Shading and post
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.

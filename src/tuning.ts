@@ -42,6 +42,8 @@ export const tuning = {
     hurtKnockbackMul: 1,
     hurtTrauma: 0.55,
     pollenPickupRadius: 2.24,
+    /** Pentacles in a branch's cache (v2 levels). */
+    cachePentacles: 30,
   },
   roll: {
     speed: 8.5,
@@ -388,6 +390,33 @@ export const tuning = {
         sentence: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.4, delay: 1.6, count: 3, minPhase: 1 },
         judgement: { range: 3.6, windup: 1.0, active: 0.14, recover: 1.3, cooldown: 1.2, damage: 40, knockback: 9, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },
         sweep: { range: 3.0, windup: 0.7, active: 0.2, recover: 1.0, cooldown: 1.8, damage: 26, knockback: 6, arcDeg: 170, lunge: 0.8, weight: 0.8, hits: 2, comboWindup: 0.45 },
+      },
+    },
+    /**
+     * Justice, the arcana (V2-6). Phase 1 is the sword: mirrored combos. In phase 2 the scales come down: two great
+     * pans settle into the arena, and what she throws onto one side lands on the other (strikes echo across her
+     * arena's axis).
+     */
+    justice: {
+      health: 2600,
+      poise: 420,
+      poiseRegen: 40,
+      speed: 2.4,
+      runSpeed: 3.8,
+      accel: 14,
+      turnRate: 2.8,
+      sightRange: 60,
+      leash: 200,
+      staggerTime: 1.4,
+      separation: 4,
+      reward: 600,
+      phases: [0.5],
+      attacks: {
+        edict: { range: 8, windup: 0.8, active: 0.22, recover: 1.2, cooldown: 1.0, damage: 34, knockback: 8, arcDeg: 170, lunge: 1.6, weight: 1, hits: 2, comboWindup: 0.5 },
+        verdictOfThree: { range: 8, windup: 0.75, active: 0.22, recover: 1.3, cooldown: 1.6, damage: 34, knockback: 8, arcDeg: 170, lunge: 1.6, weight: 1.2, hits: 3, comboWindup: 0.44, minPhase: 1 },
+        cleave: { range: 10, windup: 1.2, active: 0.15, recover: 1.6, cooldown: 1.6, damage: 46, knockback: 11, arcDeg: 360, lunge: 1.0, weight: 0.9, radius: 3.6, reach: 6 },
+        weigh: { kind: 'volley', range: 34, windup: 1.1, active: 0.1, recover: 1.1, cooldown: 3.0, damage: 22, knockback: 4, arcDeg: 360, lunge: 0, weight: 0.8, speed: 18, lanes: 9, spacing: 2.0, hits: 2, comboWindup: 0.9 },
+        balance: { kind: 'verdict', range: 34, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 36, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.1, radius: 3.0, delay: 1.5, count: 1, minPhase: 1 },
       },
     },
     /** How far each noise carries (m). Walking is nearly silent: the Blindfold hunts gunfire and haste. */

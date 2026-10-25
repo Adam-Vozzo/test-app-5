@@ -205,3 +205,13 @@ export function volleyOffsets(lanes: number, spacing: number, gap: number, mirro
   for (let i = 0; i < lanes; i++) if (i !== g) out.push((i - (lanes - 1) / 2) * spacing);
   return out;
 }
+
+/** Reflect (x, z) across the line through (cx, cz) heading along `yaw` (0 = -Z): the arena's mirror axis. */
+export function mirrorAcross(x: number, z: number, cx: number, cz: number, yaw: number): [number, number] {
+  const ux = -Math.sin(yaw);
+  const uz = -Math.cos(yaw);
+  const rx = x - cx;
+  const rz = z - cz;
+  const along = rx * ux + rz * uz;
+  return [cx + 2 * along * ux - rx, cz + 2 * along * uz - rz];
+}

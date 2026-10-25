@@ -4,6 +4,27 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-6: Justice and the dimension loop
+**Run:** play through levels 1–3 (each court card opens the way on), or jump straight in with `?mode=level&level=4`.
+
+**Try:**
+1. **The approach:** the long walled pass under three arches, the scales filling the sky, then the arena. Does the
+   reveal land?
+2. **Phase 1:** her two-swing edict (the second swing mirrored), the cleave's ground ring, and the blade lines (find
+   the gap; the follow-up gap is mirrored).
+3. **Phase 2** (half health): a horn, and the two brass pans come down out of the fog. Now every cleave and verdict
+   lands twice: once where she aimed and once mirrored across the arena, a beat later.
+4. **Death:** your pentacles (✪) drop where you fall. Rise at the lantern; she's whole again and the pans have risen.
+   Walk back for your pentacles.
+5. **Victory:** the veiled gate north opens. For now it returns you to level 1; the hub comes in V2-7.
+
+**Unsure about:**
+- **Her health** (2600) is a guess: a few minutes with good play. The echoes make phase 2 much busier; they may need
+  a longer delay than 0.45 s.
+- **The pans** are visual plus low platforms; they don't do anything themselves yet. "What she throws onto one side
+  lands on the other" is carried by the echoes. Should standing on a pan matter?
+- **Pentacles** have nothing to buy until the Magician (V2-7).
+
 ## SwordRifle on her back (your request)
 **Try:** with the pistol out, the SwordRifle hangs diagonally across her back. Press **2**: she reaches over her right
 shoulder and draws it; **1** stows it the same way. Watch it while rolling (it tumbles with her) and when she falls.

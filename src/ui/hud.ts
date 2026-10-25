@@ -161,8 +161,8 @@ export class Hud {
     if (text) this.range.textContent = text;
   }
 
-  /** Health / stamina / heal charges / pollen. */
-  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, pollen: number) {
+  /** Health / stamina / heal charges / carried currency (with its glyph). */
+  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, currency: number, glyph = '✿') {
     const h = Math.max(0, hp / maxHp);
     this.hp.style.width = `${h * 100}%`;
     this.hpLagValue = Math.max(h, this.hpLagValue);
@@ -174,9 +174,10 @@ export class Hud {
       this.healsKey = hk;
       this.heals.innerHTML = Array.from({ length: maxHeals }, (_, i) => `<span class="${i < heals ? 'on' : ''}"></span>`).join('') + '<em>Q</em>';
     }
-    if (pollen !== this.pollenKey) {
-      this.pollenKey = pollen;
-      this.pollenEl.textContent = `✿ ${pollen}`;
+    const key = currency * 4 + glyph.charCodeAt(0);
+    if (key !== this.pollenKey) {
+      this.pollenKey = key;
+      this.pollenEl.textContent = `${glyph} ${currency}`;
     }
   }
 

@@ -118,6 +118,11 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - *King of Swords*: a judge who commands Bailiffs and hands down **verdicts**, marking a zone that strikes later.
 - **Boss: Justice.** Phase 1 is the sword (mirrored combos). In phase 2 the scales come down into the arena as two
   great pans, and what she throws onto one side lands on the other.
+  - **As built in V2-6 (Proposed until played):** a 6 m crowned figure from the card: greatsword raised in her right
+    hand, brass scales in her left, slate gown and pale mantle. Phase 1: a mirrored two-swing edict, an overhead cleave
+    with a ground ring, and lines of thrown blades with a gap (the follow-up mirrored). At half health the horn sounds
+    and two brass pans lower out of the fog onto the arena floor; from then on her cleaves and verdicts **echo across
+    the arena's axis** (a beat later, on the other side), her combos run to three swings, and she marks verdicts.
 
 ### 2. The Devil × Pentacles: "The chains are loose"
 - **The card:** two figures chained to the Devil's pedestal, with chains loose enough to lift off. It's about temptation,
@@ -327,6 +332,8 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 - **Currency:** pentacles, dropped by enemies and found in caches. Spent at the Magician.
 - **Death** works as in v1: you drop your carried currency where you fell and respawn at the last lantern. Non-elite
   enemies respawn, and you recover the drop by reaching it. Elites, minibosses and opened shortcuts stay done.
+  *As built in V2-6:* pentacles (✪) replace pollen in v2 scenes; kills and branch caches pay them, and you carry them
+  from level to level. A boss resets when you rest or rise (Justice's pans rise again).
 - **Level seeds** are fixed per save, so a level's layout stays learnable across deaths (souls-like memory). A new save
   or New Game+ rerolls them.
 - **Save state** is minimal: unlocked gates, cleared levels, upgrades, repair stage and seed. It's stored in

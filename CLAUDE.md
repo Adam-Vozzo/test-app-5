@@ -17,9 +17,9 @@ The current slice exists to answer:
 Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
 four thin ones.
 
-> **Code status (V2-5):** the player, camera, weapons, look, the Justice training courtyard, the generated Justice
-> levels (`src/world/gen-*.ts`, `level.ts`), Justice's enemies (`src/enemies/foe*.ts`, `humanoid.ts`) and the
-> Swords court cards (`court.ts`) are v2, in
+> **Code status (V2-6):** the player, camera, weapons, look, the Justice training courtyard, the generated Justice
+> levels (`src/world/gen-*.ts`, `level.ts`), Justice's enemies (`src/enemies/foe*.ts`, `humanoid.ts`), the Swords
+> court cards (`court.ts`), and Justice and her arena (`justice.ts`, `src/world/boss.ts`) are v2, in
 > metres. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
@@ -60,7 +60,7 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --level --foes --court --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--pistol` and `--sword` are v2; `--enemies` and
+  with `npm run smoke -- --level --foes --court --boss --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--pistol` and `--sword` are v2; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
@@ -118,11 +118,13 @@ src/
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
   enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
-                   Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
+                   Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
+                   boss (justice.ts: JusticeBoss extends CourtCard). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
                    manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
-                   gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), faceted prop kit,
+                   gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), the boss arena
+                   (boss.ts), faceted prop kit,
                    Justice courtyard, training dummies. v1: arenas, props, pollen drop, zone generator. (Coming: hub)
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)

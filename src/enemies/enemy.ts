@@ -53,6 +53,8 @@ export interface EnemyWorld {
   enemies: readonly Hostile[];
   /** Noises made this frame (gunfire, blades, haste). */
   noises: readonly Noise[];
+  /** A boss stepped into a new phase (the arena may change: Justice's scales come down). */
+  bossPhase?(phase: number): void;
   /** Bring a new enemy into the fight (a King's squad); it arrives alerted. */
   summon(id: string, pos: THREE.Vector3, yaw: number): Hostile | null;
   /** Wake everyone within `radius` of `from` and tell them where the player is. */

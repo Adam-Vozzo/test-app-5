@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COURT_PLANS, COURT_RANKS } from '../src/enemies/court';
-import { attackDuration, attackTimeline, guards, hears, inArc, leashBroken, loudest, phaseOf, pickAttack, rangedMinDistance, slamCentre, volleyOffsets, type AttackTune } from '../src/enemies/foe-ai';
+import { JUSTICE_PLAN } from '../src/enemies/justice';
+import { attackDuration, attackTimeline, guards, hears, inArc, leashBroken, loudest, mirrorAcross, phaseOf, pickAttack, rangedMinDistance, slamCentre, volleyOffsets, type AttackTune } from '../src/enemies/foe-ai';
 import { FOE_IDS, mirrorPose, PLANS } from '../src/enemies/foes';
 import { tuning } from '../src/tuning';
 
@@ -99,13 +100,20 @@ describe('fair range (LEVELS.md → Combat spaces)', () => {
 });
 
 describe('mirrored poses', () => {
-  it('swap hands and flip yaw and roll', () => {
+  it('a dual-wielder swaps hands and flips yaw and roll', () => {
     const p = PLANS.blindfold.motions.slash.windup;
-    const m = mirrorPose(p);
+    const m = mirrorPose(p, true);
     expect(m.handR[0]).toBeCloseTo(-p.handL[0], 6);
     expect(m.handL[0]).toBeCloseTo(-p.handR[0], 6);
     expect(m.weapon[1]).toBeCloseTo(-p.off[1], 6);
-    expect(mirrorPose(m)).toEqual(p);
+    expect(mirrorPose(m, true)).toEqual(p);
+  });
+  it('a single blade stays in the right hand and swings back the other way', () => {
+    const p = PLANS.page.motions.cut.windup;
+    const m = mirrorPose(p);
+    expect(m.handR[0]).toBeCloseTo(-p.handR[0], 6);
+    expect(m.weapon[1]).toBeCloseTo(-p.weapon[1], 6);
+    expect(m.weapon[0]).toBeCloseTo(p.weapon[0], 6);
   });
 });
 
@@ -157,5 +165,26 @@ describe('court cards (V2-5)', () => {
       // The suit reads before the face: every court card is taller than the commons.
       expect(COURT_PLANS[rank].height).toBeGreaterThan(2);
     }
+  });
+});
+
+describe('Justice (V2-6)', () => {
+  it("echoes across her arena's axis: what lands on one side lands on the other", () => {
+    // Axis through (0, -96) heading north (yaw 0): x flips, z stays.
+    const [x, z] = mirrorAcross(7, -90, 0, -96, 0);
+    expect(x).toBeCloseTo(-7, 6);
+    expect(z).toBeCloseTo(-90, 6);
+    // On the axis, a point is its own mirror; mirroring twice is the identity.
+    expect(mirrorAcross(0, -80, 0, -96, 0)[0]).toBeCloseTo(0, 6);
+    const [x2, z2] = mirrorAcross(...mirrorAcross(3, -70, 1, -96, 0.4), 1, -96, 0.4);
+    expect(x2).toBeCloseTo(3, 6);
+    expect(z2).toBeCloseTo(-70, 6);
+  });
+  it('is an arcana: large, with phase-two attacks', () => {
+    expect(JUSTICE_PLAN.height / 1.6).toBeGreaterThanOrEqual(1.5);
+    expect(JUSTICE_PLAN.height / 1.6).toBeLessThanOrEqual(4);
+    const atk = tuning.foes.justice.attacks as Record<string, AttackTune>;
+    expect(Object.values(atk).some((a) => (a.minPhase ?? 0) >= 1)).toBe(true);
+    for (const name of Object.keys(atk)) expect(JUSTICE_PLAN.motions[name], name).toBeTruthy();
   });
 });

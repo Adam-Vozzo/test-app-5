@@ -40,10 +40,10 @@ export async function zonesScenario({ g, wait, shot }) {
 
   // Pollen cache: walk onto it.
   await g(() => { window.__tuning.debug.godMode = true; const gm = window.__game; const c = gm.zone.cache.at; gm.player.controller.teleport(c.clone().setY(c.y + 0.1).setX(c.x + 1), 0); });
-  const cached = await until(() => window.__game.vitals.pollen >= 40, 6000);
+  const cached = await until(() => window.__game.vitals.currency >= 40, 6000);
   await wait(600);
   await shot('52-pollen-cache');
-  console.log('  cache pollen', await g(() => window.__game.vitals.pollen));
+  console.log('  cache pollen', await g(() => window.__game.vitals.currency));
   if (!cached) throw new Error('pollen cache did not pay out');
 
   // Slay the brute, kill a normal enemy, rest: the normal one returns, the brute does not.

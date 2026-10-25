@@ -56,6 +56,8 @@ export interface FoePlan {
   offhand: (() => THREE.BufferGeometry) | null;
   /** The off-hand item is a shield (turns blows from the front). */
   shield: boolean;
+  /** Two blades: mirrored swings change hands. */
+  dualWield?: boolean;
   limb: number;
   sleeve: number;
   /** Hitboxes relative to the feet (x right, y up, z back), for a 1.6 m body. */
@@ -68,8 +70,21 @@ export interface FoePlan {
 
 const pose = (handR: V3, handL: V3, weapon: V3, off: V3 = [0, 0, 0], crouch = 0, lean = 0): ArmPose => ({ handR, handL, weapon, off, crouch, lean });
 
-/** Mirror a pose left ↔ right (the follow-up swing of a combo). */
-export function mirrorPose(p: ArmPose): ArmPose {
+/**
+ * Mirror a pose left ↔ right (the follow-up swing of a combo). A dual-wielder swaps hands (the other blade swings);
+ * everyone else keeps the weapon in the right hand and swings it back the other way.
+ */
+export function mirrorPose(p: ArmPose, swapHands = false): ArmPose {
+  if (!swapHands) {
+    return {
+      handR: [-p.handR[0], p.handR[1], p.handR[2]],
+      handL: [-p.handL[0], p.handL[1], p.handL[2]],
+      weapon: [p.weapon[0], -p.weapon[1], -p.weapon[2]],
+      off: [p.off[0], -p.off[1], -p.off[2]],
+      crouch: p.crouch,
+      lean: p.lean,
+    };
+  }
   return {
     handR: [-p.handL[0], p.handL[1], p.handL[2]],
     handL: [-p.handR[0], p.handR[1], p.handR[2]],
@@ -249,6 +264,7 @@ export const PLANS: Record<'bailiff' | 'gavel' | 'blindfold' | 'page', FoePlan> 
       ]),
     weapon: () => swordGeo(0.86, 0.045),
     offhand: () => swordGeo(0.86, 0.045),
+    dualWield: true,
     hitboxes: [
       { part: 'body', at: [0, 0.98, 0], r: 0.28 },
       { part: 'body', at: [0, 0.6, 0], r: 0.26 },

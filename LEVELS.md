@@ -260,6 +260,11 @@ Each arcana boss gets its own short space rather than a full level:
 
 The landmark the player has walked towards for three levels *is* the arena, or the boss.
 
+**As built for Justice (V2-6, `src/world/boss.ts`):** a lantern platform; a 57 m walled pass under three dark arches
+that frames the scales; then an octagonal arena (28 m radius) with tall columns, a ring-patterned floor centred on
+her, and the great scales standing just beyond. In phase 2 two brass pans (the accent motif) lower out of the fog on
+chains and settle as low platforms either side of the axis. The way on is a veiled gate north, open once she falls.
+
 ## Budgets
 | Budget | Target |
 |---|---|

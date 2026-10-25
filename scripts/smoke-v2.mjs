@@ -611,10 +611,10 @@ export async function foesScenario({ g, wait, shot }) {
   if (!threw) throw new Error('the Page should throw from range');
 
   // ---- Kills pay out.
-  const before = await g(() => window.__game.vitals.pollen);
+  const before = await g(() => window.__game.vitals.currency);
   await g((i) => window.__game.enemies.enemies[i].takeDamage({ amount: 9999, crit: false, point: { x: 0, y: 1, z: 0 }, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 }), pg);
   await wait(400);
-  const after = await g(() => window.__game.vitals.pollen);
+  const after = await g(() => window.__game.vitals.currency);
   const dead = await foe(pg);
   console.log(`  page killed: ${dead.state}, currency ${before} → ${after}`);
   if (dead.state !== 'dead' || after <= before) throw new Error('a kill should pay out');
@@ -707,4 +707,82 @@ export async function courtScenario({ g, wait, shot }) {
   console.log(`  king: verdict marked ${marked}, phase ${p1.phase}, squad called ${called}, summoned after a rest ${after}`);
   if (!marked || p1.phase !== 1 || !called || after !== 0) throw new Error('the King should mark verdicts, call his squad at a phase, and the squad should go when you rest');
   await g(() => { window.__tuning.debug.showAI = false; window.__tuning.debug.godMode = false; });
+}
+
+// V2-6 scenario: Justice's arena. She rises when you walk in; at half health the scales come down and her strikes
+// echo across the arena; dying drops your pentacles where you fell and you rise at the lantern to recover them; when
+// she falls the way on opens and the dimension is done.
+export async function bossScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw, pitch = 0.05) =>
+    g(([x, z, yaw, pitch]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = pitch;
+    }, [x, z, yaw, pitch]);
+
+  await g(() => {
+    const gm = window.__game;
+    gm.levelIndex = 3;
+    gm.start('level');
+    window.__tuning.debug.godMode = true;
+  });
+  await wait(1500);
+  await shot('50-boss-approach');
+  await put(0, -64, 0, 0.12);
+  await wait(900);
+  await shot('51-boss-reveal');
+  await put(0, -80, 0, 0.16);
+  const woke = await until(() => window.__game.enemies.enemies[0].state !== 'idle', 20000);
+  const bar = await g(() => document.querySelector('.boss')?.textContent ?? '');
+  await wait(1500);
+  await shot('52-boss-justice');
+
+  // Death drop: carry pentacles, fall, rise at the lantern, walk back for them.
+  await g(() => { window.__game.vitals.currency = 50; window.__tuning.debug.godMode = false; window.__game.hurtPlayer(99999, window.__game.player.pos.clone(), 0); window.__tuning.debug.godMode = true; });
+  await wait(300);
+  const dropped = await g(() => ({ carried: window.__game.vitals.currency, drop: window.__game.pollenDrop.amount, at: window.__game.pollenDrop.group.position.toArray() }));
+  await g(() => window.__game.rise());
+  await wait(600);
+  const atLantern = await g(() => window.__game.player.pos.z > -2);
+  const reset = await g(() => window.__game.enemies.enemies[0].state === 'idle');
+  await put(dropped.at[0], dropped.at[2] + 4, 0);
+  await wait(400);
+  await put(dropped.at[0], dropped.at[2], 0);
+  const recovered = await until(() => window.__game.vitals.currency === 50, 8000);
+  console.log(`  boss: woke ${woke}, bar "${bar.trim()}", drop ${JSON.stringify(dropped)}, rose at the lantern ${atLantern}, she reset ${reset}, recovered ${recovered}`);
+  if (!woke || !bar.includes('Justice') || dropped.carried !== 0 || dropped.drop !== 50 || !atLantern || !recovered) throw new Error('Justice should wake and hold the bar; death should drop the pentacles for recovery');
+
+  // Phase 2: the scales come down, and her strikes echo.
+  await put(0, -80, 0, 0.16);
+  await until(() => window.__game.enemies.enemies[0].state !== 'idle', 20000);
+  await g(() => { const e = window.__game.enemies.enemies[0]; e.takeDamage({ amount: e.maxHealth * 0.55, crit: false, point: e.center, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 }); });
+  const down = await until(() => window.__game.bossWorld.pansDown(), 30000);
+  const echoed = await until(() => window.__game.hazards.verdicts.length >= 2, 40000);
+  await put(-15, -84, -0.5, 0.15);
+  await wait(800);
+  await shot('53-boss-scales-down');
+  console.log(`  boss phase 2: pans down ${down}, strikes echoed (two rings at once) ${echoed}`);
+  if (!down || !echoed) throw new Error('in phase 2 the pans should come down and her strikes should echo');
+
+  // She falls: the way on opens and the dimension is done.
+  await g(() => { const e = window.__game.enemies.enemies[0]; e.takeDamage({ amount: 99999, crit: false, point: e.center, dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 }); });
+  await put(0, -96 + 26.5, Math.PI);
+  await g(() => { const gm = window.__game; gm.player.controller.teleport({ x: 0, y: 0.05, z: -96 - 26 + 2.2 }, 0); gm.camera.snap(gm.player.pos, 0); });
+  await wait(500);
+  await g(() => { window.__game.input.press('KeyE'); });
+  await wait(60);
+  await g(() => { window.__game.input.release('KeyE'); });
+  const done = await until(() => window.__game.levelIndex === 0 && !!window.__game.level, 15000);
+  console.log(`  dimension complete: back to level 1 ${done}`);
+  if (!done) throw new Error('walking on after Justice should complete the dimension');
+  await g(() => { window.__tuning.debug.godMode = false; });
 }

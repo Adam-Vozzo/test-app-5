@@ -209,17 +209,26 @@ const _dir = new THREE.Vector3();
 const SOLID = groups(G.QUERY, G.WORLD);
 
 export class CourtCard extends Foe {
-  readonly rank: CourtRank;
+  /** The rank (or, for an arcana, its own id): which rank verbs apply. */
+  readonly rank: string;
   /** Keys for this card's ground lanes (one per blade lane, or the charge lane). */
   private laneKeys = Array.from({ length: 12 }, () => ({}));
   private retreatT = 0;
   private gapIdx = 0;
   private roar = false;
 
-  constructor(rank: CourtRank, scene: THREE.Scene, physics: Physics, pos: THREE.Vector3, yaw: number, rng: Rng) {
-    super(COURT_PLANS[rank], scene, physics, pos, yaw, 'throne', rng);
-    this.rank = rank;
+  constructor(plan: FoePlan, scene: THREE.Scene, physics: Physics, pos: THREE.Vector3, yaw: number, rng: Rng) {
+    super(plan, scene, physics, pos, yaw, 'throne', rng);
+    this.rank = plan.id;
   }
+
+  /** Where a strike at (x, z) echoes, if anywhere (Justice: across her arena in phase 2). */
+  protected echo(_x: number, _z: number): [number, number] | null {
+    return null;
+  }
+
+  /** Called when the phase steps up (after the horn): the arena may change. */
+  protected onPhase(_w: EnemyWorld) {}
 
   /** Court cards hold the big health bar while they fight you. */
   get bar() {
@@ -259,6 +268,7 @@ export class CourtCard extends Foe {
       w.sound('courtHorn', this.center);
       w.shake(0.35, this.center);
       if (this.rank === 'king') this.callSquad(w);
+      this.onPhase(w);
     }
     super.update(dt, w);
   }
@@ -382,7 +392,11 @@ export class CourtCard extends Foe {
             zones[2] = [p.x + uz * 3.2, p.z - ux * 3.2];
           }
         }
-        for (const [x, z] of zones) w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback);
+        for (const [x, z] of zones) {
+          w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback);
+          const e = this.echo(x, z);
+          if (e) w.hazards.verdict(_p.set(e[0], p.y, e[1]), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback);
+        }
       }
       return null;
     }

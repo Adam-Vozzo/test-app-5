@@ -24,6 +24,7 @@ import { Hud } from './ui/hud';
 import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
+import { buildBossArena, type BossWorld } from './world/boss';
 import { buildCourtyard } from './world/courtyard';
 import { JUSTICE_DIMENSION } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
@@ -145,6 +146,8 @@ export class Game {
   start(layout: LayoutKind) {
     this.synth.resume();
     this.layout = layout;
+    // A fresh start; walking on between a dimension's levels keeps what you carry.
+    this.vitals.currency = 0;
     this.buildLevel();
     this.mode = 'playing';
     this.menus.showStart(false);
@@ -171,13 +174,20 @@ export class Game {
     if (this.layout === 'justice') {
       this.world = buildCourtyard(this.physics, this.rng.fork('justice'));
       this.area = JUSTICE;
+    } else if (this.layout === 'level' && this.levelIndex === 3) {
+      // The dimension's end: Justice's arena under the scales.
+      const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork('justice-arena'));
+      bw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
+      this.world = bw;
+      this.area = JUSTICE;
     } else if (this.layout === 'level') {
       const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
       const lw = buildGeneratedLevel(layout, report, JUSTICE_DIMENSION, this.physics);
       lw.onCache = () => {
         this.vitals.healCharges = Math.min(tuning.vitals.healCharges + 1, this.vitals.healCharges + 1);
+        this.vitals.currency += tuning.vitals.cachePentacles;
         this.synth.sfx('rest', 0.6);
-        return 'A flask left by someone before you: +1 heal';
+        return `Left by someone before you: +1 heal, ✪ +${tuning.vitals.cachePentacles}`;
       };
       // The veil lifts once the level's court card has fallen.
       lw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
@@ -222,7 +232,6 @@ export class Game {
     this.stats = this.freshStats();
     for (const d of this.dummies) d.onStagger = () => this.stats.staggers++;
     this.vitals.restore();
-    this.vitals.pollen = 0;
     this.deathT = -1;
     this.menus.showDeath(false);
     this.pollenDrop = new PollenDrop(this.renderer.scene);
@@ -246,6 +255,7 @@ export class Game {
       enemies: this.enemies.enemies,
       noises: this.noises,
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
+      bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
       summon: (id, pos, yaw) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`)),
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback) => this.hurtPlayer(amount, from, knockback),
@@ -288,6 +298,11 @@ export class Game {
     return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
+  /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
+  get money() {
+    return this.layout === 'justice' || this.layout === 'level' ? { name: 'pentacles', glyph: '✪' } : { name: 'pollen', glyph: '✿' };
+  }
+
   /** The current zone, if playing one. */
   get zone(): ZoneWorld | null {
     return this.world && 'layout' in this.world ? (this.world as ZoneWorld) : null;
@@ -305,12 +320,28 @@ export class Game {
     return this.world && 'generated' in this.world ? (this.world as LevelWorld) : null;
   }
 
-  /** Walk on to the dimension's next level (the boss arena comes with V2-6; for now it wraps to level 1). */
+  /** The boss arena, if that's where we are. */
+  get bossWorld(): BossWorld | null {
+    return this.world && 'boss' in this.world ? (this.world as BossWorld) : null;
+  }
+
+  /** Walk on: level 1 → 2 → 3 → the arcana's arena → (the hub, V2-7). */
   nextLevel() {
-    this.levelIndex = (this.levelIndex + 1) % 3;
+    if (this.levelIndex === 3) {
+      this.completeDimension();
+      return;
+    }
+    this.levelIndex++;
     this.buildLevel();
-    const s = this.level!.generated.script;
-    this.hud.toast(`${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}: ${s.setPiece.name}`, 3.5);
+    if (this.levelIndex === 3) this.hud.toast(`${JUSTICE_DIMENSION.name}: the scales`, 3.5);
+    else this.hud.toast(`${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}: ${this.level!.generated.script.setPiece.name}`, 3.5);
+  }
+
+  /** Justice has fallen: the dimension is done. */
+  completeDimension() {
+    this.levelIndex = 0;
+    this.buildLevel();
+    this.hud.toast('Justice is weighed. A binding loosens. (The hub arrives in V2-7.)', 5);
   }
 
   /** Debug and smoke tests: stand at a vista and look where it looks. */
@@ -412,10 +443,10 @@ export class Game {
     this.arsenal.current.cancelReload(false);
     this.arsenal.cancelActions();
     this.synth.sfx('playerDie');
-    // Your pollen stays where you fell. A previous unrecovered drop is gone.
-    if (this.vitals.pollen > 0) this.pollenDrop.place(this.player.pos.clone(), this.vitals.pollen);
+    // Your currency stays where you fell. A previous unrecovered drop is gone.
+    if (this.vitals.currency > 0) this.pollenDrop.place(this.player.pos.clone(), this.vitals.currency);
     else this.pollenDrop.clear();
-    this.vitals.pollen = 0;
+    this.vitals.currency = 0;
   }
 
   /** Respawn at the checkpoint: full heals and ammo, non-elite enemies return. */
@@ -432,6 +463,7 @@ export class Game {
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
+    this.world.onReset?.();
     this.projectiles.clear();
     this.mode = 'playing';
     this.input.requestLock();
@@ -446,16 +478,17 @@ export class Game {
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
+    this.world?.onReset?.();
     this.synth.sfx('rest');
     this.hud.toast('Rested. Heals and ammo refilled; the dead stir…', 2.4);
   }
 
   private onEnemyKilled(e: Hostile) {
     const reward = e.reward;
-    this.vitals.pollen += reward;
+    this.vitals.currency += reward;
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
-    if (e.elite) this.hud.toast(`${e.name} defeated  ✿ +${reward}`, 3);
+    if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);
   }
 
   pause() {
@@ -588,7 +621,7 @@ export class Game {
       const toast = near.it.use(c.pos);
       if (toast) this.hud.toast(toast, 3);
       this.synth.sfx('rest', 0.5);
-      if (this.level?.exited) {
+      if (this.world?.exited) {
         this.nextLevel();
         return;
       }
@@ -636,7 +669,8 @@ export class Game {
     if (!alive && this.deathT >= 0) {
       this.deathT += realDt;
       if (this.deathT >= 1.4 && this.deathT - realDt < 1.4) {
-        const note = this.pollenDrop.amount > 0 ? `Your ${this.pollenDrop.amount} pollen lies where you fell. Reach it before you die again.` : 'You had no pollen to lose.';
+        const m = this.money;
+        const note = this.pollenDrop.amount > 0 ? `Your ${this.pollenDrop.amount} ${m.name} lie where you fell. Reach them before you die again.` : `You had no ${m.name} to lose.`;
         this.menus.showDeath(true, note);
         this.input.exitLock();
       }
@@ -646,6 +680,7 @@ export class Game {
     this.chest.copy(player.biped.chest);
     for (const d of this.dummies) d.update(simDt, this.renderer.camera);
     this.enemies.update(simDt, this.enemyWorld);
+    this.world?.update?.(simDt);
     if (simDt > 0) this.noises.length = 0;
     if (simDt > 0) this.physics.step();
 
@@ -700,14 +735,14 @@ export class Game {
     // Not collectible while dead (the killing blow can land the same frame the drop appears).
     const recovered = v.dead ? 0 : this.pollenDrop.update(simDt, c.pos, tuning.vitals.pollenPickupRadius);
     if (recovered > 0) {
-      v.pollen += recovered;
+      v.currency += recovered;
       this.synth.sfx('pollen');
-      this.hud.toast(`pollen recovered  ✿ +${recovered}`, 2);
+      this.hud.toast(`${this.money.name} recovered  ${this.money.glyph} +${recovered}`, 2);
     }
     const zone = this.zone;
     const cached = zone && !v.dead ? zone.cache.update(simDt, c.pos) : 0;
     if (cached > 0) {
-      v.pollen += cached;
+      v.currency += cached;
       this.synth.sfx('pollen');
       this.synth.sfx('rest', 0.6);
       this.hud.toast(`pollen cache  ✿ +${cached}`, 2.5);
@@ -735,7 +770,7 @@ export class Game {
     this.hud.setAmmo(name, held.mag, held.def.magSize, held.reserve, held.reloadProgress, !!sword);
     this.hud.setCharges(held.mag, held.def.magSize, !!sword && alive);
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
-    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.pollen);
+    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.currency, this.money.glyph);
     const elite = this.enemies.activeElite;
     this.hud.setBoss(elite ? elite.name : null, elite ? elite.health / elite.maxHealth : 0);
     if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);

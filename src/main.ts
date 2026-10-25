@@ -20,7 +20,8 @@ async function boot() {
   // `level` and `justice` are v2 scenes (`&level=1..3` picks the level). The v1 bug-scale scenes stay reachable here
   // only, until v2 scenes replace them.
   const level = Number(new URLSearchParams(location.search).get('level'));
-  if (level >= 1 && level <= 3) game.levelIndex = level - 1;
+  // 1–3 are the generated levels; 4 is Justice's arena.
+  if (level >= 1 && level <= 4) game.levelIndex = level - 1;
   if (mode === 'level' || mode === 'justice' || mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
 }
 

@@ -548,11 +548,12 @@ export class Foe implements Damageable, Hostile {
     if (this.state === 'attack' && this.attack && this.tl) {
       const m = p.motions[this.attack];
       const tl = this.tl;
-      const wind = tl.mirrored ? mirrorPose(m.windup) : m.windup;
-      const act = tl.mirrored ? mirrorPose(m.active) : m.active;
+      const dual = !!p.dualWield;
+      const wind = tl.mirrored ? mirrorPose(m.windup, dual) : m.windup;
+      const act = tl.mirrored ? mirrorPose(m.active, dual) : m.active;
       if (tl.phase === 'windup') {
         // Follow-ups start from the previous swing's end.
-        const from = tl.hit > 0 ? (tl.mirrored ? m.active : mirrorPose(m.active)) : p.ready;
+        const from = tl.hit > 0 ? (tl.mirrored ? m.active : mirrorPose(m.active, dual)) : p.ready;
         lerpPose(from, wind, smoothstep(0, 1, tl.k), out);
       } else if (tl.phase === 'active') lerpPose(wind, act, smoothstep(0, 0.7, tl.k), out);
       else lerpPose(act, p.ready, smoothstep(0.3, 1, tl.k), out);
