@@ -299,6 +299,11 @@ export class CourtCard extends Foe {
     return super.approach(dt, w, dyaw, toYaw);
   }
 
+  parried() {
+    this.hideLanes();
+    super.parried();
+  }
+
   private hideLanes() {
     // (respawn runs inside the base constructor, before this class's fields exist)
     if (!this.laneKeys) return;
@@ -328,7 +333,7 @@ export class CourtCard extends Foe {
         _v.subVectors(w.playerPos, this.ground);
         if (!this.dealt.has(tl.hit) && Math.hypot(_v.x, _v.z) < this.radius + 0.9 && Math.abs(_v.y) < 1.6) {
           this.dealt.add(tl.hit);
-          w.hurtPlayer(a.damage, this.center, a.knockback);
+          w.hurtPlayer(a.damage, this.center, a.knockback, this);
           w.shake(0.4, this.center);
         }
         return null;

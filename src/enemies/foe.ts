@@ -208,6 +208,14 @@ export class Foe implements Damageable, Hostile {
     if (this.state === 'idle' || this.state === 'return' || this.state === 'search') this.set(this.plan.senses === 'sound' ? 'search' : 'approach');
   }
 
+  /** Parried: the swing is turned and it reels (the riposte window). */
+  parried() {
+    if (!this.alive) return;
+    this.endAttack();
+    this.set('stagger');
+    this.flash = 0.15;
+  }
+
   blocks(dir: THREE.Vector3): boolean {
     if (!this.plan.shield || !this.alive || this.state === 'stagger') return false;
     // Open during and after its own swing: that's the punish window.
@@ -501,7 +509,7 @@ export class Foe implements Damageable, Hostile {
         const d = Math.hypot(_v.x, _v.z);
         if (d <= a.range * 0.75 + this.radius + 0.5 && Math.abs(_v.y) < 1.6 && inArc(this.yaw, _v.x, _v.z, a.arcDeg)) {
           this.dealt.add(tl.hit);
-          w.hurtPlayer(a.damage, this.center, a.knockback);
+          w.hurtPlayer(a.damage, this.center, a.knockback, this);
         }
       }
       return null;

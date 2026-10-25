@@ -182,7 +182,7 @@ Enemy spawns can use placeholder dummies until V2-4.
   - the `--boss` smoke scenario: she wakes, holds the bar, the death drop is recovered, the pans come down, strikes
     echo, and the way on completes the dimension
 
-## V2-7: Minimal hub
+## V2-7: Minimal hub ✅ (slice complete; waiting on your playtest)
 - The World plaza with one active gate (Justice) and three sleeping ones.
 - **The Magician:** one upgrade menu with SwordRifle repair stage 1, plus 2–3 pistol and flask upgrades, paid in
   pentacles. **The High Priestess:** gate keeper, with 3–5 lines.
@@ -190,6 +190,18 @@ Enemy spawns can use placeholder dummies until V2-4.
 - The first **unbinding**, granted on Justice's defeat: the **parry**. It's a new verb, so it gets its own timing
   window, telegraph-matched feedback and a tuning folder. Melee from V2-2 is the base.
 - **Slice complete:** a `PLAYTEST.md` entry against the slice question above.
+- **Done as:**
+  - `src/world/hub.ts`: The World plaza (wreath, four gates and creatures, the Magician's table, the Priestess's
+    pillars, the lantern); content in `src/world/hub-data.ts` (dimension order, shop items, lines)
+  - `src/core/save.ts`: pure save logic (parse and validate, buy, effects, clear a dimension, gates, lines) plus the
+    two `localStorage` helpers; tested in `tests/save.test.ts`
+  - `src/ui/shop.ts`: the Magician's one menu
+  - `src/weapons/parry.ts`: the parry's timing (tested); the game turns parryable blows (enemy melee and thrown
+    blades now carry their source) and staggers the attacker
+  - the flow: menu → hub → the angel's gate → levels 1–3 → Justice → home, with the parry freed and the bull awake;
+    the King of Swords gives up the relic of Swords
+  - the `--hub` smoke scenario (new game, Priestess, shop, gate, clearing Justice, a parry against a Bailiff, the save
+    surviving a reload)
 
 ## Side track T: trial grounds (doesn't block the slice)
 A dev sandbox (`?mode=trials`, reached from the start menu) for arcana concepts that aren't among the four dimensions.

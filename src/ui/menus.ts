@@ -11,14 +11,15 @@ const KEYS: [string, string][] = [
   ['Shift', 'sprint'],
   ['R', 'reload'],
   ['Q', 'heal (3 charges)'],
-  ['E', 'rest at a lantern · use (doors, the exit)'],
+  ['E', 'rest at a lantern · use (doors, gates, people)'],
+  ['V', 'parry (once Justice has fallen)'],
   ['C', 'swap shoulder'],
   ['`', 'tuning panel'],
   ['T', 'slow-mo 0.25×'],
   ['I / H / L', 'IK / hitbox / AI debug'],
   ['G', 'god mode'],
   ['P', 'pixel mode (on by default)'],
-  ['M / O / V', 'level map / overview / next vista'],
+  ['M / O / B', 'level map / overview / next vista'],
   ['N', 'new level seed'],
   ['Esc', 'pause'],
 ];
@@ -29,7 +30,9 @@ export class Menus {
   private death: HTMLDivElement;
   private deathNote: HTMLElement;
   onRise: () => void = () => {};
-  onPlay: (mode: 'justice' | 'level') => void = () => {};
+  /** 'hub': play (continue the save); 'new': wipe the save and start; 'justice': the training courtyard. */
+  onPlay: (mode: 'hub' | 'new' | 'justice' | 'level') => void = () => {};
+  private playBtn!: HTMLButtonElement;
   onResume: () => void = () => {};
   onQuit: () => void = () => {};
 
@@ -38,9 +41,9 @@ export class Menus {
     this.start = this.make(`
       <h1>Eight</h1>
       <p>The Eight of Swords, bound only by herself. Everything here is generated in code.</p>
-      <button data-a="level">Play: Justice, level 1</button>
-      <button data-a="justice">Training courtyard</button>
-      <p class="note">V2-6: the Justice dimension. Three generated levels, each ending with a court card (Knight, Queen, King of Swords), then Justice beneath the scales. Rest at lanterns; open the barred shortcut from the far side; recover your pentacles where you fell.</p>
+      <button data-a="hub">Play</button>
+      <div class="row"><button data-a="new" class="small">New game</button><button data-a="justice" class="small">Training courtyard</button></div>
+      <p class="note">The World: walk through the angel's gate into Justice (three generated levels, each ending with a court card, then Justice beneath the scales). Spend pentacles at the Magician's table; the High Priestess knows the way. Progress is saved in this browser.</p>
       <div class="keys">${keys}</div>
       <div class="seed">seed ${seed} · add ?seed=… to the URL to change it</div>`);
     this.pause = this.make(`
@@ -58,7 +61,7 @@ export class Menus {
     for (const el of [this.start, this.pause, this.death]) {
       el.addEventListener('click', (e) => {
         const a = (e.target as HTMLElement).dataset.a;
-        if (a === 'justice' || a === 'level') this.onPlay(a);
+        if (a === 'justice' || a === 'level' || a === 'hub' || a === 'new') this.onPlay(a);
         else if (a === 'resume') this.onResume();
         else if (a === 'quit') this.onQuit();
         else if (a === 'rise') this.onRise();
@@ -72,6 +75,12 @@ export class Menus {
     d.innerHTML = html;
     document.body.appendChild(d);
     return d;
+  }
+
+  /** With a save in progress, Play continues it. */
+  setContinue(has: boolean) {
+    this.playBtn ??= this.start.querySelector('button[data-a="hub"]')!;
+    this.playBtn.textContent = has ? 'Continue' : 'Play';
   }
 
   showStart(v: boolean) {

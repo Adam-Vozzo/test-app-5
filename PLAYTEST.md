@@ -4,6 +4,48 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## The slice, complete: does it answer the question?
+> **Does one tarot dimension's meaning come across through how it plays? Does the SwordRifle's two-mode loop earn
+> its place next to the auto-pistol? Do generated levels feel designed?**
+
+Everything the slice needs now exists in a first version: the hub, Justice's three generated levels with her
+enemies and court cards, Justice herself, the parry, the shop and the save. None of it has been played by a person
+yet, so here is what to judge, not a verdict.
+
+**Play the whole loop once:** **New game** → the hub → the angel's gate → levels 1, 2, 3 → Justice → home.
+
+1. **Does Justice read as Justice?** The rule is *answer in kind*. Look for it in the shields that turn blows from the
+   front, the mirrored combos (Blindfold, Knight, Justice), the mirrored volleys (Queen) and verdicts (King), the
+   echoes across Justice's arena, and finally the parry she frees. Does the dimension feel like being weighed, or
+   like a generic fantasy road with scales on the horizon?
+2. **SwordRifle vs pistol.** The pistol is reliable; the SwordRifle trades charges between blade and bolt, and now
+   the parry feeds it too. Do you reach for it because the loop is fun, or only against shields?
+3. **Generated levels.** Same axis, one loop to the side, a set-piece each. Across three levels and a few seeds, do
+   they feel designed, or samey? (N rolls a new seed; B jumps between vistas; M shows the map.)
+4. **Difficulty and length** are unknown: every number is a first guess in the tuning panel.
+
+## V2-7: the hub, the shop, the save and the parry
+**Run:** **New game** (or **Play/Continue**). `?mode=hub` jumps straight in.
+
+**Try:**
+1. **The High Priestess** (left of the lantern): E, several times. Her lines change once you've walked the road, and
+   again once Justice falls.
+2. **The Magician** (right): E opens his table. Pentacles from kills and caches buy upgrades. *Mend the edge* needs the
+   relic of Swords: kill the King of Swords for it.
+3. **The angel's gate** (ahead) takes you into Justice at the next level on your road (progress saves at each exit).
+4. **After Justice:** you come home with the **parry (V)**. Meet a blow as it lands (watch the magenta wind-up); the
+   attacker staggers and the SwordRifle drinks a charge. A whiff leaves you open. The bull's gate is now awake (its
+   road isn't built).
+5. **Quit and come back:** Continue resumes the save.
+
+**Unsure about:**
+- **The parry window (0.2 s)** is a guess, and in headless tests only a wider window could be timed. It may be too
+  tight at real frame rates, or too generous.
+- **Prices** (200–400) against rewards (6–16 per common, 120–600 per court card or arcana, 30 per cache): roughly one
+  item per level. Is it worth farming?
+- **The pistol upgrades** are plain numbers. Are they interesting enough to want?
+- **No fog wall:** the hub is outside the dimensions, so I gave it no landmark. Is it too plain next to the levels?
+
 ## V2-6: Justice and the dimension loop
 **Run:** play through levels 1–3 (each court card opens the way on), or jump straight in with `?mode=level&level=4`.
 

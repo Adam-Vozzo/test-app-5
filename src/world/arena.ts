@@ -12,7 +12,7 @@ import { bottleCapGeo, buttonGeo, grassBladeGeo, leafGeo, matchstickGeo, pebbleG
  * `justice` (the training courtyard) and `level` (a generated Justice level) are v2 scenes; the rest are v1
  * bug-scale scenes, reachable by URL only (`?mode=`).
  */
-export type LayoutKind = 'justice' | 'level' | 'arena' | 'range' | 'garden' | 'kitchen';
+export type LayoutKind = 'hub' | 'justice' | 'level' | 'arena' | 'range' | 'garden' | 'kitchen';
 
 /** A rest point: rest with E nearby; you rise at the last one you rested at. */
 export interface RestPoint {

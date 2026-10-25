@@ -42,6 +42,8 @@ export interface Hostile {
   dispose(): void;
   /** Told where the player is (a Page's whistle). */
   alert?(at: THREE.Vector3): void;
+  /** Its blow was parried: it reels. */
+  parried?(): void;
 }
 
 export interface EnemyWorld {
@@ -60,8 +62,11 @@ export interface EnemyWorld {
   /** Wake everyone within `radius` of `from` and tell them where the player is. */
   alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller: Hostile): void;
   hazards: Hazards;
-  /** Returns true if the hit landed (false when dodged / i-framed / god mode). */
-  hurtPlayer(amount: number, from: THREE.Vector3, knockback: number): boolean;
+  /**
+   * Returns true if the hit landed (false when dodged, i-framed, parried or in god mode). `source` makes a blow
+   * parryable: the enemy whose weapon it is, or 'projectile' for a thrown blade. Ground strikes have none.
+   */
+  hurtPlayer(amount: number, from: THREE.Vector3, knockback: number, source?: Hostile | 'projectile'): boolean;
   sound(name: SfxName, at: THREE.Vector3): void;
   shake(trauma: number, at: THREE.Vector3): void;
 }

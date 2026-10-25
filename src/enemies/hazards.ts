@@ -164,7 +164,7 @@ export class Hazards {
       const near = k.pos.clone().addScaledVector(step, t);
       const dy = Math.max(0, Math.abs(near.y - _p.y) - 0.5);
       const struck = Math.hypot(near.x - _p.x, near.z - _p.z, dy) < 0.42 && (!hit || hit.distance >= len * t);
-      if (struck) w.hurtPlayer(k.damage, near, k.knockback);
+      if (struck) w.hurtPlayer(k.damage, near, k.knockback, 'projectile');
       k.pos.add(step);
       k.mesh.position.copy(k.pos);
       k.mesh.lookAt(_p.copy(k.pos).add(k.vel));

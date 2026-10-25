@@ -17,14 +17,20 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { GARDEN, JUSTICE, setActiveBiome, type AreaLighting } from './render/palette';
+import { GARDEN, JUSTICE, setActiveBiome, WORLD, type AreaLighting } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
 import { Menus } from './ui/menus';
 import { Panel } from './ui/panel';
 import { buildWorld, type BuiltWorld, type LayoutKind } from './world/arena';
+import { buy, clearDimension, effects, gainRelic, gateOpen, loadSave, newSave, nextLine, storeSave, type SaveData, type ShopItem } from './core/save';
+import { CourtCard } from './enemies/court';
+import { Shop } from './ui/shop';
+import { ParryState } from './weapons/parry';
 import { buildBossArena, type BossWorld } from './world/boss';
+import { buildHub, GATES } from './world/hub';
+import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDINGS } from './world/hub-data';
 import { buildCourtyard } from './world/courtyard';
 import { JUSTICE_DIMENSION } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
@@ -36,7 +42,7 @@ import { Arsenal } from './weapons/arsenal';
 import type { Gun, GunContext, HitEvent } from './weapons/gun';
 import { Projectiles } from './weapons/projectiles';
 
-type Mode = 'menu' | 'playing' | 'paused';
+type Mode = 'menu' | 'playing' | 'paused' | 'shop';
 
 
 const _aimHit: RayHit = {
@@ -89,6 +95,13 @@ export class Game {
   private healEnv = 0;
   private lastDodgeSfx = -1;
   private rollBuffer = 0;
+  /** The progress save (localStorage): seed, progress, upgrades, pentacles, unbindings. */
+  save: SaveData;
+  readonly shop = new Shop();
+  /** Justice's unbinding: meet a blow as it lands (V, once she has fallen). */
+  readonly parry = new ParryState(tuning.parry);
+  private boundToastT = -10;
+  private shopOpenedAt = 0;
   /** Noises the player made since the enemies last listened (gunfire, blades, haste). */
   private readonly noises: Noise[] = [];
   private readonly chest = new THREE.Vector3();
@@ -109,6 +122,7 @@ export class Game {
   ) {
     this.rng = makeRng(seed);
     this.zoneSeed = seed;
+    this.save = loadSave(seed);
     this.renderer = new Renderer(container);
     this.renderer.applyBiome(JUSTICE);
     this.limbs = new LimbRenderer(this.renderer.scene);
@@ -122,7 +136,20 @@ export class Game {
     this.menus = new Menus(seed);
     this.hud.show(false);
 
-    this.menus.onPlay = (m) => this.start(m);
+    this.menus.onPlay = (m) => {
+      if (m === 'new') {
+        // A new save: new seed (from the URL if given), nothing carried, nothing freed.
+        this.save = newSave(this.seed);
+        storeSave(this.save);
+        this.start('hub');
+      } else this.start(m);
+    };
+    this.menus.setContinue(this.save.cleared.length > 0 || this.save.pentacles > 0 || Object.values(this.save.progress).some((p) => p > 0));
+    this.shop.onBuy = (item) => this.buyItem(item);
+    this.shop.onClose = () => {
+      this.mode = 'playing';
+      this.input.requestLock();
+    };
     this.menus.onResume = () => this.resume();
     this.menus.onQuit = () => this.quitToMenu();
     this.menus.onRise = () => this.rise();
@@ -146,8 +173,11 @@ export class Game {
   start(layout: LayoutKind) {
     this.synth.resume();
     this.layout = layout;
-    // A fresh start; walking on between a dimension's levels keeps what you carry.
-    this.vitals.currency = 0;
+    // The hub and the dimension run on the save (its seed, its pentacles); the test scenes start from nothing.
+    if (layout === 'hub' || layout === 'level') {
+      this.zoneSeed = this.save.seed;
+      this.vitals.currency = this.save.pentacles;
+    } else this.vitals.currency = 0;
     this.buildLevel();
     this.mode = 'playing';
     this.menus.showStart(false);
@@ -174,6 +204,15 @@ export class Game {
     if (this.layout === 'justice') {
       this.world = buildCourtyard(this.physics, this.rng.fork('justice'));
       this.area = JUSTICE;
+    } else if (this.layout === 'hub') {
+      this.world = buildHub(this.physics, makeRng(this.save.seed).fork('hub'), {
+        gateOpen: (dim) => gateOpen(this.save, DIMENSION_ORDER, dim),
+        gateLabel: (dim) => this.gateLabel(dim),
+        enter: (dim) => this.enterDimension(dim),
+        shop: () => this.openShop(),
+        priestess: () => this.speak('priestess'),
+      });
+      this.area = WORLD;
     } else if (this.layout === 'level' && this.levelIndex === 3) {
       // The dimension's end: Justice's arena under the scales.
       const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork('justice-arena'));
@@ -184,7 +223,7 @@ export class Game {
       const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
       const lw = buildGeneratedLevel(layout, report, JUSTICE_DIMENSION, this.physics);
       lw.onCache = () => {
-        this.vitals.healCharges = Math.min(tuning.vitals.healCharges + 1, this.vitals.healCharges + 1);
+        this.vitals.healCharges = Math.min(this.vitals.maxCharges + 1, this.vitals.healCharges + 1);
         this.vitals.currency += tuning.vitals.cachePentacles;
         this.synth.sfx('rest', 0.6);
         return `Left by someone before you: +1 heal, ✪ +${tuning.vitals.cachePentacles}`;
@@ -215,6 +254,8 @@ export class Game {
     this.vistaCursor = 0;
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
+    this.applyUpgrades();
+    this.parry.cancel();
     this.player.biped.onFootstep = () => {
       if (!this.player.controller.grounded) return;
       this.synth.footstep();
@@ -258,7 +299,7 @@ export class Game {
       bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
       summon: (id, pos, yaw) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`)),
       hazards: this.hazards,
-      hurtPlayer: (amount, from, knockback) => this.hurtPlayer(amount, from, knockback),
+      hurtPlayer: (amount, from, knockback, source) => this.hurtPlayer(amount, from, knockback, source),
       sound: (name, at) => this.sfxAt(name, at),
       shake: (trauma, at) => {
         const d = at.distanceTo(this.player.pos);
@@ -295,12 +336,12 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
   get money() {
-    return this.layout === 'justice' || this.layout === 'level' ? { name: 'pentacles', glyph: '✪' } : { name: 'pollen', glyph: '✿' };
+    return this.layout === 'justice' || this.layout === 'level' || this.layout === 'hub' ? { name: 'pentacles', glyph: '✪' } : { name: 'pollen', glyph: '✿' };
   }
 
   /** The current zone, if playing one. */
@@ -325,23 +366,98 @@ export class Game {
     return this.world && 'boss' in this.world ? (this.world as BossWorld) : null;
   }
 
-  /** Walk on: level 1 → 2 → 3 → the arcana's arena → (the hub, V2-7). */
+  /** Walk on: level 1 → 2 → 3 → the arcana's arena → home to the hub. Each step is saved. */
   nextLevel() {
     if (this.levelIndex === 3) {
       this.completeDimension();
       return;
     }
     this.levelIndex++;
+    this.save = { ...this.save, progress: { ...this.save.progress, justice: this.levelIndex } };
+    this.persist();
     this.buildLevel();
     if (this.levelIndex === 3) this.hud.toast(`${JUSTICE_DIMENSION.name}: the scales`, 3.5);
     else this.hud.toast(`${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}: ${this.level!.generated.script.setPiece.name}`, 3.5);
   }
 
-  /** Justice has fallen: the dimension is done. */
+  /** Justice has fallen: the dimension is cleared, her unbinding is freed, and the road leads home to the hub. */
   completeDimension() {
+    const first = !this.save.cleared.includes('justice');
+    this.save = clearDimension(this.save, 'justice', UNBINDINGS.justice);
     this.levelIndex = 0;
+    this.layout = 'hub';
+    this.persist();
     this.buildLevel();
-    this.hud.toast('Justice is weighed. A binding loosens. (The hub arrives in V2-7.)', 5);
+    this.hud.toast(first ? 'Justice is weighed. A cord falls away: you can parry (V). Meet a blow as it lands.' : 'Justice is weighed again.', 6);
+  }
+
+  /** Into a dimension through its gate, at the next level on its road. */
+  enterDimension(dim: string) {
+    if (dim !== 'justice' || !gateOpen(this.save, DIMENSION_ORDER, dim)) return;
+    this.persist();
+    this.layout = 'level';
+    this.levelIndex = Math.min(3, this.save.progress.justice ?? 0);
+    this.buildLevel();
+    this.hud.toast(this.levelIndex === 3 ? `${JUSTICE_DIMENSION.name}: the scales` : `${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}`, 3);
+  }
+
+  private gateLabel(dim: string) {
+    const g = GATES.find((x) => x.dim === dim)!;
+    if (dim === 'justice') {
+      const n = this.save.progress.justice ?? 0;
+      return `E: through ${g.name}'s gate (Justice, ${n === 3 ? 'the scales' : `level ${n + 1}`})`;
+    }
+    return gateOpen(this.save, DIMENSION_ORDER, dim) ? `${g.name[0].toUpperCase()}${g.name.slice(1)} is awake, but the road beyond isn't built yet` : `${g.name[0].toUpperCase()}${g.name.slice(1)} sleeps`;
+  }
+
+  /** Carried pentacles into the save, and the save to storage. */
+  persist() {
+    if (this.layout === 'hub' || this.layout === 'level') this.save = { ...this.save, pentacles: this.vitals.currency };
+    storeSave(this.save);
+  }
+
+  /** The Magician's upgrades, folded into the weapons and flasks (upgrades are data applied to defs). */
+  private applyUpgrades() {
+    const e = effects(this.save, SHOP);
+    for (const g of this.arsenal.guns) {
+      if (g.def.id !== 'pistol') continue;
+      g.damageMul = e.pistolDamageMul;
+      g.magBonus = e.pistolMagBonus;
+      g.refill();
+    }
+    this.vitals.bonusCharges = e.healBonus;
+    this.vitals.healCharges = this.vitals.maxCharges;
+    tuning.swordRifle.repairStage = e.repairStage;
+  }
+
+  private openShop() {
+    this.persist();
+    this.mode = 'shop';
+    this.shopOpenedAt = performance.now();
+    this.input.exitLock();
+    this.shop.show(this.save, SHOP, this.speakLine('magician', MAGICIAN_LINES, 'default'));
+  }
+
+  private buyItem(item: ShopItem) {
+    this.save = buy({ ...this.save, pentacles: this.vitals.currency }, item);
+    this.vitals.currency = this.save.pentacles;
+    storeSave(this.save);
+    this.applyUpgrades();
+    this.synth.sfx('chargeReady');
+    this.shop.render(this.save, SHOP);
+  }
+
+  /** A hub character's next line for where the player is in the story. */
+  private speak(who: 'priestess') {
+    const state = this.save.cleared.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
+    return this.speakLine(who, PRIESTESS_LINES, state);
+  }
+
+  private speakLine(who: string, lines: Record<string, readonly string[]>, state: string) {
+    const r = nextLine(this.save, who, lines, state);
+    this.save = r.save;
+    storeSave(this.save);
+    return r.line;
   }
 
   /** Debug and smoke tests: stand at a vista and look where it looks. */
@@ -411,10 +527,14 @@ export class Game {
     this.synth.sfx(name, 1 / (1 + d * 0.06), pan);
   }
 
-  /** Enemy damage to the player. Rolling i-frames and god mode make it miss. */
-  hurtPlayer(amount: number, from: THREE.Vector3, knockback: number): boolean {
+  /** Enemy damage to the player. A parry, rolling i-frames and god mode make it miss. */
+  hurtPlayer(amount: number, from: THREE.Vector3, knockback: number, source?: Hostile | 'projectile'): boolean {
     const c = this.player.controller;
     if (this.vitals.dead) return false;
+    if (source && this.parry.turns(c.yaw, c.pos.x, c.pos.z, from.x, from.z)) {
+      this.parried(source, from);
+      return false;
+    }
     if (c.invulnerable) {
       if (this.clock.elapsed - this.lastDodgeSfx > 0.3) {
         this.lastDodgeSfx = this.clock.elapsed;
@@ -434,6 +554,23 @@ export class Game {
     if (r.interruptedHeal) this.hud.toast('heal interrupted');
     if (r.died) this.die();
     return true;
+  }
+
+  /** Answer in kind: the blow is turned, the attacker reels, and the SwordRifle drinks a charge. */
+  private parried(source: Hostile | 'projectile', from: THREE.Vector3) {
+    const p = tuning.parry;
+    this.parry.succeed();
+    if (source !== 'projectile') source.parried?.();
+    this.stats.parries++;
+    const sr = this.arsenal.guns.find((g) => g.model.sword);
+    if (sr) sr.mag = Math.min(sr.magSize, sr.mag + p.chargeGain);
+    _o.subVectors(from, this.player.pos).setY(0).normalize();
+    this.fx.sparksAt(this.chest, _o, 0xffffff, 18, 7);
+    this.synth.sfx('block');
+    this.synth.sfx('chargeGain');
+    this.clock.addHitstop(p.hitstop);
+    this.camera.addTrauma(0.25);
+    this.hud.hit('crit');
   }
 
   private die() {
@@ -480,12 +617,20 @@ export class Game {
     this.enemies.reset();
     this.world?.onReset?.();
     this.synth.sfx('rest');
+    this.persist();
     this.hud.toast('Rested. Heals and ammo refilled; the dead stir…', 2.4);
   }
 
   private onEnemyKilled(e: Hostile) {
     const reward = e.reward;
     this.vitals.currency += reward;
+    // The King of his suit gives up its relic (the SwordRifle's next repair needs it).
+    if (e instanceof CourtCard && e.rank === 'king' && this.layout === 'level') {
+      const had = this.save.relics.includes('swords');
+      this.save = gainRelic(this.save, 'swords');
+      this.persist();
+      if (!had) this.hud.toast('The King of Swords gives up the relic of Swords. The Magician will want it.', 4);
+    }
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
     if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);
@@ -502,6 +647,8 @@ export class Game {
     this.input.requestLock();
   }
   quitToMenu() {
+    if (this.player) this.persist();
+    this.menus.setContinue(true);
     this.mode = 'menu';
     this.menus.showPause(false);
     this.menus.showDeath(false);
@@ -512,6 +659,8 @@ export class Game {
 
   private onKey(code: string) {
     if (code === 'Backquote') this.panel.toggle();
+    // (The E that opened the table doesn't also close it.)
+    if (this.mode === 'shop' && (code === 'Escape' || (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300))) this.shop.close();
     if (this.mode !== 'playing') return;
     const d = tuning.debug;
     if (code === 'KeyC') this.camera.side *= -1;
@@ -530,7 +679,7 @@ export class Game {
     if (code === 'KeyM') d.showGraph = !d.showGraph;
     if (code === 'KeyO') d.overview = !d.overview;
     if (code === 'KeyN' && (this.zone || this.level)) this.regenerate(this.zoneSeed + 1);
-    if (code === 'KeyV' && this.gotoVista(this.vistaCursor)) this.vistaCursor++;
+    if (code === 'KeyB' && this.gotoVista(this.vistaCursor)) this.vistaCursor++;
     if ((code === 'Digit1' || code === 'Digit2') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
@@ -583,8 +732,16 @@ export class Game {
     if (control && !v.busy && !this.arsenal.busy && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
     const gun = this.gun;
 
+    // Parry (V): Justice's unbinding. Committed: a whiff leaves you open.
+    this.parry.update(simDt);
+    if (control && inp.justPressed('KeyV')) {
+      if (!this.save.unbound.includes('parry')) {
+        if (this.clock.realElapsed - this.boundToastT > 3) this.hud.toast('Still bound. (Justice frees the parry.)', 2);
+        this.boundToastT = this.clock.realElapsed;
+      } else if (!c.committed && !v.busy && !this.arsenal.busy && this.parry.start()) this.synth.sfx('swing', 0.7);
+    }
     // Heal (Q): committed, slow, interrupted by damage.
-    if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.busy) {
+    if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.busy && !this.parry.busy) {
       if (v.startHeal()) this.synth.sfx('healStart');
       else if (v.healCharges <= 0) this.hud.toast(`no heals left: rest at ${this.restLabel}`);
     }
@@ -618,7 +775,10 @@ export class Game {
       }
     }
     if (control && near && !usedE && inp.justPressed('KeyE') && !c.committed && near.it.usable(c.pos)) {
+      const before = this.world;
       const toast = near.it.use(c.pos);
+      // A gate rebuilt the world under us: this frame's player is gone.
+      if (this.world !== before) return;
       if (toast) this.hud.toast(toast, 3);
       this.synth.sfx('rest', 0.5);
       if (this.world?.exited) {
@@ -639,7 +799,7 @@ export class Game {
       this.rollBuffer = tuning.feel.rollBuffer;
       if (!v.canRoll() && c.state === 'move') this.synth.sfx('exhausted', 0.6);
     } else this.rollBuffer = Math.max(0, this.rollBuffer - realDt);
-    const wantsRoll = control && this.rollBuffer > 0 && !v.busy && !this.arsenal.blocksRoll;
+    const wantsRoll = control && this.rollBuffer > 0 && !v.busy && !this.arsenal.blocksRoll && !this.parry.busy;
     player.move(simDt, {
       x: ax,
       y: ay,
@@ -650,6 +810,7 @@ export class Game {
         (gun.reloading ? tuning.player.reloadSpeedMul : 1) *
         this.arsenal.moveMul *
         (v.healing ? tuning.vitals.healMoveMul : 1) *
+        (this.parry.busy ? 0.35 : 1) *
         (alive ? 1 : 0),
       camYaw: cam.yaw,
     });
@@ -725,8 +886,14 @@ export class Game {
         aimReleased: !control || inp.justReleased('Mouse2'),
         switchPressed: control && inp.justPressed('KeyF'),
       },
-      !v.busy,
+      !v.busy && !this.parry.busy,
     );
+    // The parry: the weapon snaps up across the body to meet the blow.
+    if (this.parry.busy) {
+      const k = this.parry.active ? 1 : Math.max(0, 1 - (this.parry.t - tuning.parry.window) / tuning.parry.recover);
+      this.gun.pose.tilt -= 0.9 * k;
+      this.gun.pose.drop -= 0.08 * k;
+    }
     // Healing lowers the weapon.
     this.healEnv = damp(this.healEnv, v.healing ? 1 : 0, 14, simDt);
     this.gun.pose.drop += this.healEnv * 0.18;
@@ -767,10 +934,10 @@ export class Game {
     const swordMode = sword?.mode === 'sword';
     this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, alive && !c.committed && !held.reloading && !this.arsenal.busy && !v.busy && !swordMode);
     const name = sword ? `${held.def.name} · ${sword.switching ? '…' : sword.mode}${sword.stage.name !== 'edge restored' ? ` (${sword.stage.name})` : ''}` : held.def.name;
-    this.hud.setAmmo(name, held.mag, held.def.magSize, held.reserve, held.reloadProgress, !!sword);
+    this.hud.setAmmo(name, held.mag, held.magSize, held.reserve, held.reloadProgress, !!sword);
     this.hud.setCharges(held.mag, held.def.magSize, !!sword && alive);
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
-    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.currency, this.money.glyph);
+    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, v.maxCharges, v.currency, this.money.glyph);
     const elite = this.enemies.activeElite;
     this.hud.setBoss(elite ? elite.name : null, elite ? elite.health / elite.maxHealth : 0);
     if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);

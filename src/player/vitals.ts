@@ -12,6 +12,8 @@ export class Vitals {
   health = tuning.vitals.maxHealth;
   stamina = tuning.vitals.maxStamina;
   healCharges = tuning.vitals.healCharges;
+  /** Extra flasks bought from the Magician. */
+  bonusCharges = 0;
   /** Carried currency (pentacles in v2 scenes, pollen in the v1 ones). */
   currency = 0;
   healing = false;
@@ -25,6 +27,10 @@ export class Vitals {
 
   get maxHealth() {
     return tuning.vitals.maxHealth;
+  }
+
+  get maxCharges() {
+    return tuning.vitals.healCharges + this.bonusCharges;
   }
 
   /** Busy = can't shoot, reload, roll or swap. */
@@ -95,7 +101,7 @@ export class Vitals {
   restore() {
     this.health = this.maxHealth;
     this.stamina = tuning.vitals.maxStamina;
-    this.healCharges = tuning.vitals.healCharges;
+    this.healCharges = this.maxCharges;
     this.healing = false;
     this.hurtStun = 0;
     this.dead = false;

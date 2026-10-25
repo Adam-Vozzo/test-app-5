@@ -90,6 +90,11 @@ export class Gun {
   /** Damage and shot-sound pitch multipliers (the SwordRifle's repair stage sets them). */
   damageMul = 1;
   toneMul = 1;
+  /** Extra rounds bought from the Magician. */
+  magBonus = 0;
+  get magSize() {
+    return this.def.magSize + this.magBonus;
+  }
   readonly pose: WeaponPose;
 
   constructor(
@@ -97,7 +102,7 @@ export class Gun {
     readonly model: WeaponModel,
     infiniteReserve: boolean,
   ) {
-    this.mag = def.magSize;
+    this.mag = def.magSize + this.magBonus;
     this.reserve = infiniteReserve || def.infiniteReserve ? Infinity : def.reserve;
     this.hammerAngle = model.hammerCocked;
     this.pumpRestZ = model.pump?.position.z ?? 0;
@@ -112,7 +117,7 @@ export class Gun {
   }
 
   refill() {
-    this.mag = this.def.magSize;
+    this.mag = this.magSize;
     if (this.reserve !== Infinity) this.reserve = this.def.reserve;
     this.cancelReload(false);
   }
@@ -120,12 +125,12 @@ export class Gun {
   /** Progress shown in the HUD (0..1). */
   get reloadProgress() {
     if (!this.reloading) return 0;
-    if (this.def.reloadMode === 'single') return clamp((this.mag + this.reloadT) / this.def.magSize, 0, 1);
+    if (this.def.reloadMode === 'single') return clamp((this.mag + this.reloadT) / this.magSize, 0, 1);
     return this.reloadT;
   }
 
   startReload(ctx: GunContext) {
-    if (this.reloading || this.mag >= this.def.magSize || this.reserve <= 0 || ctx.player.controller.committed) return;
+    if (this.reloading || this.mag >= this.magSize || this.reserve <= 0 || ctx.player.controller.committed) return;
     this.reloading = true;
     this.reloadT = 0;
     this.roundsThisReload = 0;
@@ -231,14 +236,14 @@ export class Gun {
         ctx.synth.reload('in');
         this.pose.kickPos.z.impulse(-0.5);
         this.reloadEvents.clear();
-        if (this.mag >= d.magSize || this.reserve <= 0) this.cancelReload(false);
+        if (this.mag >= this.magSize || this.reserve <= 0) this.cancelReload(false);
         else this.reloadT -= 1;
       }
       return;
     }
     this.magFoley(ctx);
     if (this.reloadT >= 1) {
-      const take = Math.min(d.magSize - this.mag, this.reserve);
+      const take = Math.min(this.magSize - this.mag, this.reserve);
       this.mag += take;
       if (this.reserve !== Infinity) this.reserve -= take;
       this.cancelReload(false);

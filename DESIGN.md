@@ -327,6 +327,24 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
 **Dialogue budget:** short state-based lines with no trees and no voice. Each NPC gets about 3–5 lines per
 dimension cleared. Relatedness comes from characters noticing your progress, not from conversation systems.
 
+**As built in V2-7 (Proposed until played):**
+- **The plaza:** a round stone platform over the fog inside a laurel wreath tied with blue ribbons. The angel's gate
+  (Justice) faces the spawn down the axis; the bull, lion and eagle sleep at the other three. Clearing Justice wakes
+  the bull (its road isn't built in this slice). The Hermit's lantern burns by the spawn.
+- **The Magician** (east), behind his table of a cup, a pentacle, a sword and a wand. His one menu sells, for
+  pentacles: *Mend the edge* (SwordRifle repair stage 1, 400, needs the relic of Swords that the King of Swords gives
+  up), *Tempered rounds* (pistol +15% damage, 250), *Deeper magazine* (+8 rounds, 200) and *Another flask* (+1 heal,
+  300). Items are data (`src/world/hub-data.ts`) applied to the defs and vitals.
+- **The High Priestess** (west), between her pillars: 4 lines each for three states (fresh, on the road, Justice
+  cleared), cycling as you talk.
+- **Save** (`localStorage`): seed, the next level on each road, cleared dimensions, relics, upgrades, repair stage,
+  pentacles, unbindings and where each conversation is. Saved at every rest, level transition, purchase and on quit.
+  **Play/Continue** resumes it; **New game** wipes it.
+- **The parry (Justice's unbinding):** **V**, once she has fallen. A 0.2 s window then a committed 0.38 s recovery
+  (slowed, no roll, no fire). A melee blow or thrown blade from in front (140°) is turned: the attacker staggers
+  (the riposte window), the SwordRifle gains a charge, and there's a hitstop and a bright ring. Ground strikes (slams,
+  verdicts) can't be parried. Numbers in `tuning.parry`.
+
 ## Progression and death (Proposed)
 
 - **Currency:** pentacles, dropped by enemies and found in caches. Spent at the Magician.

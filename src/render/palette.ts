@@ -217,6 +217,31 @@ export const JUSTICE: AreaPalette = {
   decal: 0x4a525c,
 };
 
+/**
+ * The World (XXI), the hub (DESIGN.md → The hub): warm stone inside a great laurel wreath, under a pale lilac dusk,
+ * outside the four dimensions. Accent motif: the wreath's ribbons (deep blue, never a signal colour).
+ */
+export const WORLD: AreaPalette = {
+  name: 'The World',
+  surfaces: {
+    light: 0xe7e0d2, // warm stone
+    mid: 0xb4a996,
+    dark: 0x6a6157,
+    shadow: 0x3a332e,
+    growth: 0x7f9466, // laurel
+  },
+  accent: 0x4f6b92, // the wreath's ribbons (deep blue: clear of the charge violet and the weak-spot cyan)
+  accentShade: 0x3c5273,
+  fog: 0xece6e2,
+  sky: 0xbdb7cf,
+  cloud: 0xf3eff0,
+  hemiSky: 0xf1ece8,
+  hemiGround: 0x766c64,
+  sun: 0xffefd8,
+  dust: 0xdcd5c8,
+  decal: 0x564e47,
+};
+
 /** The area currently loaded (FX read dust/decal colours from it). */
 export let activeBiome: AreaLighting = GARDEN;
 export function setActiveBiome(p: AreaLighting) {

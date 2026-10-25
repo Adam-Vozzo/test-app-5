@@ -140,3 +140,12 @@ html, body {
 }
 .keys b { color: var(--cream); text-align: right; }
 .seed { font-size: 12px; opacity: 0.6; }
+.overlay.shop .purse { font-weight: 800; color: var(--cream); }
+.overlay.shop .items { display: flex; flex-direction: column; gap: 8px; min-width: 560px; }
+.overlay.shop .item {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 14px;
+  background: rgba(14, 16, 20, 0.55); border-radius: 8px;
+}
+.overlay.shop .item b { display: block; color: var(--cream); }
+.overlay.shop .item span { font-size: 13px; opacity: 0.8; }
+.overlay.shop .item button:disabled { opacity: 0.4; cursor: default; transform: none; }

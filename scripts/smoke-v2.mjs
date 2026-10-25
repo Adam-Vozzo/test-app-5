@@ -781,8 +781,116 @@ export async function bossScenario({ g, wait, shot }) {
   await g(() => { window.__game.input.press('KeyE'); });
   await wait(60);
   await g(() => { window.__game.input.release('KeyE'); });
-  const done = await until(() => window.__game.levelIndex === 0 && !!window.__game.level, 15000);
-  console.log(`  dimension complete: back to level 1 ${done}`);
+  const done = await until(() => window.__game.layout === 'hub' && window.__game.save.cleared.includes('justice'), 15000);
+  console.log(`  dimension complete: home to the hub ${done}`);
   if (!done) throw new Error('walking on after Justice should complete the dimension');
   await g(() => { window.__tuning.debug.godMode = false; });
+}
+
+// V2-7 scenario: the hub. A new game starts in The World; the Priestess speaks; the Magician sells a flask for
+// pentacles; the angel's gate leads into Justice; clearing Justice frees the parry and wakes the bull; the parry
+// turns a Bailiff's thrust; and the save survives a reload.
+export async function hubScenario({ page, g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw, pitch = 0.05) =>
+    g(([x, z, yaw, pitch]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = pitch;
+    }, [x, z, yaw, pitch]);
+  const tapE = async () => {
+    await g(() => window.__game.input.press('KeyE'));
+    await wait(60);
+    await g(() => window.__game.input.release('KeyE'));
+    await wait(200);
+  };
+  const toast = () => g(() => document.querySelector('.toast')?.textContent ?? '');
+
+  await g(() => { localStorage.clear(); window.__game.quitToMenu(); });
+  // Let the pointer-lock release land before starting (it would pause the new game otherwise).
+  await wait(400);
+  await g(() => window.__game.menus.onPlay('new'));
+  await wait(1500);
+  await shot('60-hub-spawn');
+  const fresh = await g(() => ({ layout: window.__game.layout, purse: document.querySelector('.pollen')?.textContent, parry: window.__game.save.unbound.includes('parry') }));
+
+  // The High Priestess (west).
+  await put(-9, 0.6, Math.PI / 2, 0.1);
+  await wait(300);
+  await tapE();
+  const line = await toast();
+  await shot('61-hub-priestess');
+
+  // The Magician (east): buy a flask.
+  await g(() => { window.__game.vitals.currency = 500; });
+  await put(9, 0.4, -Math.PI / 2, 0.1);
+  await wait(300);
+  await tapE();
+  const opened = await until(() => window.__game.mode === 'shop', 4000);
+  await shot('62-hub-shop');
+  await g(() => document.querySelector('.overlay.shop button[data-item="flask"]').click());
+  await wait(200);
+  const bought = await g(() => ({ upgrades: window.__game.save.upgrades, purse: window.__game.vitals.currency, flasks: window.__game.vitals.maxCharges }));
+  await g(() => window.__game.input.onKey('Escape'));
+  const closed = await until(() => window.__game.mode === 'playing', 3000);
+  console.log(`  hub: fresh ${JSON.stringify(fresh)}, priestess "${line}", shop opened ${opened}, bought ${JSON.stringify(bought)}, closed ${closed}`);
+  if (fresh.layout !== 'hub' || !fresh.purse?.includes('✪') || fresh.parry) throw new Error('a new game should start in the hub with pentacles and no parry');
+  if (!line.includes('bound') || !opened || !bought.upgrades.includes('flask') || bought.purse !== 200 || bought.flasks !== 4 || !closed) throw new Error('the Priestess should speak and the Magician should sell a flask');
+
+  // The angel's gate into Justice.
+  await put(0, -20.5, 0, 0.1);
+  await wait(300);
+  await tapE();
+  const entered = await until(() => window.__game.layout === 'level' && window.__game.levelIndex === 0 && !!window.__game.level, 15000);
+  await wait(800);
+
+  // Clear Justice (as if she fell): home to the hub, the parry freed, the bull awake.
+  await g(() => window.__game.completeDimension());
+  await wait(1200);
+  const cleared = await g(() => ({ layout: window.__game.layout, parry: window.__game.save.unbound.includes('parry'), cleared: window.__game.save.cleared }));
+  await put(14, 0, -Math.PI / 2, 0.1);
+  await wait(800);
+  await shot('63-hub-after-justice');
+  console.log(`  hub: entered Justice ${entered}, after clearing ${JSON.stringify(cleared)}`);
+  if (!entered || cleared.layout !== 'hub' || !cleared.parry) throw new Error("the gate should lead into Justice, and clearing her should free the parry");
+
+  // The parry turns a Bailiff's thrust (a wider window so headless timing can catch it).
+  await g(() => window.__game.start('justice'));
+  await wait(1200);
+  await g(() => {
+    const gm = window.__game;
+    for (const d of gm.dummies) d.dispose(gm.renderer.scene);
+    gm.dummies.length = 0;
+    window.__tuning.parry.window = 0.7;
+    gm.enemies.spawnFoes([{ id: 'bailiff', pos: { x: 4, y: 0, z: -14 }, yaw: Math.PI, idle: 'stand' }], gm.physics, gm.rng.fork('parry'));
+    gm.player.controller.teleport({ x: 4, y: 0.05, z: -12 }, 0);
+    gm.camera.snap(gm.player.pos, 0);
+  });
+  const winding = await until(() => { const f = window.__game.enemies.enemies[0]; return f.attack === 'thrust' && f.phase === 'windup' && f.tl.k > 0.15; }, 25000);
+  const hp0 = await g(() => window.__game.vitals.health);
+  await g(() => window.__game.input.press('KeyV'));
+  await wait(50);
+  await g(() => window.__game.input.release('KeyV'));
+  const turned = await until(() => window.__game.stats.parries > 0, 4000);
+  const after = await g(() => ({ hp: window.__game.vitals.health, state: window.__game.enemies.enemies[0].state }));
+  await shot('64-parry');
+  await g(() => { window.__tuning.parry.window = 0.2; });
+  console.log(`  parry: wound up ${winding}, turned ${turned}, health ${hp0} → ${after.hp}, the Bailiff ${after.state}`);
+  if (!winding || !turned || after.hp !== hp0 || after.state !== 'stagger') throw new Error('the parry should turn the thrust and stagger the Bailiff');
+
+  // The save survives a reload.
+  await page.reload();
+  await page.waitForFunction(() => !!window.__game, null, { timeout: 30000 });
+  await wait(600);
+  const kept = await g(() => ({ parry: window.__game.save.unbound.includes('parry'), upgrades: window.__game.save.upgrades, play: document.querySelector('button[data-a="hub"]')?.textContent }));
+  console.log(`  save after reload: ${JSON.stringify(kept)}`);
+  if (!kept.parry || !kept.upgrades.includes('flask') || kept.play !== 'Continue') throw new Error('the save should survive a reload');
 }

@@ -79,6 +79,10 @@ against screenshots, the same way v1's palettes were.
 | Area | Surfaces | Fog / sky | Accent motif |
 |---|---|---|---|
 | **Hub** (The World) | twilight lavender `#8C86A3`, wreath sage `#7E9078`, stone `#C9C2B8`, shadow `#3E3A4D` | pale lilac `#D9D3E0` | warm lantern amber `#F0B266` |
+
+*As built in V2-7 (`WORLD` in `src/render/palette.ts`):* warm stone `#E7E0D2` / `#B4A996` / `#6A6157`, laurel `#7F9466`,
+a pale warm fog `#ECE6E2` under a lilac sky `#BDB7CF`. The accent motif is the wreath's ribbons in deep blue `#4F6B92`:
+the first pick (a dusty violet) failed the palette test against the SwordRifle's charge violet.
 | **Justice** (Swords, air) | chalk `#E4E1D8`, pale steel `#9FB0BC`, slate `#5C6873`, shadow `#2F3640` | cold white-blue `#E3E9EE` | tarnished brass `#B39A5E` (the scales) |
 | **The Devil** (Pentacles, earth) | umber `#5A4636`, ochre `#A3824F`, oxide green `#5F7A64`, shadow `#231C18` | smoky amber haze `#B59A7A` | ember `#C0573A` (the pedestal glow) |
 | **The Tower** (Wands, fire) | ash `#9A9490`, charcoal `#3B3836`, scorched wood `#6B5244`, shadow `#1E1B1C` | storm grey-violet `#8E8A9C` | fire orange `#E07A3A` |
@@ -114,6 +118,9 @@ Rules:
     with a long cape, the Queen in a floor-length slate gown with a pale veil, the King broad in a dark robe and
     squared mantle with a greatsword. Crowns are steel, never brass (brass belongs to the scales).
   - Ground telegraphs (lanes, rings, verdicts) sit 12 cm up so paving never hides them.
+  - *Hub arcana (V2-7):* the Magician (≈ 3.2 m, brown robe, wand raised behind his table of four tools) and the High
+    Priestess (seated, deep blue, between a dark and a pale pillar before a veil). The four gate creatures are pale
+    and upright when awake, dark and slumped asleep.
   - *Justice (V2-6):* 6 m, slate gown, pale mantle and stole, steel crown with three square points, a greatsword
     raised upright, and small brass scales in her left hand. The brass on her scales and on the arena's descending
     pans is the accent motif: the scales are the motif, wherever they appear.

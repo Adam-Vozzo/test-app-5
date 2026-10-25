@@ -461,6 +461,15 @@ export const tuning = {
     overview: false,
     showStats: true,
   },
+  /** Justice's unbinding (V2-7): meet a blow as it lands. V to parry, once Justice has fallen. */
+  parry: {
+    window: 0.2,
+    recover: 0.38,
+    coneDeg: 140,
+    /** SwordRifle charges a parry pours back. */
+    chargeGain: 1,
+    hitstop: 0.12,
+  },
   swap: {
     lowerTime: 0.16,
     raiseTime: 0.2,
