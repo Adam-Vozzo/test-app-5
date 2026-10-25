@@ -4,6 +4,55 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-2: the SwordRifle
+**Run:** `npm run dev` → **Play: Justice courtyard**. Press **2** for the SwordRifle (**1** is the pistol).
+
+**Try:**
+1. **Rifle mode** (it starts here):
+   - **Aim with RMB, then fire.** It's heavy: a visible bolt, a hard kick, and the off hand works the bolt lever after
+     each shot. It's wild from the hip (2.6°) and precise aimed.
+   - **Each shot spends a charge.** The violet cells along the spine and the pips under the crosshair show the six.
+     There's **no reload**: an empty trigger dry-clicks and the cells flicker.
+2. **F switches to the sword.** It's a committed transform: the weapon dips, the stock folds down into a pommel and the
+   off hand moves. It's slower while rusted (it starts rusted).
+3. **LMB swings a three-hit combo** (forehand, backhand, overhead). Press again during a swing or early in its
+   recovery to chain.
+   - Each swing that lands refills **one** charge: a cell flares and a chime rises.
+   - Each swing lunges you about a metre.
+4. **Hold RMB** to ready the **charged strike**. It takes about 0.45 s, then a hum and the blade raised overhead.
+   Release to bring it down. It needs and spends **2 charges**.
+5. **Guard dummies** stand just inside the gate with their shields facing you. A blow to the front clangs and the
+   blade rebounds (a longer recovery). Walk round and **hit them from the side**.
+6. **The loop:** close in with the blade to fuel the rifle, back off and spend it. Press F to swap mid-fight.
+7. **Rust:** set `swordRifle → repairStage` from 0 (rusted) to 4 (restored) to feel damage, switch speed, tone and
+   cell glow change.
+
+**Tune it:**
+- `melee`: each swing's timing, arc, damage and lunge; the combo window; the charge hold and cost; charges per hit;
+  hitstop; trauma; move speed while swinging.
+- `swordRifle`: switch time and repair stage.
+- `weapons → swordRifle`: rifle mode.
+- **Copy JSON** when it feels right.
+
+**Your pistol tuning (pass 2) is baked in:**
+- 12 damage, 650 rpm, 28-round magazine.
+- It now fires **visible rounds** (75 m/s, slight drop) instead of hitscan, drawn small (`projectileScale` 0.45).
+
+**Unsure about:**
+- **Swing timing and arcs are first guesses**: windup 0.10–0.18 s, active 0.12–0.14 s, recovery 0.32–0.45 s. The
+  blade's path is procedural keyframes (guard → from → to → guard), so it may look stiff. Watch it in slow-mo (T).
+- **The lunge** (0.9 m light, 2.2 m charged) may feel like sliding rather than stepping.
+- **Charge pacing:** 6 charges and +1 per landed swing (max 1 per swing) means six hits to refill the rifle.
+  `melee.chargePerHit` / `chargeCapPerSwing` change it.
+- **The controls are my choice:** F to switch, hold RMB to charge. Tell me if you'd rather have a different mapping.
+- **The blade passes through walls.** It only tests targets, so you can't snag it on cover, but you also can't be
+  stopped by it.
+- **The blade sweep** now follows the swing's arc. At low frame rates a straight chord between frames missed targets
+  near the tip.
+- **New: a dodge press is buffered for 0.15 s** (`feel.rollBuffer`), so one pressed during hitstop or right at the end
+  of a swing's committed part still happens. Tell me if rolls ever feel like they come out late.
+- **Charge colour** `#9C7BFF`: it reads against the Justice court in the screenshots. Check it in play.
+
 ## Pixel mode gets its own settings; the painterly pass is gone
 - The painterly post pass (Kuwahara smear, posterise, grain) is **removed**. Other post techniques get explored
   later (`PLAN.md → Later`).

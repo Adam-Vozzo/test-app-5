@@ -57,7 +57,7 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
   - the auto-pistol; pixel mode on by default
   - the v1 bug weapons and the `--range` smoke scenario retired; v1 scenes kept behind `?mode=` for now
 
-## V2-2: SwordRifle (the new verb)
+## V2-2: SwordRifle (the new verb) ✅ (waiting on your playtest and tuning JSON)
 - **Melee system** (new code path):
   - a swing arc sweep against hurtboxes
   - a committed swing with an anticipation → active → recovery timeline from tuning
@@ -81,6 +81,15 @@ screenshots checked against `STYLE.md`. That doesn't change from v1.
 - **Melee range:** dummies that block from the front (a Bailiff stand-in), so the flank-and-punish rhythm can be felt
   before real enemies exist.
 - **Stop here for the user to playtest and send tuning JSON**, as with v1's M2. Melee feel is the biggest risk in v2.
+- **Done as:**
+  - pure swing logic in `src/weapons/swing.ts`, unit-tested: timeline, combo window, charged hold, roll-cancel rules,
+    blade pose, charge economy, guard cone
+  - the `SwordRifle` controller in `src/weapons/swordrifle.ts`
+  - a blade hit sweep that follows the swing's arc (so it holds up at low frame rates)
+  - the folding-stock model with instanced charge cells
+  - HUD pips, guard dummies, the charge colour
+  - a 0.15 s roll-press buffer (`feel.rollBuffer`) so a dodge pressed during hitstop isn't lost
+  - the `--sword` smoke scenario
 
 ## V2-3: Level generator v2
 Implements `LEVELS.md` for one dimension:

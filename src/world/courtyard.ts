@@ -232,6 +232,9 @@ export function buildCourtyard(physics: Physics, rng: Rng): BuiltWorld {
       { pos: V(0, -16), slide: true },
       { pos: V(3.5, -32), slide: false },
       { pos: new THREE.Vector3(0, 0.9, -47), slide: false },
+      // Guard dummies inside the gate, shields toward the entrance: flank them.
+      { pos: V(-6, -4), slide: false, guardYaw: Math.PI },
+      { pos: V(6, -4), slide: false, guardYaw: Math.PI },
     ],
     enemySpots: [],
     checkpoint: lanternAt,

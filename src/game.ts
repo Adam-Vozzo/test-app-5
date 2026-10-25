@@ -78,6 +78,7 @@ export class Game {
   private deathT = -1;
   private healEnv = 0;
   private lastDodgeSfx = -1;
+  private rollBuffer = 0;
   private readonly chest = new THREE.Vector3();
   dummies: Dummy[] = [];
   /** Where the crosshair ray lands this frame. */
@@ -183,7 +184,7 @@ export class Game {
     };
     this.camera = new OTSCamera(this.renderer.camera, this.physics);
     this.camera.snap(this.world.spawn, this.world.spawnYaw);
-    for (const s of this.world.dummySpots) this.dummies.push(new Dummy(this.renderer.scene, this.physics, s.pos, s.slide));
+    for (const s of this.world.dummySpots) this.dummies.push(new Dummy(this.renderer.scene, this.physics, s.pos, s.slide, s.guardYaw ?? null));
     // The arena gets a couple of dummies too, so shooting can be tried anywhere.
     if (this.layout === 'arena') {
       this.dummies.push(new Dummy(this.renderer.scene, this.physics, new THREE.Vector3(3, 0, -9), false));
@@ -335,6 +336,7 @@ export class Game {
     this.player.dead = true;
     this.player.healT = -1;
     this.arsenal.current.cancelReload(false);
+    this.arsenal.cancelActions();
     this.synth.sfx('playerDie');
     // Your pollen stays where you fell. A previous unrecovered drop is gone.
     if (this.vitals.pollen > 0) this.pollenDrop.place(this.player.pos.clone(), this.vitals.pollen);
@@ -419,7 +421,7 @@ export class Game {
     if (code === 'KeyM') d.showGraph = !d.showGraph;
     if (code === 'KeyO') d.overview = !d.overview;
     if (code === 'KeyN' && this.zone) this.regenerate(this.zoneSeed + 1);
-    if ((code === 'Digit1' || code === 'Digit2' || code === 'Digit3') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
+    if ((code === 'Digit1' || code === 'Digit2') && !this.vitals.busy) this.arsenal.request(Number(code.slice(5)) - 1);
     this.panel.refresh();
   }
 
@@ -466,13 +468,13 @@ export class Game {
 
     // 1. Look (real time: stays responsive in hitstop and slow-mo).
     if (control) cam.look(inp.mouseDX, inp.mouseDY);
-    const ads = control && inp.held('Mouse2') && !c.committed && !v.busy;
+    const ads = control && inp.held('Mouse2') && !c.committed && !v.busy && this.arsenal.allowsAim;
     player.aiming = ads;
-    if (control && !v.busy && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
+    if (control && !v.busy && !this.arsenal.busy && inp.wheel !== 0) this.arsenal.cycle(Math.sign(inp.wheel));
     const gun = this.gun;
 
     // Heal (Q): committed, slow, interrupted by damage.
-    if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.isSwapping) {
+    if (control && inp.justPressed('KeyQ') && !c.committed && !gun.reloading && !this.arsenal.busy) {
       if (v.startHeal()) this.synth.sfx('healStart');
       else if (v.healCharges <= 0) this.hud.toast(`no heals left: rest at ${this.restLabel}`);
     }
@@ -489,8 +491,11 @@ export class Game {
     const ax = control ? (inp.held('KeyD') ? 1 : 0) - (inp.held('KeyA') ? 1 : 0) : 0;
     const ay = control ? (inp.held('KeyW') ? 1 : 0) - (inp.held('KeyS') ? 1 : 0) : 0;
     const wasState = c.state;
-    const wantsRoll = control && inp.justPressed('Space') && !v.busy;
-    if (wantsRoll && !v.canRoll() && c.state === 'move') this.synth.sfx('exhausted', 0.6);
+    if (control && inp.justPressed('Space')) {
+      this.rollBuffer = tuning.feel.rollBuffer;
+      if (!v.canRoll() && c.state === 'move') this.synth.sfx('exhausted', 0.6);
+    } else this.rollBuffer = Math.max(0, this.rollBuffer - realDt);
+    const wantsRoll = control && this.rollBuffer > 0 && !v.busy && !this.arsenal.blocksRoll;
     player.move(simDt, {
       x: ax,
       y: ay,
@@ -499,11 +504,14 @@ export class Game {
       speedMul:
         (ads ? tuning.player.adsSpeedMul : 1) *
         (gun.reloading ? tuning.player.reloadSpeedMul : 1) *
+        this.arsenal.moveMul *
         (v.healing ? tuning.vitals.healMoveMul : 1) *
         (alive ? 1 : 0),
       camYaw: cam.yaw,
     });
     if (wasState !== 'roll' && c.state === 'roll') {
+      this.rollBuffer = 0;
+      this.arsenal.onRoll();
       v.spendRoll();
       this.synth.sfx('roll');
     }
@@ -556,7 +564,20 @@ export class Game {
     // Muzzle position comes from last frame's rig; the shot ray itself starts at the camera.
     const fireHeld = control && inp.held('Mouse0');
     const firePressed = control && inp.justPressed('Mouse0');
-    this.arsenal.update(simDt, this.gunCtx, fireHeld, firePressed, control && inp.justPressed('KeyR'), !v.busy);
+    this.arsenal.update(
+      simDt,
+      this.gunCtx,
+      {
+        fireHeld,
+        firePressed,
+        reloadPressed: control && inp.justPressed('KeyR'),
+        aimHeld: control && inp.held('Mouse2'),
+        aimPressed: control && inp.justPressed('Mouse2'),
+        aimReleased: !control || inp.justReleased('Mouse2'),
+        switchPressed: control && inp.justPressed('KeyF'),
+      },
+      !v.busy,
+    );
     // Healing lowers the weapon.
     this.healEnv = damp(this.healEnv, v.healing ? 1 : 0, 14, simDt);
     this.gun.pose.drop += this.healEnv * 0.18;
@@ -582,6 +603,7 @@ export class Game {
     this.limbs.begin();
     player.animate(simDt, this.aimPoint, cam.aimOrigin, cam.adsAmount, this.gun.pose);
     player.draw(this.limbs, simDt);
+    this.arsenal.afterAnimate(this.gunCtx);
     this.enemies.draw(this.limbs);
     this.limbs.end();
 
@@ -592,8 +614,12 @@ export class Game {
 
     // 7. HUD.
     const held = this.gun;
-    this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, alive && !c.committed && !held.reloading && !this.arsenal.isSwapping && !v.busy);
-    this.hud.setAmmo(held.def.name, held.mag, held.def.magSize, held.reserve, held.reloadProgress);
+    const sword = this.arsenal.sword;
+    const swordMode = sword?.mode === 'sword';
+    this.hud.setSpread(held.displaySpread, this.renderer.camera.fov, alive && !c.committed && !held.reloading && !this.arsenal.busy && !v.busy && !swordMode);
+    const name = sword ? `${held.def.name} · ${sword.switching ? '…' : sword.mode}${sword.stage.name !== 'edge restored' ? ` (${sword.stage.name})` : ''}` : held.def.name;
+    this.hud.setAmmo(name, held.mag, held.def.magSize, held.reserve, held.reloadProgress, !!sword);
+    this.hud.setCharges(held.mag, held.def.magSize, !!sword && alive);
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
     this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, tuning.vitals.healCharges, v.pollen);
     const elite = this.enemies.activeElite;

@@ -15,7 +15,7 @@ export interface BuiltWorld {
   group: THREE.Group;
   spawn: THREE.Vector3;
   spawnYaw: number;
-  dummySpots: { pos: THREE.Vector3; slide: boolean }[];
+  dummySpots: { pos: THREE.Vector3; slide: boolean; guardYaw?: number }[];
   enemySpots: SpawnSpec[];
   /** Checkpoint: rest here (E). */
   checkpoint: THREE.Vector3 | null;

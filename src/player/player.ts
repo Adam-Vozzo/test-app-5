@@ -7,6 +7,7 @@ import { Physics } from '../physics/world';
 import { tuning } from '../tuning';
 import { LimbRenderer } from '../render/limbs';
 import type { WeaponModel } from '../weapons/model';
+import type { SwordPose } from '../weapons/swordrifle';
 import { Controller, type MoveInput } from './controller';
 
 const _m = new THREE.Matrix4();
@@ -22,6 +23,9 @@ const _pouch = new THREE.Vector3();
 const _healHand = new THREE.Vector3();
 const _hr = new THREE.Vector3();
 const _hl = new THREE.Vector3();
+const _sw = new THREE.Vector3();
+const _qs = new THREE.Quaternion();
+const _es = new THREE.Euler(0, 0, 0, 'YXZ');
 
 /** Per-frame pose overrides from the weapon system (recoil, reload choreography). */
 export interface WeaponPose {
@@ -40,6 +44,8 @@ export class Player {
   readonly biped: Biped;
   readonly weaponRoot = new THREE.Group();
   model: WeaponModel | null = null;
+  /** SwordRifle sword-mode placement (blend 0 = the usual aimed hold, 1 = blade pose). */
+  swordPose: SwordPose | null = null;
   combatTimer = 0;
   aiming = false;
   dead = false;
@@ -149,6 +155,17 @@ export class Player {
       }
       const rate = this.combat ? 40 : 12;
       this.weaponQuat.slerp(_q, 1 - Math.exp(-rate * dt));
+    }
+
+    // Sword mode: the blade's angles are body-relative and the hands sweep an arc in front of the chest.
+    const sp = this.swordPose;
+    const swordK = sp && !c.rolling ? THREE.MathUtils.clamp(sp.blend, 0, 1) : 0;
+    if (swordK > 0 && sp) {
+      _q2.setFromEuler(_es.set(sp.pitch, sp.yaw, sp.roll, 'YXZ'));
+      _qs.copy(b.yawQuat).multiply(_q2);
+      _sw.set(0.06, sp.handY, -sp.reach).applyAxisAngle(_up, sp.yaw * 0.5).applyQuaternion(b.yawQuat).add(b.chest);
+      pivot.lerp(_sw, swordK);
+      this.weaponQuat.slerp(_qs, swordK);
     }
 
     // Reload tilt + recoil springs in weapon-local space.

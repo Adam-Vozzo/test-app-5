@@ -4,6 +4,9 @@ const KEYS: [string, string][] = [
   ['WASD', 'move'],
   ['Mouse', 'look'],
   ['LMB / RMB', 'fire / aim'],
+  ['1 / 2 · wheel', 'auto-pistol / SwordRifle'],
+  ['F', 'SwordRifle: rifle ⇄ sword'],
+  ['LMB / hold RMB', 'sword: combo / charged strike'],
   ['Space', 'dodge-roll'],
   ['Shift', 'sprint'],
   ['R', 'reload'],
@@ -34,7 +37,7 @@ export class Menus {
       <h1>Eight</h1>
       <p>The Eight of Swords, bound only by herself. Everything here is generated in code.</p>
       <button data-a="justice">Play: Justice courtyard</button>
-      <p class="note">V2-1 greybox: the new look, the new body and the auto-pistol. Training dummies stand in the court.</p>
+      <p class="note">V2-2: the SwordRifle (2, then F to switch modes). Training dummies stand in the court; the two with shields block from the front.</p>
       <div class="keys">${keys}</div>
       <div class="seed">seed ${seed} · add ?seed=… to the URL to change it</div>`);
     this.pause = this.make(`

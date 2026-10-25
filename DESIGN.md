@@ -247,6 +247,20 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
     blade, barrel, stock and edge.
 - **Melee is a genuinely new verb.** It gets its own code path (`CLAUDE.md → Weapons are data`). It's also the
   biggest feel risk in v2, so it gets its own milestone and range before any content is built on it (`PLAN.md`).
+- **As built in V2-2 (Proposed until playtested):**
+  - **Controls:**
+    - **2** takes up the SwordRifle (**1** is the pistol).
+    - **F** switches rifle ⇄ sword. The switch is committed: about 0.5 s, longer while rusted, and a roll cancels it.
+    - In sword mode, **LMB** is a three-swing combo (forehand, backhand, overhead) and **holding RMB** readies the
+      charged strike, which lands on release.
+  - **Charge economy:**
+    - 6 charges.
+    - A landed swing refills 1 (at most 1 per swing).
+    - The charged strike costs 2, and it won't start without them.
+    - An empty rifle dry-fires and flickers its cells.
+  - **Committed body:** a swing's windup and active phases can't be rolled out of, but its recovery can.
+  - **Rust:** stage 0 deals 65% damage, switches 1.5× slower, sounds duller and has dim cells. The four repair
+    stages step this up to full (`REPAIR_STAGES` in `src/weapons/defs.ts`).
 
 ## The hub (Decided: exists, gates unlock; details Proposed)
 

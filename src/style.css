@@ -29,6 +29,9 @@ html, body {
 .xhair .t, .xhair .b { width: 2px; height: 8px; left: -1px; }
 .xhair .l, .xhair .r { width: 8px; height: 2px; top: -1px; }
 .xhair .dot { width: 2px; height: 2px; left: -1px; top: -1px; }
+.charges { position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%); display: flex; gap: 3px; }
+.charges i { width: 7px; height: 4px; background: rgba(20, 20, 28, 0.55); outline: 1px solid rgba(255, 255, 255, 0.25); }
+.charges i.on { background: var(--charge); outline-color: var(--charge); }
 
 /* Hit markers: four diagonal ticks popping out of the centre. */
 .hitmark { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; }

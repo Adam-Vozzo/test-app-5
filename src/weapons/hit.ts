@@ -40,13 +40,17 @@ export function falloffMul(d: WeaponDef, dist: number): number {
  * World hits get dust + a decal; target hits get sparks, damage, stagger and knockback (scaled by falloff,
  * so shotguns stagger up close and barely nudge at range).
  */
-export function resolveHit(ctx: GunContext, d: WeaponDef, hit: RayHit, dir: THREE.Vector3, fb: ShotFeedback): boolean {
+export function resolveHit(ctx: GunContext, d: WeaponDef, hit: RayHit, dir: THREE.Vector3, fb: ShotFeedback, damageMul = 1): boolean {
   const dist = hit.point.distanceTo(ctx.player.pos);
   const t = hit.target;
+  if (t && t.owner.alive && t.owner.blocks?.(dir)) {
+    blockFeedback(ctx, hit.point, dir);
+    return false;
+  }
   if (t && t.owner.alive) {
     const crit = t.part === 'weak';
     const fall = falloffMul(d, dist);
-    let dmg = d.damage * fall * (crit ? d.critMultiplier : 1);
+    let dmg = d.damage * damageMul * fall * (crit ? d.critMultiplier : 1);
     const armor = t.part === 'armor';
     if (armor) {
       dmg *= t.owner.armorMul ?? 0.2;
@@ -73,3 +77,11 @@ export function resolveHit(ctx: GunContext, d: WeaponDef, hit: RayHit, dir: THRE
   }
   return false;
 }
+
+/** A guard took the blow: bright sparks off the shield and a clang, no damage. */
+export function blockFeedback(ctx: GunContext, point: THREE.Vector3, dir: THREE.Vector3) {
+  _back.copy(dir).negate();
+  ctx.fx.sparksAt(point, _back, 0xffffff, 14, 7);
+  ctx.synth.sfx('block');
+}
+const _back = new THREE.Vector3();

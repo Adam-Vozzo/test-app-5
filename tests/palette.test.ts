@@ -61,6 +61,17 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
       expect(hueGap(robe, SIGNAL.telegraph)).toBeGreaterThan(30);
     }
   });
+  it('the charge colour reads in every area and is never mistaken for a telegraph', () => {
+    expect(hueGap(SIGNAL.charge, SIGNAL.telegraph)).toBeGreaterThan(60);
+    expect(hueGap(SIGNAL.charge, SIGNAL.weakSpot)).toBeGreaterThan(60);
+    for (const p of [JUSTICE] as AreaPalette[]) {
+      const s = p.surfaces;
+      for (const c of [s.light, s.mid, s.dark, s.shadow, s.growth, p.fog, p.accent]) {
+        const ok = hueGap(SIGNAL.charge, c) >= 35 || contrast(SIGNAL.charge, c) >= 2;
+        expect(ok, `charge vs #${c.toString(16)}`).toBe(true);
+      }
+    }
+  });
   it('signal colours are distinct from each other', () => {
     expect(hueGap(SIGNAL.telegraph, SIGNAL.weakSpot)).toBeGreaterThan(90);
     expect(hueGap(SIGNAL.telegraph, SIGNAL.crit)).toBeGreaterThan(60);

@@ -85,6 +85,9 @@ export class Gun {
   spread = 0;
   /** What the crosshair shows: aim spread + pellet cone. */
   displaySpread = 0;
+  /** Damage and shot-sound pitch multipliers (the SwordRifle's repair stage sets them). */
+  damageMul = 1;
+  toneMul = 1;
   readonly pose: WeaponPose;
 
   constructor(
@@ -267,7 +270,7 @@ export class Gun {
         const h = physics.raycast(_origin, _dir, d.range, GROUPS.qShot, exclude, hitA);
         const target = h ? h.point : _end.copy(_origin).addScaledVector(_dir, d.range);
         _tmp.subVectors(target, _mz).normalize();
-        ctx.projectiles.launch(d, _mz, _tmp, fb);
+        ctx.projectiles.launch(d, _mz, _tmp, fb, this.damageMul);
         continue;
       }
 
@@ -296,7 +299,7 @@ export class Gun {
           break;
         }
         lastPoint = hit.point.clone();
-        const struck = resolveHit(ctx, d, hit, _dir, fb);
+        const struck = resolveHit(ctx, d, hit, _dir, fb, this.damageMul);
         if (struck && pierceLeft-- > 0) {
           skip.add(hit.collider.handle);
           from = hit.point.clone();
@@ -312,7 +315,7 @@ export class Gun {
     // ---- feedback
     fx.muzzleFlash(_mz, d.flashScale, d.flashFrames, d.flashLight, d.flashColor);
     if (d.cycle !== 'pump' && d.casingSpeed > 0) this.ejectCasing(ctx, PROPS.wood);
-    synth.shot(d);
+    synth.shot(d, this.toneMul);
     this.applyRecoil(ctx);
     this.bloom = Math.min(d.bloomMax, this.bloom + d.bloomPerShot);
     this.shotIndex++;

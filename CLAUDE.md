@@ -58,8 +58,8 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --pistol --enemies --zones` (`--pistol` is v2; `--enemies` and `--zones` drive the legacy v1
-  scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
+  with `npm run smoke -- --pistol --sword --enemies --zones` (`--pistol` and `--sword` are v2; `--enemies` and
+  `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
 ## Conventions
@@ -110,7 +110,8 @@ src/
                    (low-res blocks + distance-faded depth outline)
   anim/            pure IK + gait logic, BODY proportions, verlet ribbon (blindfold tails), biped rig
   player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
-  weapons/         weapon defs, firing, recoil
+  weapons/         weapon defs, firing, recoil, projectiles; SwordRifle (swing.ts: pure melee timing/pose/charges;
+                   swordrifle.ts: modes, blade sweep, charge cells)
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)

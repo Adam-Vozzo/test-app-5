@@ -6,6 +6,8 @@ export const SIGNAL = {
   crit: 0xffe14d,
   kill: 0xff3b30,
   ui: 0xffffff,
+  /** The SwordRifle's charge (cells on the weapon, HUD pips): the player's own resource, never an enemy signal. */
+  charge: 0x9c7bff,
 } as const;
 
 /** The Eight of Swords (STYLE.md → Characters). Robe red is desaturated so it never reads as kill red. */

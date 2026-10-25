@@ -1,11 +1,13 @@
 // Target dummy: a canvas training dummy on a post, in metres. Weak-spot head band, hit flash, flinch spring,
-// fall-over death, respawn.
+// fall-over death, respawn. A guard dummy carries a shield and blocks blows from its front (the Bailiff stand-in):
+// flank it.
 import * as THREE from 'three';
 import { clamp, Spring } from '../core/math';
 import { Physics, RAPIER, type DamageInfo, type Damageable } from '../physics/world';
 import { merge, meshOf, paint, place, prep, toonMat } from '../render/geo';
 import { GEAR, SIGNAL } from '../render/palette';
 import { tuning } from '../tuning';
+import { inGuardCone } from '../weapons/swing';
 
 const BODY_Y = 1.2;
 const HEAD_Y = 1.72;
@@ -41,6 +43,8 @@ export class Dummy implements Damageable {
     private physics: Physics,
     pos: THREE.Vector3,
     readonly slide: boolean,
+    /** Guard dummies: the yaw it faces (0 = -Z). null = no shield. */
+    readonly guardYaw: number | null = null,
   ) {
     this.base = pos.clone();
     this.health = tuning.dummy.health;
@@ -64,6 +68,15 @@ export class Dummy implements Damageable {
       place(target, 0, BODY_Y + 0.02, -0.235),
     ]);
     this.pivot.add(meshOf(geo, this.mat));
+    if (guardYaw !== null) {
+      // A tall shield held at the front: the side you can't hurt it from.
+      const shield = merge([
+        place(facet(new THREE.BoxGeometry(0.62, 0.95, 0.06), GEAR.metal), 0, BODY_Y - 0.05, -0.36),
+        place(facet(new THREE.BoxGeometry(0.08, 0.95, 0.07), GEAR.metalDark), 0, BODY_Y - 0.05, -0.395),
+      ]);
+      this.pivot.add(meshOf(shield, this.mat));
+      this.group.rotation.y = guardYaw;
+    }
     // Weak spot: glowing cyan eye-band on the head (unlit so it reads in any light).
     const weak = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.035, 4, 12), new THREE.MeshBasicMaterial({ color: SIGNAL.weakSpot }));
     weak.position.set(0, HEAD_Y + 0.02, 0);
@@ -90,6 +103,11 @@ export class Dummy implements Damageable {
     this.headCol = physics.addHitbox(RAPIER.ColliderDesc.ball(0.18), { part: 'weak', owner: this });
     if (!slide) physics.addStatic(RAPIER.ColliderDesc.cylinder(BODY_Y / 2, 0.12).setTranslation(pos.x, pos.y + BODY_Y / 2, pos.z));
     this.syncColliders();
+  }
+
+  blocks(dir: THREE.Vector3): boolean {
+    if (this.guardYaw === null || !this.alive) return false;
+    return inGuardCone(-Math.sin(this.guardYaw), -Math.cos(this.guardYaw), dir.x, dir.z, tuning.dummy.guardConeDeg);
   }
 
   takeDamage(info: DamageInfo): boolean {

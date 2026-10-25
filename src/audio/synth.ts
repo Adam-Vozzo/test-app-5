@@ -94,8 +94,8 @@ export class Synth {
     for (const k in layers) this.layer(layers[k], t0, pitch, gain, pan);
   }
 
-  shot(w: WeaponDef) {
-    const pitch = 1 + (this.rand() * 2 - 1) * w.pitchJitter;
+  shot(w: WeaponDef, pitchMul = 1) {
+    const pitch = pitchMul * (1 + (this.rand() * 2 - 1) * w.pitchJitter);
     this.playLayers(w.layers, pitch, w.volume);
   }
 
@@ -254,6 +254,38 @@ const SFX = {
     b: L({ kind: 'osc', wave: 'sine', f0: 1568, f1: 1568, dur: 0.18, gain: 0.22, delay: 0.08 }),
   },
   exhausted: { pant: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 1.5, dur: 0.25, gain: 0.25 }) },
+  // SwordRifle: blade swings, guards, charge economy and the rifle ⇄ sword transform.
+  swing: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 2600, q: 1.4, dur: 0.16, gain: 0.45 }),
+    air: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 5000, dur: 0.1, gain: 0.15, delay: 0.03 }),
+  },
+  swingHeavy: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 400, f1: 1800, q: 1.1, dur: 0.26, gain: 0.6 }),
+    hum: L({ kind: 'osc', wave: 'sawtooth', f0: 110, f1: 70, dur: 0.25, gain: 0.12 }),
+  },
+  bladeHit: {
+    chop: L({ kind: 'noise', filter: 'bandpass', f0: 1100, f1: 500, q: 1.2, dur: 0.09, gain: 0.8 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 150, f1: 55, dur: 0.12, gain: 0.7 }),
+  },
+  block: {
+    clang: L({ kind: 'osc', wave: 'square', f0: 1900, f1: 1750, dur: 0.22, gain: 0.09 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 2850, f1: 2800, dur: 0.35, gain: 0.08, delay: 0.004 }),
+    hit: L({ kind: 'noise', filter: 'highpass', f0: 2500, f1: 2500, dur: 0.04, gain: 0.6 }),
+  },
+  chargeGain: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 880, f1: 1320, dur: 0.12, gain: 0.22 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 1760, f1: 1760, dur: 0.18, gain: 0.08, delay: 0.06 }),
+  },
+  chargeReady: {
+    hum: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 440, dur: 0.3, gain: 0.25 }),
+    shine: L({ kind: 'osc', wave: 'triangle', f0: 1320, f1: 1980, dur: 0.25, gain: 0.08, delay: 0.1 }),
+  },
+  chargeEmpty: { fizz: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 300, q: 2, dur: 0.15, gain: 0.3 }) },
+  modeSwitch: {
+    clack1: L({ kind: 'noise', filter: 'bandpass', f0: 2200, f1: 1800, q: 3, dur: 0.03, gain: 0.6 }),
+    slide: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1400, q: 1.5, dur: 0.12, gain: 0.25, delay: 0.04 }),
+    clack2: L({ kind: 'noise', filter: 'bandpass', f0: 1600, f1: 1300, q: 3, dur: 0.04, gain: 0.7, delay: 0.17 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

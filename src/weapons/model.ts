@@ -28,6 +28,22 @@ export interface WeaponModel {
   hammerCocked: number;
   /** Hammer-local point the off hand grabs to cock it. */
   hammerGrip: THREE.Vector3;
+  /** SwordRifle only: the blade (hit sweep runs base → tip), the off-hand grip in each mode, the folding stock and
+   *  the charge cells (one instance per charge). */
+  sword?: {
+    bladeBase: THREE.Vector3;
+    bladeTip: THREE.Vector3;
+    rifleFore: THREE.Vector3;
+    swordFore: THREE.Vector3;
+    stock: THREE.Object3D;
+    /** Stock rotation (about X) when folded under the grip for sword mode. */
+    stockFolded: number;
+    cells: THREE.InstancedMesh;
+    /** Cell centres, model-local. */
+    cellAt: THREE.Vector3[];
+    /** Blade + receiver material, so the rust tint can change with the repair stage. */
+    steel: THREE.MeshToonMaterial;
+  };
 }
 
 const mat = () => toonMat();
@@ -208,6 +224,13 @@ export function buildStapler(): WeaponModel {
   };
 }
 
+/** The SwordRifle's bolt: a faceted dart with a bright head, travelling along -Z. */
+export function boltGeo(): THREE.BufferGeometry {
+  const shaft = paint(new THREE.CylinderGeometry(0.012, 0.012, 0.16, 4).rotateX(Math.PI / 2), GEAR.metalDark);
+  const head = paint(new THREE.ConeGeometry(0.026, 0.07, 4).rotateX(-Math.PI / 2), GEAR.metalLight);
+  return merge([shaft, place(head, 0, 0, -0.11)]);
+}
+
 /** A single staple projectile: crown + two prongs, travelling along -Z. */
 export function stapleGeo(): THREE.BufferGeometry {
   const crown = paint(new THREE.BoxGeometry(0.11, 0.018, 0.018), PROPS.metal);
@@ -258,8 +281,99 @@ export function buildPistol(): WeaponModel {
   };
 }
 
+/**
+ * SwordRifle, in metres: a long rifle whose barrel rides on a single-edged blade. In rifle mode the stock sits at the
+ * shoulder; in sword mode it folds down under the grip into a long pommel and the blade leads. Charge cells glow
+ * along the spine. Origin at the right-hand grip, muzzle and blade tip toward -Z.
+ */
+export function buildSwordRifle(): WeaponModel {
+  const root = new THREE.Group();
+  const steel = toonMat();
+  const receiver = paint(new THREE.BoxGeometry(0.075, 0.09, 0.42), GEAR.metal);
+  const spine = paint(new THREE.BoxGeometry(0.05, 0.02, 0.36), GEAR.metalDark);
+  const barrel = paint(new THREE.CylinderGeometry(0.022, 0.024, 0.62, 6).rotateX(Math.PI / 2), GEAR.metalDark);
+  const muzzle = paint(new THREE.BoxGeometry(0.06, 0.06, 0.06), GEAR.metal);
+  const blade = paint(new THREE.BoxGeometry(0.022, 0.11, 0.74), GEAR.metalLight);
+  const tip = paint(new THREE.ConeGeometry(0.058, 0.18, 4).rotateX(-Math.PI / 2).scale(0.38, 1, 1), GEAR.metalLight);
+  const grip = paint(new THREE.BoxGeometry(0.045, 0.14, 0.06), GEAR.grip);
+  const guard = paint(new THREE.BoxGeometry(0.12, 0.03, 0.05), GEAR.metalDark);
+  root.add(
+    meshOf(
+      merge([
+        place(receiver, 0, 0.02, -0.12),
+        place(spine, 0, 0.075, -0.14),
+        place(barrel, 0, 0.035, -0.62),
+        place(muzzle, 0, 0.035, -0.94),
+        place(blade, 0, -0.035, -0.6),
+        place(tip, 0, -0.035, -1.05),
+        place(grip, 0, -0.07, 0.03, 0.2, 0, 0),
+        place(guard, 0, -0.025, -0.02),
+      ]),
+      steel,
+    ),
+  );
+  // Folding stock: hinged just behind the grip. Rest = rifle (stock back at the shoulder).
+  const stock = new THREE.Group();
+  stock.position.set(0, 0.01, 0.09);
+  stock.add(meshOf(merge([place(paint(new THREE.BoxGeometry(0.055, 0.1, 0.32), GEAR.grip), 0, -0.02, 0.16), place(paint(new THREE.BoxGeometry(0.06, 0.13, 0.04), GEAR.metalDark), 0, -0.03, 0.32)]), mat()));
+  root.add(stock);
+  // Bolt lever on the right: the off hand works it after each shot (the "hammer" in Gun's bolt cycle).
+  const bolt = new THREE.Group();
+  bolt.position.set(0.045, 0.05, -0.02);
+  // The lever geometry is built open (-0.9 rad); the group's rest rotation (+0.9) closes it, and Gun's bolt cycle
+  // snaps the group to 0 (open) on each shot, then works it back closed.
+  const lever = meshOf(merge([place(paint(new THREE.BoxGeometry(0.02, 0.02, 0.08), GEAR.metalLight), 0, 0, 0.04), place(paint(new THREE.IcosahedronGeometry(0.02, 0), GEAR.metalDark), 0.02, 0, 0.08)]), mat());
+  lever.rotation.x = -0.9;
+  bolt.add(lever);
+  root.add(bolt);
+  // Charge cells: one instanced mesh, coloured per instance (lit / spent), so the whole row is one draw call.
+  const cellAt: THREE.Vector3[] = [];
+  for (let i = 0; i < 8; i++) cellAt.push(new THREE.Vector3(0, 0.092, -0.0 - i * 0.05));
+  const cells = new THREE.InstancedMesh(new THREE.BoxGeometry(0.026, 0.016, 0.034), new THREE.MeshBasicMaterial({ color: 0xffffff }), cellAt.length);
+  cells.frustumCulled = false;
+  cells.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  cells.setColorAt(0, new THREE.Color(1, 1, 1));
+  root.add(cells);
+  // No magazine: a hidden stand-in keeps the shared reload code happy (charges never reload).
+  const mag = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, 0.01), new THREE.MeshBasicMaterial());
+  mag.visible = false;
+  root.add(mag);
+  const rifleFore = new THREE.Vector3(0, -0.04, -0.42);
+  return {
+    root,
+    mag,
+    grip: new THREE.Vector3(0, -0.04, 0.03),
+    fore: rifleFore.clone(),
+    muzzle: new THREE.Vector3(0, 0.035, -0.98),
+    eject: new THREE.Vector3(0.05, 0.06, -0.05),
+    magSeat: new THREE.Vector3(0, -0.06, -0.1),
+    lever: new THREE.Vector3(0.06, 0.05, 0.03),
+    loaded: null,
+    magHiddenAtRest: true,
+    loadPort: new THREE.Vector3(0, 0.06, -0.1),
+    pump: null,
+    pumpTravel: 0,
+    hammer: bolt,
+    hammerCocked: 0.9,
+    hammerGrip: new THREE.Vector3(0.02, 0.063, 0.05),
+    sword: {
+      // The sweep starts at the grip: at point blank the receiver and hilt still strike.
+      bladeBase: new THREE.Vector3(0, -0.035, 0.02),
+      bladeTip: new THREE.Vector3(0, -0.035, -1.12),
+      rifleFore,
+      swordFore: new THREE.Vector3(0, -0.1, 0.16),
+      stock,
+      stockFolded: 2.6,
+      cells,
+      cellAt,
+      steel,
+    },
+  };
+}
+
 export function buildModel(id: string): WeaponModel {
   if (id === 'pistol') return buildPistol();
+  if (id === 'swordRifle') return buildSwordRifle();
   if (id === 'spitter') return buildSpitter();
   if (id === 'stapler') return buildStapler();
   return buildRepeater();

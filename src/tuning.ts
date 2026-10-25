@@ -3,7 +3,7 @@
 // V2-1 converted v1's beetle-unit numbers to metres (× V1_TO_METRES = 1.6) instead of re-tuning them; the user's
 // first v2 tuning pass then set walk/sprint, roll, camera, cloth, look and outline values by playing (PLAYTEST.md).
 // `enemies` is still v1 content in v1 units until V2-4 replaces it.
-import { AUTO_PISTOL } from './weapons/defs';
+import { AUTO_PISTOL, SWORD_MELEE, SWORD_RIFLE } from './weapons/defs';
 
 export const tuning = {
   player: {
@@ -139,6 +139,8 @@ export const tuning = {
     killMarkerTime: 0.42,
     crosshairBaseGap: 4,
     fireBuffer: 0.15,
+    /** A roll press is remembered this long (real time), so it survives hitstop and the end of a committed swing. */
+    rollBuffer: 0.15,
   },
   reload: {
     weaponTiltDeg: 28,
@@ -241,6 +243,8 @@ export const tuning = {
     poiseRegenDelay: 1,
     poiseRegen: 30,
     staggerTime: 0.9,
+    /** Guard dummies block blows arriving within this cone of their front (degrees). */
+    guardConeDeg: 120,
   },
   audio: {
     master: 0.7,
@@ -270,6 +274,17 @@ export const tuning = {
   },
   weapons: {
     pistol: AUTO_PISTOL,
+    swordRifle: SWORD_RIFLE,
+  },
+  /** The SwordRifle's sword mode (swings, combo, charged strike, charge economy). */
+  melee: SWORD_MELEE,
+  swordRifle: {
+    /** Committed rifle ⇄ sword transform, seconds (× the repair stage's switchMul). */
+    switchTime: 0.5,
+    /** 0 = rusted (the start) … 4 = fully restored. See REPAIR_STAGES in src/weapons/defs.ts. */
+    repairStage: 0,
+    /** Charge cell flare when a hit refills a charge, seconds. */
+    cellFlareTime: 0.35,
   },
 };
 

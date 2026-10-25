@@ -162,6 +162,10 @@ try {
     await enemiesScenario({ page, g, hold, release, press, look, wait, shot });
   }
 
+  if (process.argv.includes('--sword')) {
+    const { swordScenario } = await import('./smoke-v2.mjs');
+    await swordScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });
