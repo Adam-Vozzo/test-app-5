@@ -4,6 +4,36 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-12: the Tower's enemies, court and the Crowned Tower
+The Tower is complete: its own enemies feed its rule (fire on the timber), the Wands court fights on burning decks,
+and the Crowned Tower's top floor falls away under you. Beating it frees the **safe fall** and brings **the Star**
+to the hub.
+
+**Try:**
+- **Firebrands** lob fire: step out of the filling ring. Then watch where the fire goes.
+- **Fallers** wait unseen above. A magenta shadow grows where you stand: move.
+- **Builders** wall you off. Do the barricades make the Firebrands harder to reach, or just clutter?
+- **Page of Wands:** when it raises its staff, **stagger it** (or kill it) before the fire lights, or two Firebrands
+  come.
+- **Knight of Wands:** dodge the charge, then mind the burning lane it leaves.
+- **Queen of Wands:** fire zones, and her cat.
+- **King of Wands:** Firebrands and a burning floor at each phase.
+- **The Crowned Tower:** at two thirds and one third the outer floor pulses and falls. Get inward. Does fighting on a
+  last platform under open sky feel like the card?
+- **After it falls:** fall off something. You land on your feet, and nearby enemies reel. Then visit the Star at
+  her pool (south-west of the spawn).
+
+**Unsure about:**
+- **Fire everywhere:** five sources of fire on one floor may be too much. Fire is the rule, but it could become
+  noise. The numbers are in `tuning.foes.*.ignite`.
+- **The Page's signal** is a 2.6 s channel that a stagger stops for good. Is that clear enough without a hint?
+- **The Faller's landing** hits the spot you stood on when it dropped. Standing still is the mistake, which is the
+  card's lesson. Its shadow gives 1.3 s.
+- **The safe fall** (Proposed) is passive. It's meant as the Tower's gift ("nothing stays standing; you do"), but
+  there's no new verb. A plunge attack would be one, but there's no jump to build it on.
+- **The Star's menu** is a second hub shop. `CLAUDE.md` allows "the Magician's one upgrade menu", and `DESIGN.md`
+  gives the Star heal upgrades, so this stretches that. Fold her items into the Magician's table if you'd rather.
+
 ## V2-11: the Tower's climb (the space and the rule)
 After the Devil, the lion's gate opens on **the Tower**: three generated levels that climb about 18 m each, fought on
 **timber decks** over the drop. Its own enemies, court cards and boss are V2-12. Until then it borrows Bailiffs,

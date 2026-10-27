@@ -28,7 +28,9 @@ four thin ones.
 > (`court-pentacles.ts`), the Devil and his pact (`devil-boss.ts`, his arena via `boss.ts`), coin on the floor
 > (`src/world/coins.ts`) and his unbinding, the dash (X). **V2-11** adds the Tower's climbing levels behind the
 > lion's gate (`TOWER_DIMENSION`, `TOWER` palette) and its rule, collapse: timber decks (`src/world/scaffold.ts`
-> pure, `decks.ts` runtime), lightning, fire and falls (`Game.collapse`). Its own enemies come in V2-12. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> pure, `decks.ts` runtime), lightning, fire and falls (`Game.collapse`). **V2-12** adds its own
+> (`src/enemies/tower-foes.ts`: Firebrand, Faller, Builder, Page of Wands, the cat), the Wands court and the Crowned
+> Tower (`court-wands.ts`, its top-floor arena via `boss.ts`), the safe fall, and the Star in the hub. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -130,7 +132,9 @@ src/
                    Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
                    boss (justice.ts: JusticeBoss extends CourtCard); the Devil's archetypes and the Thrall pair
                    (devil.ts), the Pentacles court
-                   (court-pentacles.ts) and the Devil (devil-boss.ts: DevilBoss extends CourtCard). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
+                   (court-pentacles.ts) and the Devil (devil-boss.ts: DevilBoss extends CourtCard); the Tower's
+                   commons (tower-foes.ts: TowerFoe, Faller), the Wands court and the Crowned Tower
+                   (court-wands.ts). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
                    manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;

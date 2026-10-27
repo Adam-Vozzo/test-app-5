@@ -381,7 +381,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - a rest restores the decks
     - three levels, then home
 
-### V2-12: Wands enemies, court cards and the Crowned Tower
+### V2-12: Wands enemies, court cards and the Crowned Tower ✅ (waiting on your playtest)
 - **Enemies:**
   - *Firebrand* (ignites ground)
   - *Fallers* (signature: drop from above, shown by a growing magenta shadow)
@@ -391,6 +391,36 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
 - **Boss:** the Crowned Tower. Each phase removes ground, ending on one platform under open sky.
 - **Unbinding:** ⚑ a safe fall or plunge.
 - **Hub:** the Star arrives (heal-flask upgrades).
+- **Done as:**
+  - `src/enemies/tower-foes.ts`:
+    - the four commons and the cat as data
+    - `TowerFoe`: the Builder's barricade (kind `barricade`; a runtime collider and mesh with a lifetime) and the
+      Page of Wands' signal (kind `signal`: a channel started on waking, stopped by a stagger, summons on success)
+    - `Faller`: perched, a falling shadow, a landing
+  - Shared attack data: `ignite` (ground strikes, lobs, verdicts and a charge's trail set timber alight through
+    `EnemyWorld.ignite`) and `lob` (a lobbed pot with a filling ring).
+  - The Page of Swords' whistle is now its own flag (`herald`), not "any ranged enemy".
+  - `src/enemies/court-wands.ts`:
+    - the Wands court as data on `CourtCard`
+    - new plan fields: `squadId` for any rank (the Queen's cat) and `phaseBurn` (the King's burning floor)
+    - `CrownedTower`, whose phases call the arena
+  - `boss.ts` kind `tower`:
+    - a deck grid with `holes` (`ScaffoldGrid` and `Decks` support holes)
+    - `crackWhere` drops a ring with warning; `nearestStanding` is used for falls in the arena
+    - the floor holds again when the boss falls
+  - The safe fall: `UNBINDINGS.tower = 'fall'`; `tuning.tower.landingRadius`.
+  - The Star:
+    - in the hub once the Tower is cleared; `STAR_SHOP` in the same overlay (now titled per keeper)
+    - `healMul` in the save effects and vitals
+  - The Priestess's `tower` lines; the eagle wakes.
+  - Tests: `tests/tower-court.test.ts`.
+  - Smoke: `towerFoesScenario` under `--tower`:
+    - the pot lights decks; the Faller hides, drops and lands; the Builder walls
+    - the Page's signal calls Firebrands, and a stagger stops it
+    - the Knight's trail burns; the Queen's cat; the King's Firebrands and burning floor
+    - the Crowned Tower's two rings and the last platform; the floor holds when it falls
+    - home: the safe fall freed, the Star present, the eagle awake; the Star's menu sells a flask
+    - a fall costs nothing once unbound
 
 ### V2-13: The Moon's marsh (space and the illusion rule)
 - **The generator meanders between pools,** with deliberate near-duplicate rooms and two towers on the path.

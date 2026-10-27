@@ -290,6 +290,12 @@ arena is the pit at the foot of his pedestal: the columns are **chained to each 
 the throne-pedestal (the landmark), with its brazier, rises just beyond. Nothing in the arena changes with his phase:
 his change is the pact, and the coin his rain leaves on the floor.
 
+**As built for the Crowned Tower (V2-12, `kind: 'tower'`):** the approach climbs to the Tower's **top floor**, an
+octagon of timber decks (a 3 m grid laid over it, with holes outside the octagon) on a few stilts, under a storm
+ring with lightning in its eye. There are no columns: it's open sky. At each phase the decks beyond a radius (18 m,
+then 9 m) pulse magenta and fall, down to a last platform. When the boss falls the floor holds again, so the way on
+can be walked.
+
 ## Budgets
 | Budget | Target |
 |---|---|

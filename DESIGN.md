@@ -252,7 +252,34 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     ring over it.
   - **The lion's gate** opens once the Devil is cleared.
   - **Placeholders:** the rooms hold Swords and Pentacles archetypes and the Swords court until V2-12, and level 3
-    leads home.
+    leads home. *(V2-12 replaced them.)*
+- **As built in V2-12 (Proposed until played): enemies, court, boss, unbinding.**
+  - **Commons:**
+    - **Firebrand:** holds 11 m off and **lobs fire**. The landing ring fills as the pot flies, and the timber there
+      catches.
+    - **Faller** (signature): perched unseen in the storm. Come within 8 m and it **drops where you stand**: its
+      magenta shadow grows for 1.3 s, it lands hard (the ring hurts), then fights.
+    - **Builder:** hammers up a **barricade** (3 m of timber that stands 9 s) between you, cover for the Firebrands.
+    - **Page of Wands** (elite): seeing you, it raises its staff and **lights a signal fire**, a 2.6 s channel. Lit,
+      it calls two Firebrands. **Stagger it during the channel and the fire never lights.** Afterwards it lobs fire.
+  - **Court (all on timber: the Tower's throne rooms are decks):**
+    - **Knight of Wands:** the lane charge **leaves the decks burning** where it ran.
+    - **Queen of Wands:** **fire zones** (one, then three) that flare and set the timber alight. Her **black cat**
+      comes at each phase (66%, 33%).
+    - **King of Wands:** calls **two Firebrands** at each phase, and each phase **burns the floor away** around him
+      (six fires). Up close: a slam that ignites, and a sweep.
+  - **The Crowned Tower (boss, 7 m):** a stone colossus coursed like masonry, its crown broken open and burning.
+    - **Attacks:** smashes (an igniting ground ring), lightning (one, then three), hurled burning masonry (three lobs)
+      and a sweep.
+    - **The arena is the Tower's top floor, all timber** under a storm. At 66% the outer ring of decks pulses and
+      falls (1.6 s warning plus the crack). At 33% it falls again, down to a **last platform** about 9 m across.
+      Falling puts you on the nearest deck still standing.
+    - **When it falls,** the storm passes and the floor holds again.
+  - **Its unbinding: the safe fall** (Proposed). Once the Tower has fallen, a fall into the drop costs nothing, and
+    the landing knocks back anyone within 4.5 m.
+  - **The hub:** the eagle wakes (its road comes with the Moon), and **the Star** arrives. She kneels at a pool
+    south-west of the spawn, with her own short menu: *A third jug* (+1 flask, 450) and *Pour freely* (heals 30%
+    stronger, 500). The Priestess has four new lines.
 
 ### 4. The Moon × Cups: "Not everything is real"
 - **The card:** a path from a pool between two towers, a dog and a wolf howling, a crayfish crawling out of the water.
@@ -330,7 +357,7 @@ level's exit until it falls.
   Justice's move is decided (a parry). The other three are still Proposed. Candidates:
   - Justice frees a **parry** (answer in kind). **Decided.**
   - The Devil frees a **chain-break dash**. *(Built in V2-10 on X, Proposed until confirmed.)*
-  - The Tower frees a **safe fall or plunge**.
+  - The Tower frees a **safe fall or plunge**. *(Built in V2-12 as the safe fall, Proposed until confirmed.)*
   - The Moon frees the **blindfold**, which is the ending.
 - **Proposed look:** a stocky hooded figure in a rust-red robe (the card's red, desaturated so it never reads as
   kill-red). The off-white blindfold is pushed up onto her forehead, carrying cloth tails that trail behind her.
@@ -407,7 +434,7 @@ Depth over breadth: two weapons for the whole game, made deeper through upgrades
 |---|---|---|
 | **The Magician (I)** | Shopkeeper: upgrades and SwordRifle repair (the user's idea) | His table holds a cup, a pentacle, a sword and a wand: one tool of each suit, exactly our four dimensions. Each suit relic goes on his table. |
 | **The High Priestess (II)** | Keeper of the gates, lore, hints for the next dimension | She sits before a veil between two pillars, and the veil is the way through. |
-| **The Star (XVII)** | Heal-flask upgrades (the Star pours water) | **Arrives after the Tower** (she follows it in the deck: hope after collapse). Early heal upgrades come from the Magician. |
+| **The Star (XVII)** | Heal-flask upgrades (the Star pours water) | **Arrives after the Tower** (she follows it in the deck: hope after collapse). Early heal upgrades come from the Magician. *Built in V2-12: her pool in the hub, two items.* |
 | **The Fool (0)** | Wanders the hub and comments; the one who set her on the road | Optional. Cut first if dialogue cost bites. |
 | **The Hermit (IX)** | Not a hub NPC: his **lantern is the checkpoint** in every level | Same item in every level, so no extra cost. |
 
@@ -467,7 +494,7 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 ## Open questions
 
 1. **The other unbinding moves.** The Devil's is built as the chain-break dash (V2-10, Proposed until you confirm it).
-   The Tower's (a safe fall or plunge) and the Moon's (the blindfold) are still open.
+   The Tower's is built as the safe fall (V2-12, Proposed). The Moon's (the blindfold) is still open.
 2. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
 3. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
 4. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?

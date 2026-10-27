@@ -74,6 +74,8 @@ export interface EnemyWorld {
   bindPlayer?(time: number, damage: number, knockback: number, from: THREE.Vector3, source: Hostile | null): boolean;
   /** The King of Pentacles' coin rain leaves coin on the floor: tempting, and heavy (each pile is a weight). */
   dropCoins?(at: THREE.Vector3, piles: number): void;
+  /** The Tower: set the timber decks within `radius` of `at` alight. */
+  ignite?(at: THREE.Vector3, radius: number): void;
   /** The Devil offers his pact (double damage dealt and taken); `pact` says what the player chose. */
   offerPact?(): void;
   readonly pact?: 'none' | 'offered' | 'accepted' | 'refused';

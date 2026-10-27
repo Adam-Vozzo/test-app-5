@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buy, canBuy, clearDimension, effects, gainRelic, gateOpen, newSave, nextLine, parseSave, type SaveData } from '../src/core/save';
-import { DIMENSION_ORDER, PRIESTESS_LINES, SHOP, UNBINDINGS } from '../src/world/hub-data';
+import { DIMENSION_ORDER, PRIESTESS_LINES, SHOP, STAR_SHOP, UNBINDINGS } from '../src/world/hub-data';
 import { ParryState } from '../src/weapons/parry';
 
 const item = (id: string) => SHOP.find((i) => i.id === id)!;
@@ -37,8 +37,15 @@ describe('save', () => {
 
   it('folds upgrades into the numbers the game applies', () => {
     const s = { ...newSave(1), upgrades: ['pistolDamage', 'pistolMag', 'flask'], repairStage: 1 };
-    expect(effects(s, SHOP)).toEqual({ pistolDamageMul: 1.15, pistolMagBonus: 8, healBonus: 1, repairStage: 1 });
-    expect(effects(newSave(1), SHOP)).toEqual({ pistolDamageMul: 1, pistolMagBonus: 0, healBonus: 0, repairStage: 0 });
+    expect(effects(s, SHOP)).toEqual({ pistolDamageMul: 1.15, pistolMagBonus: 8, healBonus: 1, healMul: 1, repairStage: 1 });
+    expect(effects(newSave(1), SHOP)).toEqual({ pistolDamageMul: 1, pistolMagBonus: 0, healBonus: 0, healMul: 1, repairStage: 0 });
+  });
+
+  it("the Star's pool (after the Tower) adds a flask and a stronger pour", () => {
+    const s = { ...newSave(1), upgrades: ['flask', 'starFlask', 'starPour'] };
+    const e = effects(s, [...SHOP, ...STAR_SHOP]);
+    expect(e.healBonus).toBe(2);
+    expect(e.healMul).toBeCloseTo(1.3, 6);
   });
 
   it("clearing Justice frees the parry, restarts her road, and wakes the next gate", () => {

@@ -14,6 +14,8 @@ export class Vitals {
   healCharges = tuning.vitals.healCharges;
   /** Extra flasks bought from the Magician. */
   bonusCharges = 0;
+  /** Heals restore this much more (the Star's pour). */
+  healMul = 1;
   /** Carried currency (pentacles in v2 scenes, pollen in the v1 ones). */
   currency = 0;
   healing = false;
@@ -78,7 +80,7 @@ export class Vitals {
       this.healT += dt / Math.max(0.05, v.healTime);
       if (!this.healApplied && this.healT >= v.healApplyAt) {
         this.healApplied = true;
-        this.health = Math.min(this.maxHealth, this.health + v.healAmount);
+        this.health = Math.min(this.maxHealth, this.health + v.healAmount * this.healMul);
         event = 'healed';
       }
       if (this.healT >= 1) this.healing = false;

@@ -25,6 +25,8 @@ export interface UpgradeEffect {
   pistolDamageMul?: number;
   pistolMagBonus?: number;
   healBonus?: number;
+  /** Heals restore this much more (the Star's pour). */
+  healMul?: number;
   repairStage?: number;
 }
 
@@ -94,13 +96,14 @@ export function buy(s: SaveData, item: ShopItem): SaveData {
 
 /** Everything bought, folded into the numbers the game applies (upgrades are data applied to defs). */
 export function effects(s: SaveData, shop: readonly ShopItem[]) {
-  const out = { pistolDamageMul: 1, pistolMagBonus: 0, healBonus: 0, repairStage: s.repairStage };
+  const out = { pistolDamageMul: 1, pistolMagBonus: 0, healBonus: 0, healMul: 1, repairStage: s.repairStage };
   for (const id of s.upgrades) {
     const e = shop.find((i) => i.id === id)?.effect;
     if (!e) continue;
     out.pistolDamageMul *= e.pistolDamageMul ?? 1;
     out.pistolMagBonus += e.pistolMagBonus ?? 0;
     out.healBonus += e.healBonus ?? 0;
+    out.healMul *= e.healMul ?? 1;
   }
   return out;
 }

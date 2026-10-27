@@ -57,6 +57,8 @@ interface Glob {
   radius: number;
   damage: number;
   knockback: number;
+  /** Sets the timber alight where it lands (a Firebrand's pot). */
+  ignite: number;
   marker: THREE.Group;
   mesh: THREE.Mesh;
 }
@@ -66,6 +68,7 @@ export interface GlobImpact {
   radius: number;
   damage: number;
   knockback: number;
+  ignite: number;
 }
 
 const ringGeo = new THREE.RingGeometry(0.88, 1, 32).rotateX(-Math.PI / 2);
@@ -226,17 +229,17 @@ export class Hazards {
   }
 
   /** Lob a glob that lands on `target` after `T` seconds. */
-  lob(from: THREE.Vector3, target: THREE.Vector3, T: number, gravity: number, radius: number, damage: number, knockback: number) {
+  lob(from: THREE.Vector3, target: THREE.Vector3, T: number, gravity: number, radius: number, damage: number, knockback: number, ignite = 0) {
     const slot = this.pool.pop() ?? this.makeSlot();
     // Ballistic: v = (Δ - ½gT²)/T
     const vel = new THREE.Vector3().subVectors(target, from).divideScalar(T);
     vel.y += 0.5 * gravity * T;
-    slot.marker.position.copy(target).setY(target.y + 0.03);
+    slot.marker.position.copy(target).setY(target.y + 0.12);
     slot.marker.scale.setScalar(radius);
     slot.marker.visible = true;
     slot.mesh.visible = true;
     slot.mesh.position.copy(from);
-    this.globs.push({ pos: from.clone(), vel, target: target.clone(), t: 0, T, gravity, radius, damage, knockback, ...slot });
+    this.globs.push({ pos: from.clone(), vel, target: target.clone(), t: 0, T, gravity, radius, damage, knockback, ignite, ...slot });
   }
 
   private makeSlot() {
@@ -296,7 +299,7 @@ export class Hazards {
       fill.scale.setScalar(Math.max(0.02, k));
       (g.marker.children[0] as THREE.Mesh).scale.setScalar(pulse * 0.08 + 0.95);
       if (g.t >= g.T) {
-        out.push({ at: g.target, radius: g.radius, damage: g.damage, knockback: g.knockback });
+        out.push({ at: g.target, radius: g.radius, damage: g.damage, knockback: g.knockback, ignite: g.ignite });
         g.marker.visible = false;
         g.mesh.visible = false;
         this.pool.push({ marker: g.marker, mesh: g.mesh });

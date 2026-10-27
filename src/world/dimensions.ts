@@ -347,8 +347,8 @@ export const DEVIL_DIMENSION: DimensionDef = {
 /**
  * The Tower × Wands (DESIGN.md → The Tower; V2-11): a burning scaffold-city climbing toward the struck tower. Always
  * going up: each room a step higher. The fights happen on timber decks over the drop (the rule: collapse); the
- * lanterns, the gates and the throne room stand on stone. Its own enemies come in V2-12: until then its rooms are
- * held by the Swords and Pentacles archetypes, and the throne rooms by Swords court cards.
+ * lanterns, the gates and the passes stand on stone. Its own (V2-12) hold the rooms: Firebrands, Builders, Fallers
+ * and the Page of Wands, and the Wands court the throne rooms.
  */
 export const TOWER_DIMENSION: DimensionDef = {
   id: 'tower',
@@ -360,34 +360,37 @@ export const TOWER_DIMENSION: DimensionDef = {
       beat: 'introduce',
       miniboss: 'knight',
       minibossName: 'Knight of Wands',
+      court: 'knightWands',
       combats: [2, 2],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff'], guard: ['miser'], ranged: ['imp'], patrol: ['imp'], signature: ['gavel'] },
+      roster: { grunt: ['builder'], guard: ['builder'], ranged: ['firebrand'], patrol: ['firebrand'], signature: ['faller'] },
     },
     {
       beat: 'develop',
       miniboss: 'queen',
       minibossName: 'Queen of Wands',
+      court: 'queenWands',
       combats: [2, 3],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff', 'imp'], guard: ['miser'], ranged: ['page'], patrol: ['imp'], signature: ['gavel'] },
+      roster: { grunt: ['firebrand', 'builder'], guard: ['builder'], ranged: ['pageWands', 'firebrand'], patrol: ['firebrand'], signature: ['faller'] },
     },
     {
       beat: 'twist',
       miniboss: 'king',
       minibossName: 'King of Wands',
+      court: 'kingWands',
       combats: [3, 3],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
       allowAdjacentCombats: true,
-      roster: { grunt: ['bailiff', 'imp', 'gavel'], guard: ['miser', 'gavel'], ranged: ['page'], patrol: ['imp', 'bailiff'], signature: ['gavel'] },
+      roster: { grunt: ['firebrand', 'builder', 'faller'], guard: ['builder'], ranged: ['pageWands', 'firebrand'], patrol: ['firebrand', 'builder'], signature: ['faller'] },
     },
   ],
   setPieces: [
@@ -407,7 +410,8 @@ export const TOWER_DIMENSION: DimensionDef = {
     stair: { w: [12, 14], d: [12, 16], edge: 'parapet', turns: true, floor: 2.4, ground: 'flag' },
     shrine: { w: [14, 16], d: [14, 16], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', columnHeight: 5 },
     gatehouse: { w: [18, 22], d: [18, 22], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [1, 2] },
-    throne: { w: [32, 38], d: [32, 38], edge: 'colonnade', turns: false, floor: 0, ground: 'flag', cover: [2, 2], columnHeight: 7 },
+    // The throne room is timber too: the court fights burn.
+    throne: { w: [32, 38], d: [32, 38], edge: 'colonnade', turns: false, floor: 0, ground: 'flag', cover: [2, 2], columnHeight: 7, scaffold: true },
     threshold: { w: [12, 14], d: [12, 14], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
     cache: { w: [10, 12], d: [10, 12], edge: 'parapet', turns: false, floor: 0, ground: 'flag', swords: 3 },
     burningLibrary: { w: [30, 34], d: [28, 32], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [4, 5], scaffold: true, swords: 10 },
@@ -435,7 +439,8 @@ export const TOWER_DIMENSION: DimensionDef = {
   heroProps: [2, 4],
   seat: { name: 'the crown', way: 'up toward the Tower' },
   props: { strewn: 'rubble', hero: 'pillar' },
-  rangedFoes: ['page'],
+  // Firebrands and the Page of Wands lob fire from range (held to the fair-distance rule).
+  rangedFoes: ['firebrand', 'pageWands'],
   collapse: { tile: 3, rotten: [0.1, 0.16, 0.24] },
 };
 

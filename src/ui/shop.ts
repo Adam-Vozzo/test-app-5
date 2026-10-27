@@ -30,8 +30,10 @@ export class Shop {
     });
   }
 
-  show(save: SaveData, items: readonly ShopItem[], line: string) {
+  /** Open for whoever keeps it: the Magician's table, or (after the Tower) the Star's pool. */
+  show(save: SaveData, items: readonly ShopItem[], line: string, keeper = 'The Magician') {
     this.open = true;
+    this.el.querySelector('h1')!.textContent = keeper;
     this.line.textContent = line;
     this.render(save, items);
     this.el.classList.remove('hidden');

@@ -11,13 +11,15 @@ import { PLANS, type FoePlan } from './foes';
 import { DEVIL_PLANS, spawnThrallPair } from './devil';
 import { DevilBoss } from './devil-boss';
 import { PENTACLES_PLANS } from './court-pentacles';
+import { CrownedTower, WANDS_PLANS } from './court-wands';
+import { Faller, TOWER_PLANS, TowerFoe } from './tower-foes';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
 
 /** Every common archetype by id: Justice's and the Devil's (data plans read by the one Foe state machine). */
 const ARCHETYPES: Record<string, FoePlan> = { ...PLANS, ...DEVIL_PLANS };
 /** Every court card by id: the Swords court (by rank) and the Pentacles court. */
-const COURTS: Record<string, FoePlan> = { ...COURT_PLANS, ...PENTACLES_PLANS };
+const COURTS: Record<string, FoePlan> = { ...COURT_PLANS, ...PENTACLES_PLANS, ...WANDS_PLANS };
 
 export interface SpawnSpec {
   kind: EnemyKind;
@@ -63,9 +65,15 @@ export class EnemyManager {
                 ? new JusticeBoss(JUSTICE_PLAN, this.scene, physics, s.pos, s.yaw, r)
                 : s.id === 'devil'
                   ? new DevilBoss(this.scene, physics, s.pos, s.yaw, r)
-                  : COURTS[s.id]
-                    ? new CourtCard(COURTS[s.id], this.scene, physics, s.pos, s.yaw, r)
-                    : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
+                  : s.id === 'crownedTower'
+                    ? new CrownedTower(this.scene, physics, s.pos, s.yaw, r)
+                    : COURTS[s.id]
+                      ? new CourtCard(COURTS[s.id], this.scene, physics, s.pos, s.yaw, r)
+                      : s.id === 'faller'
+                        ? new Faller(this.scene, physics, s.pos, s.yaw, s.idle, r)
+                        : TOWER_PLANS[s.id as keyof typeof TOWER_PLANS]
+                          ? new TowerFoe(TOWER_PLANS[s.id as keyof typeof TOWER_PLANS], this.scene, physics, s.pos, s.yaw, s.idle, r)
+                          : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
             ];
       for (const e of made) {
         e.onKilled = (x) => this.onKilled(x);
@@ -120,6 +128,7 @@ export class EnemyManager {
       const dz = w.playerPos.z - hit.at.z;
       const dy = Math.abs(w.playerPos.y - hit.at.y);
       if (Math.hypot(dx, dz) <= hit.radius && dy < 1.6) w.hurtPlayer(hit.damage, hit.at, hit.knockback);
+      if (hit.ignite > 0) w.ignite?.(hit.at, hit.ignite);
     }
   }
 

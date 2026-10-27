@@ -28,9 +28,12 @@ export class ScaffoldGrid {
     readonly rows: number,
     /** Indices of the rotten decks (the tell: darker, gapped planks). */
     readonly rotten: readonly number[],
+    /** Cells with no deck at all (a grid laid over a round floor). */
+    readonly holes: readonly number[] = [],
   ) {
     this.state = new Array(cols * rows).fill('sound');
     this.t = new Array(cols * rows).fill(0);
+    for (const i of holes) this.state[i] = 'gone';
   }
 
   index(c: number, r: number) {
@@ -46,6 +49,17 @@ export class ScaffoldGrid {
     if (i < 0 || this.state[i] !== 'sound' || !this.isRotten(i)) return null;
     this.state[i] = 'cracking';
     this.t[i] = 0;
+    return { i, kind: 'crack' };
+  }
+
+  /**
+   * Crack deck `i` whatever it's made of (the Crowned Tower's floor giving way): it falls after `crackTime` plus
+   * `warn` seconds of extra warning.
+   */
+  crack(i: number, warn = 0): DeckEvent | null {
+    if (i < 0 || this.state[i] === 'gone' || this.state[i] === 'cracking') return null;
+    this.state[i] = 'cracking';
+    this.t[i] = -warn;
     return { i, kind: 'crack' };
   }
 
@@ -89,10 +103,11 @@ export class ScaffoldGrid {
     return out;
   }
 
-  /** Everything stands again (a rest). */
+  /** Everything stands again (a rest); holes stay holes. */
   reset() {
     this.state.fill('sound');
     this.t.fill(0);
+    for (const i of this.holes) this.state[i] = 'gone';
   }
 }
 

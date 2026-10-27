@@ -33,6 +33,9 @@ export interface HubHooks {
   gateLabel(dim: string): string;
   /** Is there a road to walk beyond this gate (its dimension built)? */
   built(dim: string): boolean;
+  /** Has the Star come (after the Tower)? And her menu (heal upgrades). */
+  starHere(): boolean;
+  star(): void;
 }
 
 export interface HubWorld extends BuiltWorld {
@@ -214,6 +217,36 @@ export function buildHub(physics: Physics, rng: Rng, hooks: HubHooks): HubWorld 
     usable: () => true,
     use: () => hooks.priestess(),
   });
+
+  // ---- the Star (south-west), once the Tower has fallen: kneeling at a pool, pouring from two jugs (hope after
+  // collapse). She keeps the heal upgrades.
+  if (hooks.starHere()) {
+    const sx = -8;
+    const sz = 10;
+    flat.push(place(facet(new THREE.CircleGeometry(2.4, 10).rotateX(-Math.PI / 2), 0x6f8fa6, 0.04), sx, 0.03, sz));
+    const star = merge([
+      // Kneeling: a low robe, the body leaning to the pool.
+      facet(new THREE.CylinderGeometry(0.3, 0.55, 0.8, 6).translate(0, 0.4, 0), 0xd8d6dc),
+      place(facet(new THREE.CylinderGeometry(0.16, 0.24, 0.6, 6).translate(0, 0.3, 0), 0xd8d6dc), 0, 0.75, 0, 0.3, 0, 0),
+      place(facet(new THREE.IcosahedronGeometry(0.15, 1), 0xd8d6dc), 0, 1.5, -0.15),
+      // Her two jugs, tipped.
+      ...[-1, 1].map((s) => place(facet(new THREE.CylinderGeometry(0.1, 0.13, 0.28, 6), 0x9a7e66), s * 0.42, 0.95, -0.3, 0.9, 0, s * 0.3)),
+      // The great star over her: eight points.
+      ...[0, 1, 2, 3].map((i) => place(block(0.08, 0.9, 0.08, S.light), 0, 2.6, 0, 0, 0, (i * Math.PI) / 4)),
+    ]);
+    solid.push(place(star, sx, 0, sz - 1.6, 0, Math.PI * 0.85, 0, ARCANA));
+    staticBox(sx, 1.2, sz - 1.6, 0.9, 1.2, 0.9);
+    interactables.push({
+      pos: new THREE.Vector3(sx + 1.6, 0, sz),
+      radius: 3,
+      prompt: () => 'E: the Star',
+      usable: () => true,
+      use: () => {
+        hooks.star();
+        return null;
+      },
+    });
+  }
 
   // ---- the Hermit's lantern by the spawn
   const lantern = new THREE.Vector3(3, 0, 12);

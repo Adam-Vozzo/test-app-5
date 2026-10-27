@@ -51,9 +51,9 @@ export class Decks {
       const mesh = new THREE.InstancedMesh(paint(plank, 0xffffff), this.mat, s.cols * s.rows);
       mesh.receiveShadow = true;
       mesh.castShadow = true;
-      const grid = new ScaffoldGrid(s.cols, s.rows, s.rotten);
+      const grid = new ScaffoldGrid(s.cols, s.rows, s.rotten, s.holes ?? []);
       const room: Room = { s, grid, mesh, cols: [] };
-      for (let i = 0; i < s.cols * s.rows; i++) room.cols.push(this.addCollider(s, i));
+      for (let i = 0; i < s.cols * s.rows; i++) room.cols.push(grid.state[i] === 'gone' ? null : this.addCollider(s, i));
       this.rooms.push(room);
       this.group.add(mesh);
       this.paint(room);
@@ -86,7 +86,7 @@ export class Decks {
       _m.compose(_p, _q.identity(), _s);
       mesh.setMatrixAt(i, _m);
       if (st === 'cracking') {
-        const k = grid.t[i] / Math.max(0.05, tuning.tower.crackTime);
+        const k = Math.max(0, grid.t[i]) / Math.max(0.05, tuning.tower.crackTime);
         _c.copy(this.rot).lerp(_tele, 0.45 + 0.55 * Math.abs(Math.sin(this.time * (10 + 30 * k))));
       } else if (st === 'burning') _c.copy(this.fire).lerp(this.fireHot, 0.5 + 0.5 * Math.sin(this.time * 17 + i));
       else _c.copy(rotten ? this.rot : this.sound).multiplyScalar(0.94 + ((i * 37) % 11) / 100);
@@ -133,6 +133,19 @@ export class Decks {
     return n;
   }
 
+  /** Crack every standing deck whose centre lies where `pick` says (a ring of the top floor giving way). */
+  crackWhere(pick: (x: number, z: number) => boolean, warn = 0): number {
+    let n = 0;
+    for (const room of this.rooms) {
+      for (let i = 0; i < room.s.cols * room.s.rows; i++) {
+        this.centre(room.s, i, _p);
+        if (pick(_p.x, _p.z) && room.grid.crack(i, warn)) n++;
+      }
+      this.paint(room);
+    }
+    return n;
+  }
+
   /** Advance fire and cracks; fallen decks lose their colliders. Returns what happened (for sounds). */
   update(dt: number, rng: Rng): DeckEvent[] {
     this.time += dt;
@@ -154,19 +167,39 @@ export class Decks {
     return out;
   }
 
-  /** Counts for tests and the debug line. */
+  /** The centre of the standing (not cracking) deck nearest to `pos`, if any: where a fall in the arena puts her. */
+  nearestStanding(pos: THREE.Vector3): THREE.Vector3 | null {
+    let best: THREE.Vector3 | null = null;
+    let bestD = Infinity;
+    for (const room of this.rooms) {
+      for (let i = 0; i < room.s.cols * room.s.rows; i++) {
+        if (room.grid.state[i] !== 'sound') continue;
+        this.centre(room.s, i, _p);
+        const d = Math.hypot(_p.x - pos.x, _p.z - pos.z);
+        if (d < bestD) {
+          bestD = d;
+          best = (best ?? new THREE.Vector3()).set(_p.x, room.s.y, _p.z);
+        }
+      }
+    }
+    return best;
+  }
+
+  /** Counts for tests and the debug line (decks only: holes in a round floor aren't decks). */
   get counts() {
     let gone = 0;
     let burning = 0;
     let rotten = 0;
     let total = 0;
     for (const r of this.rooms) {
-      total += r.grid.state.length;
+      const holes = new Set(r.grid.holes);
       rotten += r.grid.rotten.length;
-      for (const s of r.grid.state) {
+      r.grid.state.forEach((s, i) => {
+        if (holes.has(i)) return;
+        total++;
         if (s === 'gone') gone++;
         else if (s === 'burning') burning++;
-      }
+      });
     }
     return { total, rotten, gone, burning };
   }
@@ -175,7 +208,7 @@ export class Decks {
   reset() {
     for (const room of this.rooms) {
       room.grid.reset();
-      for (let i = 0; i < room.cols.length; i++) if (!room.cols[i]) room.cols[i] = this.addCollider(room.s, i);
+      for (let i = 0; i < room.cols.length; i++) if (!room.cols[i] && room.grid.state[i] !== 'gone') room.cols[i] = this.addCollider(room.s, i);
       this.paint(room);
     }
   }

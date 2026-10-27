@@ -435,6 +435,8 @@ export interface Scaffold {
   tx: number;
   tz: number;
   rotten: number[];
+  /** Cells with no deck (a grid laid over a round floor). */
+  holes?: number[];
 }
 
 /** The deck cell under a world point, or [-1, -1]. */

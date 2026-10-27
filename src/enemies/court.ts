@@ -267,7 +267,14 @@ export class CourtCard extends Foe {
       this.roar = false;
       w.sound('courtHorn', this.center);
       w.shake(0.35, this.center);
-      if (this.rank === 'king') this.callSquad(w);
+      if (this.rank === 'king' || this.plan.squadId) this.callSquad(w);
+      // The King of Wands' phases burn the floor away: spots around him catch.
+      const burn = this.plan.phaseBurn ?? 0;
+      for (let i = 0; i < burn; i++) {
+        const a = (i / burn) * Math.PI * 2 + this.rng() * 0.6;
+        const r = 4 + this.rng() * 8;
+        w.ignite?.(_p.set(this.ground.x + Math.cos(a) * r, this.ground.y, this.ground.z + Math.sin(a) * r), 2.2);
+      }
       this.onPhase(w);
     }
     super.update(dt, w);
@@ -330,6 +337,8 @@ export class CourtCard extends Foe {
           w.sound('charge', this.center);
         }
         this.vel.set(fx, 0, fz).multiplyScalar(a.speed ?? 18);
+        // The Knight of Wands leaves fire where it runs.
+        if (a.ignite) w.ignite?.(this.ground, a.ignite);
         _v.subVectors(w.playerPos, this.ground);
         if (!this.dealt.has(tl.hit) && Math.hypot(_v.x, _v.z) < this.radius + 0.9 && Math.abs(_v.y) < 1.6) {
           this.dealt.add(tl.hit);
@@ -401,7 +410,16 @@ export class CourtCard extends Foe {
         }
         // A coin rain leaves coin where it falls: tempting, and heavy.
         const coins = a.coins ?? 0;
-        const opts = coins > 0 && w.dropCoins ? { onDone: (_caught: boolean, at: THREE.Vector3) => w.dropCoins!(at, coins) } : {};
+        const ignite = a.ignite ?? 0;
+        const opts =
+          (coins > 0 && w.dropCoins) || ignite > 0
+            ? {
+                onDone: (_caught: boolean, at: THREE.Vector3) => {
+                  if (coins > 0) w.dropCoins?.(at, coins);
+                  if (ignite > 0) w.ignite?.(at, ignite);
+                },
+              }
+            : {};
         for (const [x, z] of zones) {
           w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback, opts);
           const e = this.echo(x, z);

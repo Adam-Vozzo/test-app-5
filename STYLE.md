@@ -113,6 +113,17 @@ toward amber from the table's `#E07A3A`, which sat within 20° of kill red. Deck
 
 Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
 
+*The Tower's figures (V2-12, `TOWER_FOES`):* soot, char and wine-dark cloth, ≥ 4:1 against the storm fog.
+- **Firebrand:** hooded, carrying a torch with a dull ember-brown head (the accent's fire burns only on the decks and
+  the crown).
+- **Faller:** pale-grey robes flung up.
+- **Builder:** an aproned figure with a hammer.
+- **Page of Wands:** wine-dark, holding a staff in leaf.
+- **Black cat:** small and black.
+- **Wands court:** wears the suit as a **pale wand in leaf**.
+- **The Crowned Tower:** stone coursed like masonry, a dark window-slit heart, the crown's battlements knocked askew,
+  and fire (the motif) in the break.
+
 Rules:
 - **Accent colours must stay clear of the signal colours** (below) in hue and saturation. The Tower's fire orange and
   the Devil's gilt get the `tests/palette.test.ts` checks against telegraph magenta, crit gold and kill red.

@@ -30,7 +30,7 @@ export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
   /** Sound that announces the wind-up. */
-  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle';
+  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle' | 'whistle';
 }
 
 export interface FoePlan {
@@ -60,8 +60,13 @@ export interface FoePlan {
   dualWield?: boolean;
   /** Court cards of another suit: which rank verbs they use (defaults to the id: 'knight', 'queen', 'king'). */
   rank?: 'knight' | 'queen' | 'king';
-  /** The King's squad: who he calls at each phase (Swords: Bailiffs; Pentacles: hired Misers). */
+  /** The squad a court card calls at each phase (the Swords King: Bailiffs; Pentacles: hired Misers; the Queen of
+   * Wands: her black cat; the King of Wands: Firebrands). */
   squadId?: string;
+  /** Each phase sets this many spots of the floor around it alight (the King of Wands burns the floor away). */
+  phaseBurn?: number;
+  /** Whistles the room awake when it first sees you (the Page of Swords). */
+  herald?: boolean;
   /** Hit and run: after each attack it falls back for `retreatTime` before closing again (the Imp). */
   hitAndRun?: boolean;
   /** Runs from you instead of fighting, keeping `holdRange` away inside its leash; cuts only when cornered (the Page of Pentacles). */
@@ -297,6 +302,7 @@ export const PLANS: Record<'bailiff' | 'gavel' | 'blindfold' | 'page', FoePlan> 
     tune: () => tuning.foes.page as unknown as FoeTune,
     senses: 'sight',
     ranged: true,
+    herald: true,
     elite: true,
     shield: false,
     limb: FOES.limb,

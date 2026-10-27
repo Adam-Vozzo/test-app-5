@@ -410,8 +410,8 @@ export class Foe implements Damageable, Hostile {
   protected wake(w: EnemyWorld) {
     this.set('alert');
     w.sound(this.idle === 'ambush' ? 'ambushTell' : 'alert', this.center);
-    // The Page whistles the room awake.
-    if (this.plan.ranged && !this.alerted && this.sees) {
+    // The Page of Swords whistles the room awake.
+    if (this.plan.herald && !this.alerted && this.sees) {
       this.alerted = true;
       w.sound('whistle', this.center);
       w.alertNear(this.center, this.cfg.alertRadius ?? 30, w.playerPos, this);
@@ -523,7 +523,7 @@ export class Foe implements Damageable, Hostile {
     if (a.kind) return this.special(name, a, tl, prev, dt, w, toYaw);
     if (tl.phase === 'windup') {
       this.vel.multiplyScalar(Math.exp(-10 * dt));
-      if (a.radius) {
+      if (a.radius && !a.lob) {
         const [x, z] = slamCentre(this.ground.x, this.ground.z, this.yaw, a.reach ?? 2);
         w.hazards.ring(this, _v.set(x, this.ground.y, z), a.radius, tl.k);
       }
@@ -558,7 +558,14 @@ export class Foe implements Damageable, Hostile {
 
   /** The moment a swing, slam or throw lands. */
   protected strikeStart(a: AttackTune, w: EnemyWorld) {
-    if (a.radius) {
+    if (a.lob) {
+      // A lobbed pot (a Firebrand's fire): the landing ring fills as it flies; it lands where you were heading.
+      const target = _v2.copy(w.playerPos).addScaledVector(w.playerVel, a.lob * 0.5);
+      target.y = w.playerPos.y;
+      w.hazards.lob(_v.copy(this.rig.handR), target, a.lob, 18, a.radius ?? 1.8, a.damage, a.knockback, a.ignite ?? 0);
+      w.sound('lunge', this.center);
+      this.dealt.add(0);
+    } else if (a.radius) {
       const [x, z] = slamCentre(this.ground.x, this.ground.z, this.yaw, a.reach ?? 2);
       w.hazards.hideRing(this);
       const at = _v.set(x, this.ground.y, z);
@@ -567,6 +574,7 @@ export class Foe implements Damageable, Hostile {
       const dx = w.playerPos.x - x;
       const dz = w.playerPos.z - z;
       if (Math.hypot(dx, dz) <= a.radius && Math.abs(w.playerPos.y - this.ground.y) < 1.4) w.hurtPlayer(a.damage, at, a.knockback);
+      if (a.ignite) w.ignite?.(at, a.ignite);
       this.dealt.add(0);
     } else if (a.speed) {
       // Throw from the hand toward where you're heading (a half lead).

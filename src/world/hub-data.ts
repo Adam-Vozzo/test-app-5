@@ -6,7 +6,7 @@ import type { ShopItem } from '../core/save';
 export const DIMENSION_ORDER = ['justice', 'devil', 'tower', 'moon'] as const;
 
 /** The unbinding each arcana frees. */
-export const UNBINDINGS: Record<string, string> = { justice: 'parry', devil: 'dash' };
+export const UNBINDINGS: Record<string, string> = { justice: 'parry', devil: 'dash', tower: 'fall' };
 
 /** What each arcana says as it falls and its cord comes away (first time; then the short line). */
 export const UNBINDING_LINES: Record<string, { first: string; again: string }> = {
@@ -15,6 +15,20 @@ export const UNBINDING_LINES: Record<string, { first: string; again: string }> =
     first: 'The Devil falls from his pedestal. A chain breaks: you can dash (X), straight through chains.',
     again: 'The Devil falls again. The chains were always loose.',
   },
+  tower: {
+    first: 'The Crowned Tower falls, and the storm passes. A cord burns through: when you fall now, you land on your feet.',
+    again: 'The Tower falls again. Nothing stays standing; you do.',
+  },
+};
+
+/** The Star's pool (V2-12): heal upgrades, after the Tower. Same overlay as the Magician's table. */
+export const STAR_SHOP: ShopItem[] = [
+  { id: 'starFlask', name: 'A third jug', blurb: '+1 heal flask.', price: 450, effect: { healBonus: 1 } },
+  { id: 'starPour', name: 'Pour freely', blurb: 'Each heal restores 30% more.', price: 500, effect: { healMul: 1.3 } },
+];
+
+export const STAR_LINES: Record<string, readonly string[]> = {
+  default: ['After the fall, water.', 'Drink. It was always going to be enough.', 'The last light before morning is the clearest.'],
 };
 
 export const SHOP: ShopItem[] = [
@@ -44,6 +58,13 @@ export const PRIESTESS_LINES: Record<string, readonly string[]> = {
     'Answer in kind. When a blow comes, meet it. (V: parry)',
     "The bull is awake. Below its gate, everything has a price.",
     'The Magician will want the relic of Swords.',
+  ],
+  // The Tower has fallen (V2-12).
+  tower: [
+    'Everything you built on fell. You are still here.',
+    'The Star has come down to the pool. She keeps water for you.',
+    'When you fall now, you land. (A fall no longer hurts.)',
+    "The eagle is awake. Its road isn't built yet.",
   ],
   // The Devil has fallen (V2-10).
   devil: [

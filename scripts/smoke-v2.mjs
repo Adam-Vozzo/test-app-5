@@ -1466,10 +1466,211 @@ export async function towerScenario({ g, wait, shot }) {
       if (restored.gone !== 0 || restored.burning !== 0) throw new Error('resting should bring every deck back');
     }
   }
+  // After the third level, up to the top floor: the Crowned Tower (V2-12).
   await g(() => window.__game.nextLevel());
-  await until(() => window.__game.layout === 'hub', 15000);
-  const home = await g(() => ({ layout: window.__game.layout, progress: window.__game.save.progress.tower }));
-  console.log(`  tower: home ${JSON.stringify(home)}`);
-  if (home.layout !== 'hub' || home.progress !== 3) throw new Error("after the Tower's third level the road should lead home (its arena comes in V2-12)");
+  await until(() => window.__game.bossWorld?.boss === 'tower', 15000);
+  const top = await g(() => ({ level: window.__game.levelIndex, progress: window.__game.save.progress.tower, boss: window.__game.enemies.enemies[0]?.id, decks: window.__game.decks?.counts }));
+  console.log(`  tower: up to the top floor ${JSON.stringify(top)}`);
+  if (top.level !== 3 || top.progress !== 3 || top.boss !== 'crownedTower' || !top.decks?.total) throw new Error("after the Tower's third level the way on should lead up to the Crowned Tower");
   await g(() => { window.__tuning.debug.godMode = false; });
+}
+
+/** V2-12: the Tower's own (Firebrand, Faller, Builder, Page of Wands), the Wands court, the Crowned Tower, the safe
+ * fall and the Star. Fought on the Tower's top floor (all decks), so fire and falls are live. */
+export async function towerFoesScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(80);
+    }
+    return false;
+  };
+  const Z = -96;
+  const put = (x, z, yaw, pitch = 0.05) =>
+    g(([x, z, yaw, pitch]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = pitch;
+    }, [x, z, yaw, pitch]);
+  const spawn = (id, x, z, yaw, idle = 'stand') =>
+    g(([id, x, z, yaw, idle]) => {
+      const gm = window.__game;
+      gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw, idle }], gm.physics, gm.rng.fork(`smoke-${id}-${gm.enemies.enemies.length}`));
+      return gm.enemies.enemies.length - 1;
+    }, [id, x, z, yaw, idle]);
+  const fresh = async () => {
+    await g(() => {
+      const gm = window.__game;
+      gm.enemies.clear();
+      gm.decks?.reset();
+      gm.vitals.restore();
+    });
+  };
+  const hurt = (i, frac) =>
+    g(([i, frac]) => {
+      const e = window.__game.enemies.enemies[i];
+      e.takeDamage({ amount: Math.max(1, e.health - e.maxHealth * frac), crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 });
+    }, [i, frac]);
+  const burning = () => g(() => window.__game.decks.counts.burning + window.__game.decks.counts.gone);
+
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, seed: 42, cleared: ['justice', 'devil'], unbound: ['parry', 'dash'], progress: { tower: 3 } };
+    gm.dimension = 'tower';
+    gm.levelIndex = 3;
+    gm.zoneSeed = 42;
+    gm.start('level');
+    window.__tuning.debug.godMode = true;
+    window.__tuning.debug.showAI = true;
+  });
+  await wait(1500);
+
+  // 1. The Firebrand's pot lands burning.
+  await fresh();
+  await put(0, Z + 6, 0);
+  await spawn('firebrand', 0, Z - 8, Math.PI);
+  const lit = await until(() => window.__game.decks.counts.burning > 0, 25000);
+  await shot('97-firebrand-fire');
+  console.log(`  firebrand: its pot set the decks alight ${lit}`);
+  if (!lit) throw new Error("the Firebrand's pot should set the timber alight");
+
+  // 2. The Faller: perched, unseen; come near and its shadow grows where you stand; it lands and fights.
+  await fresh();
+  await put(0, Z + 14, 0);
+  const fi = await spawn('faller', 0, Z, 0);
+  const hidden = await g((i) => !window.__game.enemies.enemies[i].group.visible, fi);
+  await put(0, Z + 5, 0, -0.2);
+  const dropping = await until((i) => window.__game.enemies.enemies[i].perch === 'falling', 4000, fi);
+  await wait(500);
+  await shot('98-faller-shadow');
+  const landed = await until((i) => { const e = window.__game.enemies.enemies[i]; return e.perch === 'down' && e.group.visible; }, 6000, fi);
+  console.log(`  faller: hidden on its perch ${hidden}, dropped ${dropping}, landed ${landed}`);
+  if (!hidden || !dropping || !landed) throw new Error('a Faller should wait unseen, drop where she stands (its shadow first), and land');
+
+  // 3. The Builder hammers up a barricade.
+  await fresh();
+  await put(0, Z + 6, 0);
+  const bi = await spawn('builder', 0, Z - 6, Math.PI);
+  const walled = await until((i) => window.__game.enemies.enemies[i].barricadeCount > 0, 20000, bi);
+  await shot('99-builder-barricade');
+  console.log(`  builder: raised a barricade ${walled}`);
+  if (!walled) throw new Error('the Builder should raise a barricade');
+
+  // 4. The Page of Wands: its signal fire calls Firebrands, unless it's staggered first.
+  await fresh();
+  await put(0, Z + 8, 0);
+  const pi = await spawn('pageWands', 0, Z - 6, Math.PI);
+  const signalling = await until((i) => window.__game.enemies.enemies[i].attack === 'signal', 10000, pi);
+  const called = await until((i) => window.__game.enemies.enemies[i].signalLit && window.__game.enemies.enemies.filter((e) => e.id === 'firebrand' && e.summoned).length >= 2, 15000, pi);
+  await fresh();
+  const qi = await spawn('pageWands', 0, Z - 6, Math.PI);
+  await until((i) => window.__game.enemies.enemies[i].attack === 'signal', 10000, qi);
+  await g((i) => { const e = window.__game.enemies.enemies[i]; e.takeDamage({ amount: 1, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 999 }); }, qi);
+  await wait(4000);
+  const stopped = await g((i) => !window.__game.enemies.enemies[i].signalLit && !window.__game.enemies.enemies.some((e) => e.summoned), qi);
+  console.log(`  page of wands: signalling ${signalling}, lit and called ${called}; staggered mid-signal, stopped ${stopped}`);
+  if (!signalling || !called || !stopped) throw new Error("the Page of Wands' signal should call Firebrands, and a stagger should stop it");
+
+  // 5. The Wands court: the Knight's charge leaves fire; the Queen calls her cat; the King calls Firebrands and burns.
+  await fresh();
+  await put(0, Z + 10, 0);
+  await spawn('knightWands', 0, Z - 6, 0, 'throne');
+  const trail = await until(() => window.__game.decks.counts.burning > 0 && window.__game.enemies.enemies[0].attack === 'charge', 25000);
+  await shot('100-knight-wands-trail');
+  await fresh();
+  await put(0, Z + 6, 0);
+  await spawn('queenWands', 0, Z - 8, 0, 'throne');
+  await until(() => window.__game.enemies.enemies[0].state !== 'idle', 8000);
+  await hurt(0, 0.6);
+  const cat = await until(() => window.__game.enemies.enemies.some((e) => e.id === 'cat' && e.summoned), 6000);
+  await fresh();
+  await put(0, Z + 6, 0);
+  await spawn('kingWands', 0, Z - 8, 0, 'throne');
+  await until(() => window.__game.enemies.enemies[0].state !== 'idle', 8000);
+  const b0 = await burning();
+  await hurt(0, 0.6);
+  const fireSquad = await until(() => window.__game.enemies.enemies.filter((e) => e.id === 'firebrand' && e.summoned).length >= 2, 6000);
+  const burnt = await until((b0) => window.__game.decks.counts.burning + window.__game.decks.counts.gone > b0, 6000, b0);
+  console.log(`  wands court: the knight's trail burns ${trail}, the queen's cat ${cat}, the king's firebrands ${fireSquad} and burning floor ${burnt}`);
+  if (!trail || !cat || !fireSquad || !burnt) throw new Error('the Wands court should feed the fire: trail, cat, firebrands, a burning floor');
+
+  // 6. The Crowned Tower: its floor falls ring by ring, down to a last platform; it falls and the floor holds.
+  await g(() => { const gm = window.__game; gm.start('level'); });
+  await wait(1500);
+  await put(0, Z + 8, 0, 0.18);
+  const woke = await until(() => window.__game.enemies.enemies[0].state !== 'idle', 20000);
+  await wait(800);
+  await shot('101-crowned-tower');
+  await put(0, Z + 3, 0, 0.1);
+  await hurt(0, 0.6);
+  const ring1 = await until(() => window.__game.decks.counts.gone > 60, 12000);
+  // (the floor before: every deck standing)
+  await wait(500);
+  await shot('102-crowned-tower-ring');
+  const g1 = await g(() => window.__game.decks.counts.gone);
+  await hurt(0, 0.3);
+  const ring2 = await until((g1) => window.__game.decks.counts.gone > g1 + 20, 12000, g1);
+  await wait(400);
+  await shot('103-crowned-tower-last-platform');
+  const g2 = await g(() => window.__game.decks.counts);
+  await hurt(0, 0);
+  const held = await until(() => window.__game.decks.counts.gone === 0 && window.__game.bossWorld.exitOpen(), 5000);
+  console.log(`  crowned tower: woke ${woke}, first ring fell ${ring1} (${g1} gone), second ${ring2} (${JSON.stringify(g2)}), fell and the floor holds ${held}`);
+  if (!woke || !ring1 || !ring2 || !held) throw new Error("the Crowned Tower's floor should fall ring by ring, and hold again when it falls");
+  await g(() => window.__game.nextLevel());
+  await until(() => window.__game.layout === 'hub', 10000);
+  await wait(800);
+  const home = await g(() => {
+    const gm = window.__game;
+    const p = (s) => gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').includes(s))?.prompt(gm.player.pos);
+    return { cleared: gm.save.cleared, fall: gm.save.unbound.includes('fall'), star: p('the Star'), eagle: p('eagle') };
+  });
+  await g(() => { const gm = window.__game; gm.player.controller.teleport({ x: -6, y: 0.05, z: 13 }, 2.4); gm.camera.snap(gm.player.pos, 2.4); gm.camera.pitch = 0.05; });
+  await wait(800);
+  await shot('104-hub-star');
+  console.log(`  tower fallen: ${JSON.stringify(home)}`);
+  if (!home.cleared.includes('tower') || !home.fall || !home.star || !home.eagle?.includes('awake')) throw new Error('the Crowned Tower falling should free the safe fall, bring the Star and wake the eagle');
+
+  // 7. The Star's pool sells heal upgrades.
+  const bought = await g(() => {
+    const gm = window.__game;
+    gm.vitals.currency = 1000;
+    gm.openShop('star');
+    const before = gm.vitals.maxCharges;
+    gm.buyItem({ id: 'starFlask', name: 'A third jug', blurb: '', price: 450, effect: { healBonus: 1 } });
+    const after = gm.vitals.maxCharges;
+    gm.shop.close();
+    return { before, after, title: document.querySelector('.shop h1')?.textContent };
+  });
+  console.log(`  the star: ${JSON.stringify(bought)}`);
+  if (bought.after !== bought.before + 1 || bought.title !== 'The Star') throw new Error("the Star's pool should sell a heal flask");
+
+  // 8. The safe fall: unbound, a fall into the drop costs nothing and knocks back whoever is near.
+  await g(() => {
+    const gm = window.__game;
+    gm.dimension = 'tower';
+    gm.levelIndex = 0;
+    gm.start('level');
+  });
+  await wait(1500);
+  const fall = await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = false;
+    gm.vitals.restore();
+    gm.enemies.clear();
+    const s = gm.level.generated.dressing.scaffolds.find((x) => x.rotten.length);
+    const i = s.rotten[0];
+    const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
+    const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+    gm.player.controller.teleport({ x, y: s.y + 0.1, z }, 0);
+    return gm.vitals.health;
+  });
+  const fell = await until(() => window.__game.stats.falls > 0, 12000);
+  await wait(300);
+  const hp = await g(() => window.__game.vitals.health);
+  console.log(`  safe fall: fell ${fell}, health ${fall} → ${hp}`);
+  if (!fell || hp !== fall) throw new Error('once the Tower has fallen, a fall should cost nothing');
+  await g(() => { window.__tuning.debug.godMode = false; window.__tuning.debug.showAI = false; });
 }

@@ -31,7 +31,7 @@ import { ParryState } from './weapons/parry';
 import { Binding } from './player/binding';
 import { buildBossArena, type BossWorld } from './world/boss';
 import { buildHub, GATES } from './world/hub';
-import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDING_LINES, UNBINDINGS } from './world/hub-data';
+import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, STAR_LINES, STAR_SHOP, UNBINDING_LINES, UNBINDINGS } from './world/hub-data';
 import { PACT_TERMS } from './enemies/devil-boss';
 import { buildCourtyard } from './world/courtyard';
 import { DIMENSIONS, type DimensionDef } from './world/dimensions';
@@ -61,7 +61,7 @@ const _aimHit: RayHit = {
 const _o = new THREE.Vector3();
 const _o2 = new THREE.Vector3();
 /** Dimensions whose arcana's arena is built. */
-const ARENAS = ['justice', 'devil'];
+const ARENAS = ['justice', 'devil', 'tower'];
 
 export class Game {
   readonly renderer: Renderer;
@@ -257,11 +257,13 @@ export class Game {
         enter: (dim) => this.enterDimension(dim),
         shop: () => this.openShop(),
         priestess: () => this.speak('priestess'),
+        starHere: () => this.save.cleared.includes('tower'),
+        star: () => this.openShop('star'),
       });
       this.area = WORLD;
     } else if (this.layout === 'level' && this.levelIndex === 3 && this.hasArena) {
       // The dimension's end: the arcana's arena (Justice under the scales, the Devil in the pit below his pedestal).
-      const kind = this.dimension === 'devil' ? 'devil' : 'justice';
+      const kind = this.dimension === 'devil' || this.dimension === 'tower' ? this.dimension : 'justice';
       const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork(`${kind}-arena`), kind);
       bw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = bw;
@@ -359,6 +361,9 @@ export class Game {
       hurtPlayer: (amount, from, knockback, source) => this.hurtPlayer(amount, from, knockback, source),
       bindPlayer: (time, damage, knockback, from) => this.bindPlayer(time, damage, knockback, from),
       dropCoins: (at, n) => this.coins.drop(at, n),
+      ignite: (at, r) => {
+        if (r > 0) this.decks?.ignite(at, r);
+      },
       offerPact: () => this.offerPact(),
       get pact() {
         return game.pact;
@@ -519,7 +524,7 @@ export class Game {
 
   /** The Magician's upgrades, folded into the weapons and flasks (upgrades are data applied to defs). */
   private applyUpgrades() {
-    const e = effects(this.save, SHOP);
+    const e = effects(this.save, [...SHOP, ...STAR_SHOP]);
     for (const g of this.arsenal.guns) {
       if (g.def.id !== 'pistol') continue;
       g.damageMul = e.pistolDamageMul;
@@ -527,16 +532,22 @@ export class Game {
       g.refill();
     }
     this.vitals.bonusCharges = e.healBonus;
+    this.vitals.healMul = e.healMul;
     this.vitals.healCharges = this.vitals.maxCharges;
     tuning.swordRifle.repairStage = e.repairStage;
   }
 
-  private openShop() {
+  /** Which hub menu is open: the Magician's table, or the Star's pool (after the Tower). */
+  private shopOf: 'magician' | 'star' = 'magician';
+
+  private openShop(who: 'magician' | 'star' = 'magician') {
     this.persist();
+    this.shopOf = who;
     this.mode = 'shop';
     this.shopOpenedAt = performance.now();
     this.input.exitLock();
-    this.shop.show(this.save, SHOP, this.speakLine('magician', MAGICIAN_LINES, 'default'));
+    if (who === 'star') this.shop.show(this.save, STAR_SHOP, this.speakLine('star', STAR_LINES, 'default'), 'The Star');
+    else this.shop.show(this.save, SHOP, this.speakLine('magician', MAGICIAN_LINES, 'default'));
   }
 
   private buyItem(item: ShopItem) {
@@ -545,13 +556,13 @@ export class Game {
     storeSave(this.save);
     this.applyUpgrades();
     this.synth.sfx('chargeReady');
-    this.shop.render(this.save, SHOP);
+    this.shop.render(this.save, this.shopOf === 'star' ? STAR_SHOP : SHOP);
   }
 
   /** A hub character's next line for where the player is in the story. */
   private speak(who: 'priestess') {
     const c = this.save.cleared;
-    const state = c.includes('devil') ? 'devil' : c.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
+    const state = c.includes('tower') ? 'tower' : c.includes('devil') ? 'devil' : c.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
     return this.speakLine(who, PRIESTESS_LINES, state);
   }
 
@@ -699,8 +710,8 @@ export class Game {
     const tw = tuning.tower;
     this.boltT = Math.max(0, this.boltT - dt);
     this.bolt.visible = this.boltT > 0;
-    if (!lv) return;
-    const decks = lv.decks;
+    const decks = this.decks;
+    if (!lv && !decks) return;
     if (decks) {
       for (const e of decks.update(dt, this.collapseRng)) {
         if (e.kind === 'fall') this.sfxAt('timberFall', c.pos);
@@ -722,7 +733,7 @@ export class Game {
     // Remember the last solid stone (decks can fall).
     if (c.grounded && !decks?.standing(c.pos)) this.lastSafe.copy(c.pos);
     // Lightning: a mark where she stands, a strike a beat later, and the timber there catches. Never at a lantern.
-    if (this.dimension === 'tower' && lv.generated.dimension === 'tower') {
+    if (lv && this.dimension === 'tower' && lv.generated.dimension === 'tower') {
       this.stormT -= dt;
       const atRest = (lv.restPoints ?? []).some((r) => r.pos.distanceTo(c.pos) < 8);
       if (this.stormT <= 0 && !atRest) {
@@ -740,15 +751,29 @@ export class Game {
         });
       }
     }
-    // Fell into the drop.
-    const fallY = Math.min(...lv.generated.space.rooms.map((r) => r.y)) - 12;
+    // Fell into the drop: back on the last stone (in the arena, the nearest deck still standing).
+    const fallY = lv ? Math.min(...lv.generated.space.rooms.map((r) => r.y)) - 12 : -12;
     if (c.pos.y < fallY) {
       this.stats.falls++;
-      c.teleport(_o.copy(this.lastSafe).setY(this.lastSafe.y + 0.05), c.yaw);
+      const back = (!lv && decks?.nearestStanding(c.pos)) || this.lastSafe;
+      c.teleport(_o.copy(back).setY(back.y + 0.05), c.yaw);
       this.camera.snap(c.pos, c.yaw);
-      this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
-      this.hud.toast('You fell. Nothing stays standing.', 2);
+      if (this.save.unbound.includes('fall')) {
+        // The Tower's unbinding: she lands on her feet, and the landing knocks back whoever stands near.
+        this.sfxAt('slamImpact', c.pos);
+        this.camera.addTrauma(0.4);
+        for (const e of this.enemies.enemies) if (e.alive && e.center.distanceTo(c.pos) < tuning.tower.landingRadius) e.parried?.();
+        this.hud.toast('You fall, and land on your feet.', 2);
+      } else {
+        this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
+        this.hud.toast('You fell. Nothing stays standing.', 2);
+      }
     }
+  }
+
+  /** The timber decks underfoot, in a Tower level or on its top floor. */
+  get decks() {
+    return this.level?.decks ?? this.bossWorld?.decks ?? null;
   }
 
   /** The Devil stops at half his health and holds out the pact. E accepts; letting it pass refuses. */
@@ -866,6 +891,8 @@ export class Game {
       this.persist();
       if (!had) this.hud.toast(`The King of ${suit} gives up the relic of ${suit}. The Magician will want it.`, 4);
     }
+    // The Crowned Tower falls: the storm passes, and its top floor holds again (the way on is across it).
+    if (e.name === 'The Crowned Tower') this.bossWorld?.decks?.reset();
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
     if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);

@@ -94,6 +94,35 @@ export const COURT = {
 } as const;
 
 /**
+ * The Tower's commons (V2-12): soot, char and wine-dark cloth against the pale storm. Their torches are a dull ember
+ * brown: the fire itself (the accent) only burns on the decks and the Crowned Tower's crown.
+ */
+export const TOWER_FOES = {
+  firebrandCoat: 0x3d3330,
+  firebrandHood: 0x2a2321,
+  torchHead: 0x6b4630,
+  fallerRobe: 0x5a4a4a,
+  fallerSkin: 0x6a5e58,
+  builderApron: 0x5b4636,
+  builderShirt: 0x3e3a38,
+  pageCoat: 0x4a3a3e,
+  pageCap: 0x2e2628,
+  wood: 0x4f3d30,
+  cat: 0x1c1a1c,
+  /** The Wands court and the Crowned Tower. */
+  crest: 0xcfc6b0,
+  knightArmour: 0x4e4448,
+  knightCape: 0x3a2a2a,
+  queenGown: 0x423438,
+  queenMantle: 0x5e4c4e,
+  kingRobe: 0x3a3030,
+  kingMantle: 0x544648,
+  crown: 0x7a7270,
+  towerStone: 0x6c6560,
+  towerDark: 0x3a3433,
+} as const;
+
+/**
  * The Pentacles court (V2-10): earth-dark armour and robes, each wearing the suit as a large pale disc crest. The
  * crest is bone, not gold: never crit gold, never the area's gilt.
  */

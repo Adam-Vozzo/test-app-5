@@ -74,6 +74,8 @@ export const tuning = {
     lightningDamage: 28,
     igniteRadius: 2.6,
     fallDamage: 30,
+    /** Once the Tower has fallen, a fall lands her on her feet: enemies this close reel. */
+    landingRadius: 4.5,
   },
   /**
    * The chain-break dash (V2-10, the Devil's unbinding; Proposed): a short, very fast burst with i-frames for its
@@ -518,6 +520,112 @@ export const tuning = {
       },
     },
     /**
+     * The Tower's commons (V2-12). The Firebrand lobs fire (its landing ring fills as the pot flies; the timber it
+     * lands on catches); the Faller drops from the storm when you come within `triggerRadius` of its perch, its
+     * shadow growing for `fallTime`; the Builder hammers up barricades (`barricadeTime`); the Page of Wands lights a
+     * signal fire (a long channel: stagger it) that calls `count` more.
+     */
+    firebrand: {
+      health: 110,
+      poise: 26,
+      poiseRegen: 24,
+      speed: 2.4,
+      runSpeed: 4.2,
+      accel: 20,
+      turnRate: 5,
+      sightRange: 26,
+      leash: 34,
+      holdRange: 11,
+      staggerTime: 0.9,
+      separation: 1.8,
+      reward: 9,
+      attacks: {
+        pot: { range: 20, windup: 0.75, active: 0.1, recover: 0.9, cooldown: 2.2, damage: 18, knockback: 4, arcDeg: 360, lunge: 0, weight: 1, radius: 1.9, lob: 1.1, ignite: 2.2 },
+        swipe: { range: 2.4, windup: 0.45, active: 0.14, recover: 0.7, cooldown: 1.0, damage: 16, knockback: 5, arcDeg: 120, lunge: 1.4, weight: 1 },
+      },
+    },
+    faller: {
+      health: 150,
+      poise: 40,
+      poiseRegen: 22,
+      speed: 2.4,
+      runSpeed: 4.4,
+      accel: 20,
+      turnRate: 5,
+      sightRange: 22,
+      leash: 30,
+      staggerTime: 0.9,
+      separation: 1.8,
+      reward: 10,
+      triggerRadius: 8,
+      fallTime: 1.3,
+      attacks: {
+        /** Its landing (the ring under its fall), then a two-handed grab-and-throw up close. */
+        grapple: { range: 2.2, windup: 0.6, active: 0.16, recover: 0.9, cooldown: 1.2, damage: 22, knockback: 9, arcDeg: 100, lunge: 1.6, weight: 1, radius: 1.8, ignite: 0 },
+      },
+    },
+    builder: {
+      health: 190,
+      poise: 60,
+      poiseRegen: 20,
+      speed: 2.0,
+      runSpeed: 3.4,
+      accel: 16,
+      turnRate: 4,
+      sightRange: 22,
+      leash: 30,
+      staggerTime: 1.0,
+      separation: 2.0,
+      reward: 11,
+      barricadeTime: 9,
+      attacks: {
+        /** A barricade hammered up between you (cover for the others; it stands `barricadeTime`). */
+        raise: { kind: 'barricade', range: 14, windup: 0.9, active: 0.1, recover: 0.8, cooldown: 7, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 1.2, radius: 3 },
+        hammer: { range: 2.5, windup: 0.7, active: 0.16, recover: 0.9, cooldown: 1.1, damage: 24, knockback: 7, arcDeg: 100, lunge: 1.2, weight: 1 },
+      },
+    },
+    pageWands: {
+      health: 120,
+      poise: 22,
+      poiseRegen: 25,
+      speed: 3.0,
+      runSpeed: 5.2,
+      accel: 26,
+      turnRate: 7,
+      sightRange: 30,
+      leash: 36,
+      holdRange: 14,
+      alertRadius: 32,
+      staggerTime: 1.0,
+      separation: 1.6,
+      reward: 18,
+      attacks: {
+        /** The signal fire: a long channel (stagger it, or kill it, to stop it); lit, it calls two Firebrands. */
+        signal: { kind: 'signal', range: 60, windup: 2.6, active: 0.1, recover: 0.6, cooldown: 1e9, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 0, count: 2, spawn: 'firebrand' },
+        pot: { range: 20, windup: 0.7, active: 0.1, recover: 0.8, cooldown: 2.0, damage: 16, knockback: 4, arcDeg: 360, lunge: 0, weight: 1, radius: 1.7, lob: 1.0, ignite: 2 },
+        jab: { range: 2.4, windup: 0.4, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 14, knockback: 5, arcDeg: 90, lunge: 1.6, weight: 1 },
+      },
+    },
+    /** The Queen of Wands' black cat: small, fast, hit and run. */
+    cat: {
+      health: 60,
+      poise: 12,
+      poiseRegen: 30,
+      speed: 4.2,
+      runSpeed: 7.4,
+      accel: 36,
+      turnRate: 10,
+      sightRange: 26,
+      leash: 40,
+      staggerTime: 0.5,
+      separation: 1.2,
+      reward: 3,
+      retreatTime: 0.8,
+      attacks: {
+        swipe: { range: 1.6, windup: 0.3, active: 0.1, recover: 0.35, cooldown: 0.5, damage: 8, knockback: 2, arcDeg: 120, lunge: 1.4, weight: 1, hits: 2, comboWindup: 0.18 },
+      },
+    },
+    /**
      * The Pentacles court (V2-10): the same rank verbs in earth. The Knight's slow, unstoppable charge binds what it
      * hits; the Queen sows gilt seeds that sprout Imps unless trampled; the King hires Misers and rains coin that
      * lies where it falls (tempting, and heavy).
@@ -591,6 +699,102 @@ export const tuning = {
         fortune: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 5, damage: 30, knockback: 7, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.4, delay: 1.6, count: 3, coins: 1, minPhase: 1 },
         scepter: { range: 3.6, windup: 1.0, active: 0.14, recover: 1.3, cooldown: 1.2, damage: 38, knockback: 9, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },
         sweep: { range: 3.0, windup: 0.7, active: 0.2, recover: 1.0, cooldown: 1.8, damage: 24, knockback: 6, arcDeg: 170, lunge: 0.8, weight: 0.8, hits: 2, comboWindup: 0.45 },
+      },
+    },
+    /**
+     * The Wands court (V2-12): the Knight's charge leaves the timber burning; the Queen's fire zones set it alight and
+     * her cat comes at each phase; the King calls Firebrands and his phases burn the floor away.
+     */
+    knightWands: {
+      health: 980,
+      poise: 170,
+      poiseRegen: 30,
+      speed: 3.2,
+      runSpeed: 6.0,
+      accel: 26,
+      turnRate: 5,
+      sightRange: 34,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 130,
+      phases: [0.5],
+      retreatTime: 1.1,
+      attacks: {
+        charge: { kind: 'charge', range: 18, windup: 0.95, active: 0.65, recover: 1.2, cooldown: 2.6, damage: 28, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.2, speed: 19, ignite: 1.4 },
+        recharge: { kind: 'charge', range: 18, windup: 0.85, active: 0.6, recover: 1.3, cooldown: 3.4, damage: 28, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.6, speed: 20, hits: 2, comboWindup: 0.65, minPhase: 1, ignite: 1.4 },
+        slash: { range: 2.8, windup: 0.5, active: 0.14, recover: 0.8, cooldown: 0.8, damage: 24, knockback: 5, arcDeg: 130, lunge: 2.4, weight: 1, hits: 2, comboWindup: 0.32 },
+      },
+    },
+    queenWands: {
+      health: 880,
+      poise: 140,
+      poiseRegen: 30,
+      speed: 2.6,
+      runSpeed: 4.6,
+      accel: 22,
+      turnRate: 5,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 160,
+      holdRange: 11,
+      phases: [0.66, 0.33],
+      /** Her black cat, called at each phase. */
+      squad: 1,
+      attacks: {
+        /** Zones marked where you stand and where you're heading; they flare and the timber there catches. */
+        firezone: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 0.9, cooldown: 3.2, damage: 26, knockback: 6, arcDeg: 360, lunge: 0, weight: 1, radius: 2.4, delay: 1.4, count: 1, ignite: 2.4 },
+        blaze: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 4, damage: 26, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.4, delay: 1.4, count: 3, ignite: 2.4, minPhase: 1 },
+        riposte: { range: 2.6, windup: 0.4, active: 0.12, recover: 0.7, cooldown: 1.5, damage: 20, knockback: 6, arcDeg: 140, lunge: 1.4, weight: 1 },
+      },
+    },
+    kingWands: {
+      health: 1450,
+      poise: 240,
+      poiseRegen: 30,
+      speed: 2.2,
+      runSpeed: 3.4,
+      accel: 16,
+      turnRate: 3.4,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.2,
+      separation: 2.8,
+      reward: 230,
+      phases: [0.66, 0.33],
+      squad: 2,
+      attacks: {
+        judgement: { range: 3.6, windup: 1.0, active: 0.14, recover: 1.3, cooldown: 1.2, damage: 38, knockback: 9, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.4, reach: 2.4, ignite: 2.6 },
+        wildfire: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 4.5, damage: 30, knockback: 7, arcDeg: 360, lunge: 0, weight: 1.2, radius: 2.4, delay: 1.5, count: 3, ignite: 2.4, minPhase: 1 },
+        sweep: { range: 3.0, windup: 0.7, active: 0.2, recover: 1.0, cooldown: 1.8, damage: 24, knockback: 6, arcDeg: 170, lunge: 0.8, weight: 0.8, hits: 2, comboWindup: 0.45 },
+      },
+    },
+    /**
+     * The Crowned Tower, the arcana (V2-12). Its arena is the top floor, all timber: at 66% and 33% a ring of it
+     * cracks and falls into the storm, ending on a last platform under open sky.
+     */
+    crownedTower: {
+      health: 3200,
+      poise: 480,
+      poiseRegen: 40,
+      speed: 2.0,
+      runSpeed: 3.0,
+      accel: 12,
+      turnRate: 2.6,
+      sightRange: 60,
+      leash: 200,
+      staggerTime: 1.4,
+      separation: 4,
+      reward: 750,
+      phases: [0.66, 0.33],
+      attacks: {
+        smash: { range: 10, windup: 1.15, active: 0.15, recover: 1.5, cooldown: 1.6, damage: 44, knockback: 11, arcDeg: 360, lunge: 1.0, weight: 1, radius: 3.4, reach: 5, ignite: 3 },
+        lightning: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, radius: 2.6, delay: 1.4, count: 1, ignite: 2.6 },
+        storm: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.1, cooldown: 4, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.6, delay: 1.4, count: 3, ignite: 2.6, minPhase: 1 },
+        topple: { range: 30, windup: 0.85, active: 0.1, recover: 1.0, cooldown: 3, damage: 26, knockback: 6, arcDeg: 360, lunge: 0, weight: 0.9, radius: 2.2, lob: 1.2, ignite: 2.2, hits: 3, comboWindup: 0.4 },
+        sweep: { range: 7, windup: 0.8, active: 0.22, recover: 1.1, cooldown: 1.2, damage: 30, knockback: 8, arcDeg: 160, lunge: 1.4, weight: 1, hits: 2, comboWindup: 0.5 },
       },
     },
     /**
