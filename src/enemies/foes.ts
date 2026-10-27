@@ -30,7 +30,7 @@ export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
   /** Sound that announces the wind-up. */
-  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter';
+  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle';
 }
 
 export interface FoePlan {
@@ -58,6 +58,10 @@ export interface FoePlan {
   shield: boolean;
   /** Two blades: mirrored swings change hands. */
   dualWield?: boolean;
+  /** Court cards of another suit: which rank verbs they use (defaults to the id: 'knight', 'queen', 'king'). */
+  rank?: 'knight' | 'queen' | 'king';
+  /** The King's squad: who he calls at each phase (Swords: Bailiffs; Pentacles: hired Misers). */
+  squadId?: string;
   /** Hit and run: after each attack it falls back for `retreatTime` before closing again (the Imp). */
   hitAndRun?: boolean;
   /** Runs from you instead of fighting, keeping `holdRange` away inside its leash; cuts only when cornered (the Page of Pentacles). */

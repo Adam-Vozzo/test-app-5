@@ -5,15 +5,19 @@ import type { LimbRenderer } from '../render/limbs';
 import type { Rng } from '../core/rng';
 import { Enemy, type EnemyWorld, type Hostile } from './enemy';
 import { Foe, type FoeIdle } from './foe';
-import { COURT_PLANS, CourtCard, isCourtRank } from './court';
+import { COURT_PLANS, CourtCard } from './court';
 import { JUSTICE_PLAN, JusticeBoss } from './justice';
 import { PLANS, type FoePlan } from './foes';
 import { DEVIL_PLANS, spawnThrallPair } from './devil';
+import { DevilBoss } from './devil-boss';
+import { PENTACLES_PLANS } from './court-pentacles';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
 
 /** Every common archetype by id: Justice's and the Devil's (data plans read by the one Foe state machine). */
 const ARCHETYPES: Record<string, FoePlan> = { ...PLANS, ...DEVIL_PLANS };
+/** Every court card by id: the Swords court (by rank) and the Pentacles court. */
+const COURTS: Record<string, FoePlan> = { ...COURT_PLANS, ...PENTACLES_PLANS };
 
 export interface SpawnSpec {
   kind: EnemyKind;
@@ -57,9 +61,11 @@ export class EnemyManager {
           : [
               s.id === 'justice'
                 ? new JusticeBoss(JUSTICE_PLAN, this.scene, physics, s.pos, s.yaw, r)
-                : isCourtRank(s.id)
-                  ? new CourtCard(COURT_PLANS[s.id], this.scene, physics, s.pos, s.yaw, r)
-                  : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
+                : s.id === 'devil'
+                  ? new DevilBoss(this.scene, physics, s.pos, s.yaw, r)
+                  : COURTS[s.id]
+                    ? new CourtCard(COURTS[s.id], this.scene, physics, s.pos, s.yaw, r)
+                    : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
             ];
       for (const e of made) {
         e.onKilled = (x) => this.onKilled(x);

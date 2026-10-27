@@ -4,6 +4,33 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-10: the Pentacles court, the Devil and the dash
+The second dimension is complete: three generated levels with their court cards, then the Devil in his pit. Beating
+him frees the **dash (X)**. Everything here is a first version that nobody has played yet.
+
+**Try:**
+- **Knight of Pentacles** (level 1): its lane is slow but it runs the whole way, and it **pins** you (roll). Shooting
+  it won't stagger it. Get round its armoured front, or parry it.
+- **Queen of Pentacles** (level 2): she sows **gilt** rings around you. Step on one to crush it, or each becomes an
+  Imp. Which one do you go for?
+- **King of Pentacles** (level 3): he hires Misers at 66% and 33%. His coin rain leaves coin on the floor: do you
+  pick it up mid-fight? It pays, and it makes you heavy.
+- **The Devil:** watch for the shackles (a magenta ring closing on you; roll if you're caught). At half health he
+  stops and **offers a pact**. Press E to take it, or wait. Does the choice feel like yours, and does the doubled
+  fight feel different?
+- **The dash (X), after he falls:** fast, short, with no tumble. Dash through a Thrall pair's chain to snap it.
+
+**Unsure about:**
+- **Seeds aren't magenta.** Telegraph magenta means "get out", and seeds want you to step *in*, so they're gilt. Do
+  they read clearly enough as something to act on?
+- **The pact's window** is 6 s and he can't be hurt during it. Is that a pause the fight can afford? Is double damage
+  both ways a real temptation, or an obvious refuse?
+- **Unstoppable** (the Knight of Pentacles) means shots never stagger it. It may feel like a damage sponge. A parry
+  still works.
+- **The dash vs the roll:** the dash is the better escape, but it has a cooldown and the roll doesn't. Will the roll
+  still get used? The Devil's unbinding itself is Proposed (`DESIGN.md`).
+- **The Devil's look:** the wings and horns read at 6.5 m, but the raised hand is small.
+
 ## V2-9: the Devil's rule and enemies
 The Devil's levels now have **his own enemies and his rule**. Two halves of *temptation*: chains that look fatal
 but always break, and wealth in plain sight that costs something to take. The court cards are still Swords

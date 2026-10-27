@@ -276,6 +276,11 @@ that frames the scales; then an octagonal arena (28 m radius) with tall columns,
 her, and the great scales standing just beyond. In phase 2 two brass pans (the accent motif) lower out of the fog on
 chains and settle as low platforms either side of the axis. The way on is a veiled gate north, open once she falls.
 
+**As built for the Devil (V2-10, the same builder with `kind: 'devil'`):** the same shape in the Devil's palette. The
+arena is the pit at the foot of his pedestal: the columns are **chained to each other** with heavy iron swags, and
+the throne-pedestal (the landmark), with its brazier, rises just beyond. Nothing in the arena changes with his phase:
+his change is the pact, and the coin his rain leaves on the floor.
+
 ## Budgets
 | Budget | Target |
 |---|---|

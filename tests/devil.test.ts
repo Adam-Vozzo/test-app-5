@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fleeHeading, flankPoints, segmentDistance } from '../src/enemies/foe-ai';
+import { fleeHeading, flankPoints, segmentDistance, sweepCrosses } from '../src/enemies/foe-ai';
 import { Binding } from '../src/player/binding';
 import { DEVIL_DIMENSION as DEV } from '../src/world/dimensions';
 import { generateLevel } from '../src/world/gen-level';
@@ -53,6 +53,15 @@ describe('Thrall geometry (pure)', () => {
     expect(segmentDistance(5, 0, -2, 0, 2, 0)).toBeCloseTo(3, 6);
     expect(segmentDistance(0.5, 0, -2, 0, 2, 0)).toBeCloseTo(0, 6);
     expect(segmentDistance(1, 1, 0, 0, 0, 0)).toBeCloseTo(Math.SQRT2, 6);
+  });
+  it('sweepCrosses catches a fast mover crossing a chain between frames, and not one that stops short', () => {
+    // A 2 m step straight across a chain lying along x: no frame lands near it, but the sweep crosses.
+    expect(sweepCrosses(0, 1, 0, -1, -3, 0, 3, 0)).toBe(true);
+    expect(segmentDistance(0, 1, -3, 0, 3, 0) > 0.7 && segmentDistance(0, -1, -3, 0, 3, 0) > 0.7).toBe(true);
+    expect(sweepCrosses(0, 3, 0, 1.5, -3, 0, 3, 0)).toBe(false);
+    expect(sweepCrosses(0, 3, 0, 0.5, -3, 0, 3, 0, 0.7)).toBe(true);
+    // Past the end of the chain: no.
+    expect(sweepCrosses(5, 1, 5, -1, -3, 0, 3, 0)).toBe(false);
   });
   it('flankPoints put the player at the middle of the chain, along its current axis', () => {
     const [ax, az, bx, bz] = flankPoints(10, 5, 3, 0, -3, 0, 2.7);

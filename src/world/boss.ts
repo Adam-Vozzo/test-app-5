@@ -1,25 +1,29 @@
 // The boss arena (LEVELS.md → Boss arenas): a fixed shape per boss with seeded dressing.
 //   1. a lantern platform;
 //   2. a long walled approach under arches: compression into
-//   3. the reveal: an octagonal arena beneath the great scales, the landmark you walked toward for three levels.
-// In phase 2 the scales come down: two brass pans lower out of the fog and settle into the arena as low platforms.
-// The way out (north) is veiled until Justice falls.
+//   3. the reveal: an octagonal arena beneath the landmark you walked toward for three levels.
+// Justice's stands under the great scales; in phase 2 two brass pans lower out of the fog and settle into it as low
+// platforms. The Devil's (V2-10) is the pit at the foot of his pedestal, ringed by chained pillars.
+// The way out (north) is veiled until the arcana falls.
 import * as THREE from 'three';
 import type { Rng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
-import { GEAR, JUSTICE } from '../render/palette';
+import { AREAS, DEVIL_FOES, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
-import { bar, block, columnGeo, facet, gateGeo, hillGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, scalesGeo, shade, swordGeo } from './kit';
+import { bar, block, columnGeo, facet, flameGeo, gateGeo, hillGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
-const S = JUSTICE.surfaces;
+/** The surfaces of the arena being built (set at the top of buildBossArena). */
+let S = JUSTICE.surfaces;
 const FOUNDATION = 34;
 /** Arena layout (m). The arena's axis runs north (-Z) through its centre; Justice faces the way in. */
 export const BOSS_ARENA = { centreZ: -96, radius: 28, approach: { from: -11, to: -68, width: 6 }, pans: { x: 10, r: 6, top: 0.35, high: 70, lowerTime: 3 } };
 
+export type ArenaKind = 'justice' | 'devil';
+
 export interface BossWorld extends BuiltWorld {
-  boss: 'justice';
+  boss: ArenaKind;
   /** The boss stepped into a phase (the scales come down at phase 1). */
   onBossPhase(phase: number): void;
   /** The pans are down (phase 2 arena). */
@@ -27,7 +31,10 @@ export interface BossWorld extends BuiltWorld {
   exitOpen?: () => boolean;
 }
 
-export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
+export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'justice'): BossWorld {
+  const P0 = AREAS[kind] ?? JUSTICE;
+  S = P0.surfaces;
+  const devil = kind === 'devil';
   const group = new THREE.Group();
   const mat = toonMat();
   const solid: THREE.BufferGeometry[] = [];
@@ -108,6 +115,18 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
     const colZ = cz + Math.cos(ca) * (R - 1.6);
     solid.push(place(columnGeo(1.6, 14, S.mid, S.light), colX, 0, colZ));
     staticBox(colX, 7, colZ, 1, 7, 1);
+    // The Devil's pillars are chained to each other: heavy iron swags from column to column.
+    if (devil) {
+      const na = a + Math.PI / 8 + Math.PI / 4;
+      const nx = Math.sin(na) * (R - 1.6);
+      const nz = cz + Math.cos(na) * (R - 1.6);
+      for (let k = 0; k < 8; k++) {
+        const t0 = k / 8;
+        const t1 = (k + 1) / 8;
+        const sag = (t: number) => 12 - 4 * 4 * t * (1 - t);
+        solid.push(bar(new THREE.Vector3(colX + (nx - colX) * t0, sag(t0), colZ + (nz - colZ) * t0), new THREE.Vector3(colX + (nx - colX) * t1, sag(t1), colZ + (nz - colZ) * t1), 0.22, DEVIL_FOES.iron));
+      }
+    }
   }
   // The connector from the approach onto the arena.
   const joinZ0 = ap.to;
@@ -130,14 +149,19 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
   staticBox(0, 4.5, exitZ, 3.5, 4.5, 0.3);
   for (const s of [-1, 1]) staticBox(s * 4.7, 4.5, exitZ, 1.2, 4.5, 0.9);
 
-  // ---- the great scales over the arena: the landmark, close at last
+  // ---- the landmark, close at last: the great scales over Justice's arena, the Devil's pedestal beyond his pit
   const lmZ = cz - R - 70;
-  far.push(place(scalesGeo(175, S.dark, S.shadow, JUSTICE.accent, JUSTICE.accentShade), 0, -62, lmZ));
+  if (devil) {
+    far.push(place(pedestalGeo(175, S.mid, S.dark, P0.accent, P0.accentShade), 0, -150, lmZ));
+    const flame = new THREE.Mesh(flameGeo(175 * 0.07, GEAR.lantern), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+    flame.position.set(0, -150 + 175 * PEDESTAL_FLAME, lmZ + 175 * PEDESTAL_BRAZIER_Z);
+    group.add(flame);
+  } else far.push(place(scalesGeo(175, S.dark, S.shadow, JUSTICE.accent, JUSTICE.accentShade), 0, -62, lmZ));
 
   // ---- the two pans that come down in phase 2 (brass: the accent motif), hanging on chains into the fog
   const P = A.pans;
   const pans: THREE.Group[] = [];
-  for (const sx of [-1, 1]) {
+  for (const sx of devil ? [] : [-1, 1]) {
     const g = new THREE.Group();
     const pan = facet(new THREE.CylinderGeometry(P.r, P.r * 0.8, 0.7, 10).translate(0, -0.35, 0), JUSTICE.accentShade, 0.04);
     const rim = facet(new THREE.CylinderGeometry(P.r + 0.15, P.r + 0.15, 0.18, 10, 1, true), JUSTICE.accent, 0.03);
@@ -171,7 +195,8 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
   for (let i = 0; i < 6; i++) {
     const a = rng.range(0, Math.PI * 2);
     const r = rng.range(70, 160);
-    far.push(place(swordGeo(rng.range(40, 70), S.mid, S.dark), Math.sin(a) * r, -36, cz + Math.cos(a) * r, rng.range(-0.3, 0.3), rng.range(0, 6.28), 0.05));
+    if (devil) far.push(place(pitPillarGeo(rng.range(50, 85), S.mid, S.dark, P0.accentShade), Math.sin(a) * r, -60, cz + Math.cos(a) * r, 0, rng.range(0, 6.28), 0));
+    else far.push(place(swordGeo(rng.range(40, 70), S.mid, S.dark), Math.sin(a) * r, -36, cz + Math.cos(a) * r, rng.range(-0.3, 0.3), rng.range(0, 6.28), 0.05));
   }
 
   group.add(meshOf(merge(solid), mat));
@@ -182,7 +207,7 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
 
   const restPoints: RestPoint[] = [{ pos: lantern.clone(), rest: new THREE.Vector3(lantern.x - 1.6, 0.05, lantern.z - 1.2), restYaw: 0 }];
   const world = {
-    boss: 'justice' as const,
+    boss: kind,
     exited: false,
     exitOpen: undefined as (() => boolean) | undefined,
   } as Partial<BossWorld> & { exited: boolean };
@@ -190,7 +215,7 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
     {
       pos: new THREE.Vector3(0, 0, exitZ),
       radius: 3.6,
-      prompt: () => (world.exitOpen?.() ?? true ? 'E: go on, unbound' : 'The way on is veiled while Justice stands'),
+      prompt: () => (world.exitOpen?.() ?? true ? 'E: go on, unbound' : `The way on is veiled while ${devil ? 'the Devil' : 'Justice'} stands`),
       usable: () => world.exitOpen?.() ?? true,
       use: () => {
         world.exited = true;
@@ -204,13 +229,15 @@ export function buildBossArena(physics: Physics, rng: Rng): BossWorld {
     spawnYaw: 0,
     dummySpots: [],
     enemySpots: [],
-    foeSpots: [{ id: 'justice', pos: new THREE.Vector3(0, 0, cz - 6), yaw: Math.PI, idle: 'throne' as const }],
+    foeSpots: [{ id: kind, pos: new THREE.Vector3(0, 0, cz - 6), yaw: Math.PI, idle: 'throne' as const }],
     checkpoint: lantern.clone(),
     restLabel: 'the lantern',
     restPoints,
     interactables,
     bounds: { minX: -R, maxX: R, minZ: cz - R, maxZ: startW / 2 },
     onBossPhase(phase: number) {
+      // Only Justice's arena changes with her phase (the Devil's changes come from him: the pact, the coin).
+      if (devil) return;
       if (phase >= 1 && panState === 'up') {
         panState = 'lowering';
         panT = 0;

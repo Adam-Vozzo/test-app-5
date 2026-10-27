@@ -141,6 +141,15 @@ Rules:
       collar to collar between a pair.
   - *The binding's telegraph:* the chain between a pair **glows magenta** through the wind-up. Caught, a magenta
     coil circles her and tightens until the blow lands or she rolls.
+  - *The Pentacles court (V2-10, `COURT_PENTACLES`):* earth-dark armour and robes, each wearing the suit as a large
+    **bone-pale disc with a five-pointed star** cut in dark lines (bone, never crit gold or the area's gilt).
+    - **Knight:** a broad, plated figure holding the pentacle before its chest.
+    - **Queen:** dark olive, with the pentacle cradled in her off hand.
+    - **King:** in umber, with a fruited hem, the pentacle crest above his crown and a pentacle sceptre.
+  - *The Devil (V2-10):* 6.5 m of dark umber hide, soot bat-wings and great horns. His right hand is raised and an
+    iron torch is held low, as on the card.
+  - *Seeds are gilt, not magenta:* the Queen's seeds are coin to step on, not danger to leave, so their rings use the
+    Devil's gilt. Telegraph magenta stays reserved for "get out". Shackle zones, which do bind, stay magenta.
   - *Hoard tells (the temptation must be learnable):* each hoard is a gilt heap with a faint gilt glow and one tell.
     - **bell:** a bell hangs on a crooked post over the heap.
     - **weight:** chains are looped over it and staked into the floor.

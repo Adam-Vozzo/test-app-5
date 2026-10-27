@@ -93,6 +93,28 @@ export const COURT = {
   crown: 0x8a8f99,
 } as const;
 
+/**
+ * The Pentacles court (V2-10): earth-dark armour and robes, each wearing the suit as a large pale disc crest. The
+ * crest is bone, not gold: never crit gold, never the area's gilt.
+ */
+export const COURT_PENTACLES = {
+  crest: 0xcfc6b0,
+  crestLine: 0x3a3127,
+  knightArmour: 0x4a4636,
+  knightPlate: 0x5d5844,
+  queenGown: 0x3f4a33,
+  queenMantle: 0x5a6346,
+  kingRobe: 0x3a2c22,
+  kingMantle: 0x56443a,
+  crown: 0x7d7468,
+  /** The Devil: a horned, bat-winged giant on the card's pedestal (dark umber hide, soot wings, an iron torch). */
+  devilHide: 0x3d2a24,
+  devilWing: 0x2a201d,
+  devilHorn: 0x1f1816,
+  torch: 0x2b2826,
+  torchHead: 0x6a4a2c,
+} as const;
+
 /** v1 bug characters (enemies until V2-4 replaces them). */
 export const CHARACTER = {
   limb: 0x1e1414,

@@ -24,7 +24,9 @@ four thin ones.
 > metres. **V2-8** (the second dimension, in progress per `PLAN.md`) adds the Devil's descending levels
 > (`DEVIL_DIMENSION` in `src/world/dimensions.ts`, `DEVIL` palette) behind the bull's gate; **V2-9** adds its enemies
 > (`src/enemies/devil.ts`: Miser, Imp, Page of Pentacles as data; the chained Thralls) and its rule (the binding,
-> `src/player/binding.ts`; tempting hoards placed by `gen-dress.ts`). Its court cards are still Swords placeholders. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> `src/player/binding.ts`; tempting hoards placed by `gen-dress.ts`); **V2-10** adds the Pentacles court
+> (`court-pentacles.ts`), the Devil and his pact (`devil-boss.ts`, his arena via `boss.ts`), coin on the floor
+> (`src/world/coins.ts`) and his unbinding, the dash (X). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -125,7 +127,8 @@ src/
   enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
                    Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
                    boss (justice.ts: JusticeBoss extends CourtCard); the Devil's archetypes and the Thrall pair
-                   (devil.ts). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
+                   (devil.ts), the Pentacles court
+                   (court-pentacles.ts) and the Devil (devil-boss.ts: DevilBoss extends CourtCard). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
                    manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;

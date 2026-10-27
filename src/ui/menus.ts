@@ -13,6 +13,7 @@ const KEYS: [string, string][] = [
   ['Q', 'heal (3 charges)'],
   ['E', 'rest at a lantern · use (doors, gates, people)'],
   ['V', 'parry (once Justice has fallen)'],
+  ['X', 'dash, through chains (once the Devil has fallen)'],
   ['C', 'swap shoulder'],
   ['`', 'tuning panel'],
   ['T', 'slow-mo 0.25×'],

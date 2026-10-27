@@ -31,12 +31,16 @@ import { ParryState } from './weapons/parry';
 import { Binding } from './player/binding';
 import { buildBossArena, type BossWorld } from './world/boss';
 import { buildHub, GATES } from './world/hub';
-import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDINGS } from './world/hub-data';
+import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDING_LINES, UNBINDINGS } from './world/hub-data';
+import { PACT_TERMS } from './enemies/devil-boss';
 import { buildCourtyard } from './world/courtyard';
 import { DIMENSIONS, type DimensionDef } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
 import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/level';
 import type { Hoard } from './world/gen-dress';
+import { CoinPiles } from './world/coins';
+import { Thrall } from './enemies/devil';
+import { sweepCrosses } from './enemies/foe-ai';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
 import { Minimap } from './ui/minimap';
@@ -55,6 +59,9 @@ const _aimHit: RayHit = {
   target: null,
 };
 const _o = new THREE.Vector3();
+const _o2 = new THREE.Vector3();
+/** Dimensions whose arcana's arena is built. */
+const ARENAS = ['justice', 'devil'];
 
 export class Game {
   readonly renderer: Renderer;
@@ -109,6 +116,14 @@ export class Game {
   private readonly bindFrom = new THREE.Vector3();
   /** The Devil's weight: hoards taken from under chains, carried until you rest (shorter rolls, a slower walk). */
   burden = 0;
+  /** Coin the King of Pentacles' rain leaves on the floor (each pile pays, and weighs). */
+  private coins!: CoinPiles;
+  /** The Devil's pact: offered at half his health; E accepts, letting it pass refuses. Lasts the fight. */
+  pact: 'none' | 'offered' | 'accepted' | 'refused' = 'none';
+  private pactT = 0;
+  /** The dash's cooldown (s left), and where she was last frame (for the swept chain check). */
+  private dashCd = 0;
+  private readonly dashFrom = new THREE.Vector3();
   /** The binding's coil around her (telegraph magenta, tightening as the blow nears). */
   private readonly coil = new THREE.Mesh(
     new THREE.TorusGeometry(0.7, 0.05, 4, 18).rotateX(Math.PI / 2),
@@ -144,6 +159,7 @@ export class Game {
     this.fx = new Fx(this.renderer, this.physics);
     this.projectiles = new Projectiles(this.renderer.scene);
     this.hazards = new Hazards(this.renderer.scene);
+    this.coins = new CoinPiles(this.renderer.scene);
     this.coil.visible = false;
     this.coil.renderOrder = 6;
     this.renderer.scene.add(this.coil);
@@ -209,7 +225,8 @@ export class Game {
       this.disposeGroup(this.world.group);
     }
     if (this.player) {
-      this.renderer.scene.remove(this.player.biped.group, this.player.weaponRoot, this.player.drop);
+      // (The rifle slung on her back has its own root: leave none behind from the last life.)
+      this.renderer.scene.remove(this.player.biped.group, this.player.weaponRoot, this.player.backRoot, this.player.drop);
     }
     if (this.pollenDrop) this.renderer.scene.remove(this.pollenDrop.group);
     this.enemies.clear();
@@ -232,11 +249,12 @@ export class Game {
       });
       this.area = WORLD;
     } else if (this.layout === 'level' && this.levelIndex === 3 && this.hasArena) {
-      // The dimension's end: Justice's arena under the scales.
-      const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork('justice-arena'));
+      // The dimension's end: the arcana's arena (Justice under the scales, the Devil in the pit below his pedestal).
+      const kind = this.dimension === 'devil' ? 'devil' : 'justice';
+      const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork(`${kind}-arena`), kind);
       bw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = bw;
-      this.area = JUSTICE;
+      this.area = AREAS[kind] ?? JUSTICE;
     } else if (this.layout === 'level') {
       const dim = this.dim;
       const { layout, report } = generateLevel(dim, Math.min(2, this.levelIndex), this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
@@ -278,6 +296,9 @@ export class Game {
     this.parry.cancel();
     this.binding.cancel();
     this.burden = 0;
+    this.coins.clear();
+    this.pact = 'none';
+    this.dashCd = 0;
     this.player.biped.onFootstep = () => {
       if (!this.player.controller.grounded) return;
       this.synth.footstep();
@@ -323,6 +344,11 @@ export class Game {
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback, source) => this.hurtPlayer(amount, from, knockback, source),
       bindPlayer: (time, damage, knockback, from) => this.bindPlayer(time, damage, knockback, from),
+      dropCoins: (at, n) => this.coins.drop(at, n),
+      offerPact: () => this.offerPact(),
+      get pact() {
+        return game.pact;
+      },
       sound: (name, at) => this.sfxAt(name, at),
       shake: (trauma, at) => {
         const d = at.distanceTo(this.player.pos);
@@ -359,7 +385,7 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, chainsBroken: 0, coinsTaken: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
@@ -394,9 +420,9 @@ export class Game {
     return DIMENSIONS[this.dimension] ?? DIMENSIONS.justice;
   }
 
-  /** Does the current dimension's arcana have its arena yet? (Only Justice's is built; V2-10 brings the Devil's.) */
+  /** Does the current dimension's arcana have its arena yet? (Justice's and, since V2-10, the Devil's.) */
   get hasArena() {
-    return this.dimension === 'justice';
+    return ARENAS.includes(this.dimension);
   }
 
   /** Where a road stands: its next level's name, for gates and toasts. */
@@ -429,22 +455,24 @@ export class Game {
     else this.hud.toast(`${dim.name}, level ${this.levelIndex + 1}: ${this.level!.generated.script.setPiece.name}`, 3.5);
   }
 
-  /** Justice has fallen: the dimension is cleared, her unbinding is freed, and the road leads home to the hub. */
+  /** The arcana has fallen: the dimension is cleared, its unbinding is freed, and the road leads home to the hub. */
   completeDimension() {
-    const first = !this.save.cleared.includes('justice');
-    this.save = clearDimension(this.save, 'justice', UNBINDINGS.justice);
+    const id = this.dim.id;
+    const first = !this.save.cleared.includes(id);
+    this.save = clearDimension(this.save, id, UNBINDINGS[id]);
     this.levelIndex = 0;
     this.layout = 'hub';
     this.persist();
     this.buildLevel();
-    this.hud.toast(first ? 'Justice is weighed. A cord falls away: you can parry (V). Meet a blow as it lands.' : 'Justice is weighed again.', 6);
+    const line = UNBINDING_LINES[id];
+    if (line) this.hud.toast(first ? line.first : line.again, 6);
   }
 
   /** Can a gate's road be walked? Its dimension must be built, and its arena or its levels still ahead. */
   private roadBuilt(dim: string) {
     const d = DIMENSIONS[dim];
     if (!d) return false;
-    return dim === 'justice' || (this.save.progress[dim] ?? 0) < 3;
+    return ARENAS.includes(dim) || (this.save.progress[dim] ?? 0) < 3;
   }
 
   /** Into a dimension through its gate, at the next level on its road. */
@@ -508,7 +536,8 @@ export class Game {
 
   /** A hub character's next line for where the player is in the story. */
   private speak(who: 'priestess') {
-    const state = this.save.cleared.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
+    const c = this.save.cleared;
+    const state = c.includes('devil') ? 'devil' : c.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
     return this.speakLine(who, PRIESTESS_LINES, state);
   }
 
@@ -590,6 +619,8 @@ export class Game {
   hurtPlayer(amount: number, from: THREE.Vector3, knockback: number, source?: Hostile | 'projectile'): boolean {
     const c = this.player.controller;
     if (this.vitals.dead) return false;
+    // The Devil's pact: double what you take, for the rest of the fight.
+    if (this.pact === 'accepted') amount *= 2;
     if (source && this.parry.turns(c.yaw, c.pos.x, c.pos.z, from.x, from.z)) {
       this.parried(source, from);
       return false;
@@ -641,6 +672,15 @@ export class Game {
       this.enemyWorld.summon('imp', p, Math.atan2(-(this.player.pos.x - p.x), -(this.player.pos.z - p.z)));
     }
     return `${g} +${amount}. Something climbs out of the broken floor.`;
+  }
+
+  /** The Devil stops at half his health and holds out the pact. E accepts; letting it pass refuses. */
+  private offerPact() {
+    if (this.pact !== 'none') return;
+    this.pact = 'offered';
+    this.pactT = tuning.foes.devil.pactTime;
+    this.synth.sfx('courtHorn');
+    this.hud.toast(`The Devil offers a pact: ${PACT_TERMS}. E: accept. (Let it pass to refuse.)`, tuning.foes.devil.pactTime);
   }
 
   /** Caught across a chain: held, then struck, unless she rolls. A roll's i-frames slip it entirely. */
@@ -705,6 +745,8 @@ export class Game {
     this.arsenal.refillAll();
     this.binding.cancel();
     this.burden = 0;
+    this.coins.clear();
+    this.pact = 'none';
     this.enemies.reset();
     this.world.onReset?.();
     this.projectiles.clear();
@@ -720,6 +762,8 @@ export class Game {
   private rest() {
     if (this.burden > 0) this.hud.toast('You set the weight down.', 2);
     this.burden = 0;
+    this.coins.clear();
+    this.pact = 'none';
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
@@ -866,7 +910,21 @@ export class Game {
     const cp = this.world?.checkpoint;
     const nearCheckpoint = alive && (rests ? restAt >= 0 : !!cp && Math.hypot(c.pos.x - cp.x, c.pos.z - cp.z) < 3.2);
     let usedE = false;
-    if (control && nearCheckpoint && inp.justPressed('KeyE') && !c.committed) {
+    // The pact: E accepts while he holds it out; letting the time pass refuses.
+    if (this.pact === 'offered') {
+      this.pactT -= simDt;
+      if (control && inp.justPressed('KeyE')) {
+        this.pact = 'accepted';
+        usedE = true;
+        this.synth.sfx('bound');
+        this.camera.addTrauma(0.3);
+        this.hud.toast('The pact is made. Every blow, yours and his, lands twice as hard.', 3.5);
+      } else if (this.pactT <= 0) {
+        this.pact = 'refused';
+        this.hud.toast('You let it pass. The fight goes on as it was.', 2.5);
+      }
+    }
+    if (control && nearCheckpoint && !usedE && inp.justPressed('KeyE') && !c.committed) {
       if (restAt >= 0) this.lastRest = restAt;
       this.rest();
       usedE = true;
@@ -912,11 +970,21 @@ export class Game {
     const wantsRoll = control && this.rollBuffer > 0 && !v.busy && !this.arsenal.blocksRoll && !this.parry.busy;
     // Bound, a roll always goes through (stamina or not): that's the rule.
     const breaksFree = control && this.rollBuffer > 0 && this.binding.active && alive;
+    // The chain-break dash (X), once the Devil has fallen.
+    this.dashCd = Math.max(0, this.dashCd - simDt);
+    let wantsDash = false;
+    if (control && inp.justPressed('KeyX')) {
+      if (!this.save.unbound.includes('dash')) {
+        if (this.clock.realElapsed - this.boundToastT > 3) this.hud.toast('Still chained. (The Devil frees the dash.)', 2);
+        this.boundToastT = this.clock.realElapsed;
+      } else wantsDash = this.dashCd <= 0 && !v.busy && !this.arsenal.blocksRoll && !this.parry.busy && (v.canRoll() || this.binding.active);
+    }
     player.move(simDt, {
       x: ax,
       y: ay,
       sprint: control && (inp.held('ShiftLeft') || inp.held('ShiftRight')) && v.canSprint(),
       rollPressed: (wantsRoll && v.canRoll()) || breaksFree,
+      dashPressed: wantsDash,
       speedMul:
         (ads ? tuning.player.adsSpeedMul : 1) *
         (gun.reloading ? tuning.player.reloadSpeedMul : 1) *
@@ -933,7 +1001,11 @@ export class Game {
       this.rollBuffer = 0;
       this.arsenal.onRoll();
       this.noise(tuning.foes.noise.roll);
-      v.spendRoll();
+      if (c.dashing) {
+        v.stamina = Math.max(0, v.stamina - tuning.dash.staminaCost);
+        this.dashCd = tuning.dash.cooldown;
+        this.synth.sfx('chainSnap');
+      } else v.spendRoll();
       this.synth.sfx('roll');
       if (this.binding.roll() === 'broken') {
         this.synth.sfx('chainBreak');
@@ -941,6 +1013,19 @@ export class Game {
         if (this.binding.broken === 1) this.hud.toast('The binding breaks. One roll always does: you could always have walked away.', 3.5);
       }
     }
+    // The dash breaks any Thrall chain it passes through (swept: it moves a long way each frame).
+    if (c.dashing && c.state === 'roll') {
+      for (const e of this.enemies.enemies) {
+        if (!(e instanceof Thrall) || !e.chain?.intact) continue;
+        const ch = e.chain;
+        if (sweepCrosses(this.dashFrom.x, this.dashFrom.z, c.pos.x, c.pos.z, ch.a.x, ch.a.z, ch.b.x, ch.b.z, 0.7) && Math.abs(c.pos.y + 1 - ch.a.y) < 1.4) {
+          ch.takeDamage({ amount: 9999, crit: false, point: c.pos.clone(), dir: c.vel.clone().normalize(), knockback: 0, stagger: 0 });
+          this.stats.chainsBroken++;
+          this.fx.sparksAt(_o.copy(c.pos).setY(c.pos.y + 1), _o2.set(0, 1, 0), 0xd8d0c4, 16, 6);
+        }
+      }
+    }
+    this.dashFrom.copy(c.pos);
     // The binding holds, then strikes.
     if (simDt > 0 && this.binding.update(simDt) === 'struck') this.hurtPlayer(this.binding.damage, this.bindFrom, this.binding.knockback);
     this.coil.visible = this.binding.active && alive;
@@ -1030,6 +1115,16 @@ export class Game {
     this.projectiles.update(simDt, this.gunCtx);
     // Not collectible while dead (the killing blow can land the same frame the drop appears).
     const recovered = v.dead ? 0 : this.pollenDrop.update(simDt, c.pos, tuning.vitals.pollenPickupRadius);
+    // Coin on the floor: it pays, and it weighs (the Devil's rule, mid-fight).
+    const piles = v.dead ? 0 : this.coins.update(c.pos, tuning.foes.coinPile.pickupRadius);
+    if (piles > 0) {
+      const pay = piles * tuning.foes.coinPile.pentacles;
+      v.currency += pay;
+      this.burden = Math.min(tuning.foes.hoard.weightMax, this.burden + piles);
+      this.stats.coinsTaken += piles;
+      this.synth.sfx('coinJingle');
+      this.hud.toast(`${this.money.glyph} +${pay}. Heavy.`, 1.6);
+    }
     if (recovered > 0) {
       v.currency += recovered;
       this.synth.sfx('pollen');

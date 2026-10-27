@@ -963,15 +963,12 @@ export async function devilScenario({ g, wait, shot }) {
     await shot(`72-devil-l${lv + 1}-vista`);
     await g(() => window.__game.nextLevel());
   }
-  await until(() => window.__game.layout === 'hub', 15000);
+  // After the third level, the way on leads down into his arena (V2-10).
+  await until(() => window.__game.bossWorld?.boss === 'devil', 15000);
   await wait(800);
-  const home = await g(() => {
-    const gm = window.__game;
-    const it = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').toLowerCase().includes('bull'));
-    return { layout: gm.layout, progress: gm.save.progress.devil, label: it?.prompt(gm.player.pos), usable: it?.usable(gm.player.pos) };
-  });
-  console.log(`  devil: home ${JSON.stringify(home)}`);
-  if (home.layout !== 'hub' || home.progress !== 3 || home.usable) throw new Error("after the Devil's third level the road should lead home (its arena isn't built yet)");
+  const arena = await g(() => ({ layout: window.__game.layout, level: window.__game.levelIndex, progress: window.__game.save.progress.devil, boss: window.__game.enemies.enemies[0]?.id }));
+  console.log(`  devil: on to the arena ${JSON.stringify(arena)}`);
+  if (arena.level !== 3 || arena.progress !== 3 || arena.boss !== 'devil') throw new Error("after the Devil's third level the way on should lead to his arena");
   await g(() => { window.__tuning.debug.godMode = false; });
 }
 
@@ -1007,18 +1004,22 @@ export async function devilFoesScenario({ g, wait, shot }) {
     await g(() => window.__game.input.release('Space'));
   };
 
-  await g(() => window.__game.start('justice'));
-  await wait(1200);
+  // The fights happen in the Devil's arena: an open octagon (centre z = -96) with nothing in the way.
+  const Z = -96;
   await g(() => {
     const gm = window.__game;
+    gm.dimension = 'devil';
+    gm.levelIndex = 3;
+    gm.zoneSeed = 42;
+    gm.start('level');
     window.__tuning.debug.godMode = false;
     window.__tuning.debug.showAI = true;
-    for (const d of gm.dummies) d.dispose(gm.renderer.scene);
-    gm.dummies.length = 0;
   });
+  await wait(1500);
+  await clearFoes();
 
   // 1. The binding, alone: waiting gets you struck; one roll breaks it (stamina or not).
-  await put(0, 6, 0);
+  await put(0, Z + 6, 0);
   await wait(400);
   const hp0 = await g(() => window.__game.vitals.health);
   await g(() => window.__game.bindPlayer(0.8, 30, 4, window.__game.player.pos.clone().add({ x: 0, y: 0, z: -2 })));
@@ -1039,8 +1040,8 @@ export async function devilFoesScenario({ g, wait, shot }) {
   // 2. A Thrall pair: they wind up (the chain glows), run either side and snap it across her.
   await g(() => { window.__tuning.debug.godMode = true; window.__game.vitals.restore(); });
   await clearFoes();
-  await put(0, 8, 0);
-  const pair = await spawn('thrall', 0, -2, Math.PI);
+  await put(0, Z + 8, 0);
+  const pair = await spawn('thrall', 0, Z - 2, Math.PI);
   const wound = await until(() => { const e = window.__game.enemies.enemies; return e[0].attack === 'bind' && e[0].phase === 'windup' && e[0].tl.k > 0.55; }, 25000);
   await shot('80-thralls-bind-windup');
   const bound = await until(() => window.__game.binding.active, 6000);
@@ -1064,14 +1065,14 @@ export async function devilFoesScenario({ g, wait, shot }) {
 
   // 4. The Imp hits and runs; the Page of Pentacles runs; the Miser hugs its chest (front blocked, back open).
   await clearFoes();
-  await put(0, 8, 0);
-  await spawn('imp', 0, 2, Math.PI);
+  await put(0, Z + 8, 0);
+  await spawn('imp', 0, Z + 2, Math.PI);
   const raked = await until(() => window.__game.enemies.enemies[0].fallBackT > 0, 15000);
   console.log(`  imp: struck and fell back ${raked}`);
   if (!raked) throw new Error('the Imp should fall back after a rake');
   await clearFoes();
-  await spawn('pagePentacles', 0, 0, Math.PI);
-  await put(0, 7, 0);
+  await spawn('pagePentacles', 0, Z, Math.PI);
+  await put(0, Z + 7, 0);
   await wait(300);
   const d0 = await g(() => { const f = window.__game.enemies.enemies[0]; return Math.hypot(f.ground.x - window.__game.player.pos.x, f.ground.z - window.__game.player.pos.z); });
   await until(() => window.__game.enemies.enemies[0].state === 'approach', 8000);
@@ -1080,7 +1081,7 @@ export async function devilFoesScenario({ g, wait, shot }) {
   console.log(`  page of pentacles: ${d0.toFixed(1)} m → ${d1.toFixed(1)} m (it runs)`);
   if (!(d1 > d0 + 3)) throw new Error('the Page of Pentacles should run from her');
   await clearFoes();
-  await spawn('miser', 0, 2, Math.PI);
+  await spawn('miser', 0, Z + 2, Math.PI);
   const guard = await g(() => {
     const f = window.__game.enemies.enemies[0];
     return { front: f.blocks({ x: 0, y: 0, z: -1 }), back: f.blocks({ x: 0, y: 0, z: 1 }) };
@@ -1166,3 +1167,190 @@ export async function devilFoesScenario({ g, wait, shot }) {
   if (!took || !took.took || took.again) throw new Error('a hoard in the level should be taken once through its prompt');
   await g(() => { window.__tuning.debug.godMode = false; });
 }
+
+/** V2-10: the Pentacles court, the Devil and his pact, home to the hub, and the chain-break dash. */
+export async function devilCourtScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw, pitch = 0.05) =>
+    g(([x, z, yaw, pitch]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = pitch;
+    }, [x, z, yaw, pitch]);
+  const spawn = (id, x, z, yaw) =>
+    g(([id, x, z, yaw]) => {
+      const gm = window.__game;
+      gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw, idle: 'throne' }], gm.physics, gm.rng.fork(`smoke-${id}`));
+    }, [id, x, z, yaw]);
+  const clearFoes = () => g(() => window.__game.enemies.clear());
+  const tap = async (code) => {
+    await g((code) => window.__game.input.press(code), code);
+    await wait(60);
+    await g((code) => window.__game.input.release(code), code);
+  };
+  const hurtBoss = (frac) =>
+    g((frac) => {
+      const e = window.__game.enemies.enemies[0];
+      const want = e.maxHealth * frac;
+      e.takeDamage({ amount: Math.max(1, e.health - want), crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 });
+    }, frac);
+
+  // The court fights in the Devil's arena: an open octagon (centre z = -96), nothing in the way of a charge.
+  const Z = -96;
+  await g(() => {
+    const gm = window.__game;
+    gm.dimension = 'devil';
+    gm.levelIndex = 3;
+    gm.zoneSeed = 42;
+    gm.start('level');
+    window.__tuning.debug.godMode = true;
+    window.__tuning.debug.showAI = true;
+  });
+  await wait(1500);
+
+  // 1. The Knight of Pentacles: a slow lane charge that pins you (bound), and shots don't stagger it.
+  await clearFoes();
+  await put(0, Z + 10, 0);
+  await spawn('knightPentacles', 0, Z - 6, 0);
+  const lane = await until(() => { const e = window.__game.enemies.enemies[0]; return e.attack?.includes('charge') && e.phase === 'windup' && e.tl.k > 0.5; }, 25000);
+  await shot('84-knight-pentacles-charge');
+  const pinned = await until(() => window.__game.binding.active, 8000);
+  await tap('Space');
+  const unpinned = await until(() => !window.__game.binding.active, 3000);
+  const poise = await g(() => { const e = window.__game.enemies.enemies[0]; const s0 = e.state; e.takeDamage({ amount: 50, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 500 }); return { before: s0, after: e.state }; });
+  console.log(`  knight of pentacles: lane ${lane}, pinned ${pinned}, rolled free ${unpinned}, a 500-stagger shot: ${poise.before} → ${poise.after}`);
+  if (!lane || !pinned || !unpinned || poise.after === 'stagger') throw new Error("the Knight of Pentacles' charge should bind, and shots shouldn't stagger it");
+
+  // 2. The Queen of Pentacles: gilt seeds around you; trample one, let one ripen into an Imp.
+  await clearFoes();
+  await g(() => { window.__game.binding.cancel(); });
+  await put(0, Z + 6, 0);
+  await spawn('queenPentacles', 0, Z - 8, 0);
+  const sown = await until(() => window.__game.hazards.verdicts.filter((v) => v.kind === 'seed').length >= 2, 30000);
+  await wait(300);
+  await shot('85-queen-pentacles-seeds');
+  const seed = await g(() => { const v = window.__game.hazards.verdicts.find((v) => v.kind === 'seed'); return [v.at.x, v.at.z]; });
+  await put(seed[0], seed[1], 0);
+  const crushed = await until(() => window.__game.hazards.verdicts.filter((v) => v.kind === 'seed').length <= 1, 3000);
+  await put(0, Z + 14, 0);
+  const sprouted = await until(() => window.__game.enemies.enemies.some((e) => e.id === 'imp' && e.summoned), 8000);
+  console.log(`  queen of pentacles: sowed ${sown}, trampled one ${crushed}, one sprouted an imp ${sprouted}`);
+  if (!sown || !crushed || !sprouted) throw new Error("the Queen's seeds should sprout Imps unless trampled");
+
+  // 3. The King of Pentacles: coin rain leaves coin (taking it weighs); his phases hire Misers.
+  await clearFoes();
+  await put(0, Z + 6, 0);
+  await spawn('kingPentacles', 0, Z - 8, 0);
+  const coined = await until(() => window.__game.coins.count > 0, 30000);
+  await shot('86-king-pentacles-coin');
+  const pile = await g(() => { const p = window.__game.coins.piles[0]; return [p.at.x, p.at.z]; });
+  const b0 = await g(() => window.__game.burden);
+  // It landed under her: step clear first (standing still never takes it), then walk back onto it.
+  await put(pile[0] + 4, pile[1] + 4, 0);
+  await wait(400);
+  const stillThere = await g(() => window.__game.coins.count > 0);
+  await put(pile[0], pile[1], 0);
+  const took = await until((b0) => window.__game.burden > b0, 3000, b0);
+  await hurtBoss(0.6);
+  const hired = await until(() => window.__game.enemies.enemies.filter((e) => e.id === 'miser' && e.summoned).length >= 2, 6000);
+  console.log(`  king of pentacles: coin on the floor ${coined} (still there after standing on it ${stillThere}), took it (heavy) ${took}, hired misers ${hired}`);
+  if (!coined || !stillThere || !took || !hired) throw new Error('the King should leave coin that weighs, and hire Misers at his phase');
+
+  // 4. The Devil: the arena, the pact, the shackles, his fall.
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, cleared: ['justice'], unbound: ['parry'], progress: { justice: 0, devil: 3 } };
+    gm.dimension = 'devil';
+    gm.levelIndex = 3;
+    gm.zoneSeed = 42;
+    gm.start('level');
+    window.__tuning.debug.showAI = false;
+  });
+  await wait(1500);
+  const arena = await g(() => ({ boss: window.__game.bossWorld?.boss, area: window.__game.area.name, id: window.__game.enemies.enemies[0]?.id }));
+  await shot('87-devil-approach');
+  await put(0, -64, 0, 0.14);
+  await wait(900);
+  await shot('88-devil-reveal');
+  await put(0, -80, 0, 0.18);
+  const woke = await until(() => window.__game.enemies.enemies[0].state !== 'idle', 20000);
+  await wait(1200);
+  await shot('89-devil');
+  const shackled = await until(() => window.__game.binding.active, 30000);
+  await tap('Space');
+  await until(() => !window.__game.binding.active, 3000);
+  await hurtBoss(0.49);
+  const offered = await until(() => window.__game.pact === 'offered', 5000);
+  await wait(500);
+  await shot('90-devil-pact');
+  const immune = await g(() => { const e = window.__game.enemies.enemies[0]; const h = e.health; e.takeDamage({ amount: 100, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 }); return h === e.health; });
+  await tap('KeyE');
+  const accepted = await until(() => window.__game.pact === 'accepted', 3000);
+  await wait(300);
+  const doubled = await g(() => { const e = window.__game.enemies.enemies[0]; const h = e.health; e.takeDamage({ amount: 100, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 }); return Math.round(h - e.health); });
+  const hurtMore = await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = false;
+    gm.vitals.restore();
+    const h0 = gm.vitals.health;
+    gm.player.controller.state = 'move';
+    gm.hurtPlayer(10, gm.player.pos.clone().add({ x: 0, y: 0, z: -3 }), 0);
+    window.__tuning.debug.godMode = true;
+    return h0 - gm.vitals.health;
+  });
+  console.log(`  devil: arena ${JSON.stringify(arena)}, woke ${woke}, shackled ${shackled}, pact offered ${offered} (he takes nothing while offering: ${immune}), accepted ${accepted}: he takes ${doubled} for 100, she takes ${hurtMore} for 10`);
+  if (arena.boss !== 'devil' || arena.area !== 'The Devil' || arena.id !== 'devil' || !woke || !shackled || !offered || !immune || !accepted || doubled !== 200 || hurtMore !== 20) throw new Error('the Devil should shackle, offer his pact at half health, and the pact should double damage both ways');
+  await hurtBoss(0);
+  const open = await until(() => window.__game.bossWorld?.exitOpen?.() === true, 5000);
+  await g(() => window.__game.nextLevel());
+  await until(() => window.__game.layout === 'hub', 10000);
+  await wait(800);
+  const home = await g(() => {
+    const gm = window.__game;
+    const lion = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').toLowerCase().includes('lion'));
+    return { cleared: gm.save.cleared, dash: gm.save.unbound.includes('dash'), lion: lion?.prompt(gm.player.pos) };
+  });
+  console.log(`  devil fallen: way on ${open}, home ${JSON.stringify(home)}`);
+  if (!open || !home.cleared.includes('devil') || !home.dash || !home.lion?.includes('awake')) throw new Error('the Devil falling should clear the dimension, free the dash and wake the lion');
+
+  // 5. The dash: X, fast and short; through a Thrall chain it breaks the chain.
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, unbound: ['parry', 'dash'] };
+    gm.dimension = 'devil';
+    gm.levelIndex = 3;
+    gm.start('level');
+  });
+  await wait(1500);
+  await clearFoes();
+  await put(0, Z + 10, 0);
+  await wait(300);
+  const p0 = await g(() => window.__game.player.pos.toArray());
+  await tap('KeyX');
+  const dashed = await until(() => window.__game.player.controller.dashing, 2000);
+  await wait(700);
+  const p1 = await g(() => window.__game.player.pos.toArray());
+  await g(() => {
+    const gm = window.__game;
+    gm.enemies.spawnFoes([{ id: 'thrall', pos: { x: 0, y: 0, z: -98 }, yaw: 0, idle: 'stand' }], gm.physics, gm.rng.fork('dash-thralls'));
+  });
+  // (The dash has a cooldown, and game time runs behind wall time here: wait it out.)
+  await until(() => window.__game.dashCd <= 0 && window.__game.player.controller.state === 'move', 5000);
+  await put(0, Z, 0);
+  await wait(150);
+  await tap('KeyX');
+  const again = await until(() => window.__game.player.controller.dashing, 2000);
+  const snapped = await until(() => window.__game.stats.chainsBroken > 0, 3000);
+  console.log(`  dash: started ${dashed}, covered ${Math.hypot(p1[0] - p0[0], p1[2] - p0[2]).toFixed(2)} m, dashed again ${again}, broke a chain ${snapped}`);
+  if (!dashed || !again || !snapped) throw new Error('the dash should go, and break a Thrall chain it passes through');
+  await g(() => { window.__tuning.debug.godMode = false; });
+}
+

@@ -77,6 +77,8 @@ export interface LevelBeatDef {
   beat: Beat;
   miniboss: CourtRank;
   minibossName: string;
+  /** The court card's id when it isn't the Swords rank itself (the Pentacles court: 'knightPentacles', …). */
+  court?: string;
   /** Combat spaces on the critical path (a fighting set-piece and a guarded gate count). */
   combats: [number, number];
   /** Enemy sockets per combat space, before depth scaling. */
@@ -225,8 +227,8 @@ export const JUSTICE_DIMENSION: DimensionDef = {
 /**
  * The Devil × Pentacles (DESIGN.md → The Devil; V2-8): descending vaults and mine galleries, always going down toward
  * the throne-pedestal glowing in the pit. Not symmetric: hoards and cover lie where greed left them. Its own
- * archetypes (V2-9) hold the rooms: Misers, Imps, chained Thralls and the Page of Pentacles. The court cards are
- * Swords placeholders until V2-10.
+ * archetypes (V2-9) hold the rooms: Misers, Imps, chained Thralls and the Page of Pentacles; the Pentacles court
+ * (V2-10) holds the throne rooms.
  */
 export const DEVIL_DIMENSION: DimensionDef = {
   id: 'devil',
@@ -238,6 +240,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       beat: 'introduce',
       miniboss: 'knight',
       minibossName: 'Knight of Pentacles',
+      court: 'knightPentacles',
       combats: [2, 2],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
@@ -249,6 +252,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       beat: 'develop',
       miniboss: 'queen',
       minibossName: 'Queen of Pentacles',
+      court: 'queenPentacles',
       combats: [2, 3],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
@@ -260,6 +264,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       beat: 'twist',
       miniboss: 'king',
       minibossName: 'King of Pentacles',
+      court: 'kingPentacles',
       combats: [3, 3],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],

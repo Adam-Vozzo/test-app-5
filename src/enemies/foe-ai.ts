@@ -30,7 +30,13 @@ export interface AttackTune {
   /** Projectile speed (throws, volleys) or dash speed (charges). */
   speed?: number;
   /** A rank verb with its own code (charge, volley, verdict, summon); plain attacks leave it out. */
-  kind?: 'charge' | 'volley' | 'verdict' | 'bind';
+  kind?: 'charge' | 'volley' | 'verdict' | 'bind' | 'sow' | 'shackle';
+  /** A charge that binds what it hits instead of striking it (the Knight of Pentacles): held for `delay`, then struck. */
+  binds?: boolean;
+  /** Sown seeds: what sprouts from one that ripens untrampled (the Queen of Pentacles). */
+  spawn?: string;
+  /** Verdicts that leave coin where they strike (the King of Pentacles' coin rain): piles per zone. */
+  coins?: number;
   /** Only from this phase on (court cards escalate at health thresholds). */
   minPhase?: number;
   /** Volleys: how many blade lanes, and how far apart (m). */
@@ -63,6 +69,8 @@ export interface FoeTune {
   alertRadius?: number;
   /** Court cards: health fractions where the next phase begins (descending). */
   phases?: number[];
+  /** The Devil: how long he holds out his pact (s). */
+  pactTime?: number;
   /** Court cards: how long the Knight falls back after striking (s); how many the King summons per phase. */
   retreatTime?: number;
   squad?: number;
@@ -272,4 +280,15 @@ export function fleeHeading(x: number, z: number, px: number, pz: number, homeX:
   ox /= o;
   oz /= o;
   return [ox, oz];
+}
+
+/** Do segments p0–p1 and a–b cross (or come within `margin`) in the ground plane? A swept check for fast movers. */
+export function sweepCrosses(p0x: number, p0z: number, p1x: number, p1z: number, ax: number, az: number, bx: number, bz: number, margin = 0): boolean {
+  const cross = (ox: number, oz: number, ux: number, uz: number, vx: number, vz: number) => (ux - ox) * (vz - oz) - (uz - oz) * (vx - ox);
+  const d1 = cross(ax, az, bx, bz, p0x, p0z);
+  const d2 = cross(ax, az, bx, bz, p1x, p1z);
+  const d3 = cross(p0x, p0z, p1x, p1z, ax, az);
+  const d4 = cross(p0x, p0z, p1x, p1z, bx, bz);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  return margin > 0 && (segmentDistance(p1x, p1z, ax, az, bx, bz) <= margin || segmentDistance(p0x, p0z, ax, az, bx, bz) <= margin);
 }

@@ -219,7 +219,7 @@ export class CourtCard extends Foe {
 
   constructor(plan: FoePlan, scene: THREE.Scene, physics: Physics, pos: THREE.Vector3, yaw: number, rng: Rng) {
     super(plan, scene, physics, pos, yaw, 'throne', rng);
-    this.rank = plan.id;
+    this.rank = plan.rank ?? plan.id;
   }
 
   /** Where a strike at (x, z) echoes, if anywhere (Justice: across her arena in phase 2). */
@@ -280,13 +280,13 @@ export class CourtCard extends Foe {
       const side = i % 2 === 0 ? 1 : -1;
       const a = this.yaw + side * (Math.PI / 2 + 0.35 * Math.floor(i / 2));
       const at = _p.set(this.ground.x - Math.sin(a) * 5, this.ground.y, this.ground.z - Math.cos(a) * 5);
-      w.summon('bailiff', at, this.yaw);
+      w.summon(this.plan.squadId ?? 'bailiff', at, this.yaw);
     }
   }
 
   protected afterAttack(name: string) {
     // Hit and run: the Knight falls back after a cut before closing again.
-    if (this.rank === 'knight' && name === 'slash') this.retreatT = this.cfg.retreatTime ?? 1;
+    if (this.rank === 'knight' && (name === 'slash' || name === 'maul')) this.retreatT = this.cfg.retreatTime ?? 1;
   }
 
   protected approach(dt: number, w: EnemyWorld, dyaw: number, toYaw: number): number | null {
@@ -333,7 +333,9 @@ export class CourtCard extends Foe {
         _v.subVectors(w.playerPos, this.ground);
         if (!this.dealt.has(tl.hit) && Math.hypot(_v.x, _v.z) < this.radius + 0.9 && Math.abs(_v.y) < 1.6) {
           this.dealt.add(tl.hit);
-          w.hurtPlayer(a.damage, this.center, a.knockback, this);
+          // The Knight of Pentacles' charge pins you instead (the Devil's binding: one roll breaks it).
+          if (a.binds && w.bindPlayer) w.bindPlayer(a.delay ?? 1.4, a.damage, a.knockback, this.center, this);
+          else w.hurtPlayer(a.damage, this.center, a.knockback, this);
           w.shake(0.4, this.center);
         }
         return null;
@@ -397,12 +399,51 @@ export class CourtCard extends Foe {
             zones[2] = [p.x + uz * 3.2, p.z - ux * 3.2];
           }
         }
+        // A coin rain leaves coin where it falls: tempting, and heavy.
+        const coins = a.coins ?? 0;
+        const opts = coins > 0 && w.dropCoins ? { onDone: (_caught: boolean, at: THREE.Vector3) => w.dropCoins!(at, coins) } : {};
         for (const [x, z] of zones) {
-          w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback);
+          w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback, opts);
           const e = this.echo(x, z);
-          if (e) w.hazards.verdict(_p.set(e[0], p.y, e[1]), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback);
+          if (e) w.hazards.verdict(_p.set(e[0], p.y, e[1]), a.radius ?? 2.4, a.delay ?? 1.6, a.damage, a.knockback, opts);
         }
       }
+      return null;
+    }
+    if (a.kind === 'sow' || a.kind === 'shackle') {
+      if (tl.phase === 'windup') {
+        this.vel.multiplyScalar(Math.exp(-10 * dt));
+        return toYaw;
+      }
+      if (tl.phase === 'active' && starting) {
+        const p = w.playerPos;
+        const n = a.count ?? 1;
+        // Shackles close where you stand (and, from phase 2, either side); seeds fall in a ring around you, so
+        // trampling one means choosing where to go.
+        for (let i = 0; i < n; i++) {
+          let x = p.x;
+          let z = p.z;
+          if (a.kind === 'sow' || i > 0) {
+            const ang = this.rng() * Math.PI * 2 * (a.kind === 'sow' ? 1 : 0) + (i / n) * Math.PI * 2;
+            const r = a.kind === 'sow' ? 3.5 + this.rng() * 3 : 3.4;
+            x += Math.cos(ang) * r;
+            z += Math.sin(ang) * r;
+          }
+          if (a.kind === 'shackle') w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 2, a.delay ?? 1.4, a.damage, a.knockback, { kind: 'shackle', bindTime: 1.5 });
+          else {
+            const spawn = a.spawn ?? 'imp';
+            const yaw = this.yaw;
+            w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 1.4, a.delay ?? 2.6, 0, 0, {
+              kind: 'seed',
+              onDone: (crushed, at) => {
+                if (!crushed && this.alive) w.summon(spawn, at, yaw);
+              },
+            });
+          }
+        }
+        w.sound(a.kind === 'sow' ? 'coinJingle' : 'chainRattle', this.center);
+      }
+      this.vel.multiplyScalar(Math.exp(-8 * dt));
       return null;
     }
     return null;

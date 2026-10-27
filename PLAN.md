@@ -242,7 +242,8 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     read as crit gold)
 - **The bull's gate** opens once Justice is cleared and leads into the Devil's levels.
 - **Placeholders:** until V2-9 the Devil's rooms are held by Justice's archetypes and Swords court cards, and level 3's
-  exit leads home, since the Devil's arena comes in V2-10. (V2-9 replaced the archetypes.)
+  exit leads home, since the Devil's arena comes in V2-10. (V2-9 replaced the archetypes; V2-10 the court cards
+  and the arena.)
 - Tests cover the descent (every room drops, the loop stays level, connectors stay within slope) and run the same 150
   seeds as Justice. Smoke: `--devil`.
 - **Done so far:**
@@ -302,7 +303,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - the Imp falls back, the Page runs and the Miser blocks from the front
     - each hoard costs what its tell says
 
-### V2-10: Pentacles court cards and the Devil
+### V2-10: Pentacles court cards and the Devil ✅ (waiting on your playtest)
 - **Suit kit over the rank verbs** (`court.ts`, data):
   - **Knight of Pentacles:** a slow, unstoppable armoured advance. It's the charge verb, slowed and made unstoppable.
   - **Queen of Pentacles:** nurtures her side. Volleys become healing seeds you shoot down.
@@ -313,6 +314,37 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
   - the arena by rules: a pit ringed by chained pillars
 - **Hub:** the bull wakes, the lion's gate opens, the relic of Pentacles unlocks repair stage 2, and new Priestess and
   Magician lines.
+- **Done as:**
+  - `src/enemies/court-pentacles.ts`: the three Pentacles cards as data on `CourtCard`.
+    - New plan fields: `rank` (which rank verbs) and `squadId` (the King hires Misers).
+    - New attack data: `binds` (a charge that pins), kind `sow` (seeds that sprout `spawn` unless trampled),
+      `coins` (a verdict that leaves coin).
+  - Hazard zones gained kinds: `strike`, `shackle` (binds) and `seed` (gilt, trampled, sprouts), plus a resolve
+    callback.
+  - `src/enemies/devil-boss.ts`: the Devil (`DevilBoss extends CourtCard`).
+    - Claws, the brand, shackles and coin rain.
+    - At half health he holds out the pact (`EnemyWorld.offerPact` / `pact`): E accepts, letting it pass refuses.
+      Accepted doubles the damage he takes and she takes, for that fight.
+  - `boss.ts` builds his arena (`kind: 'devil'`).
+  - `src/world/coins.ts`: coin on the floor. A pile pays and weighs, and it's never taken by standing still.
+  - The dash (X, `tuning.dash`):
+    - a `dashing` variant of the controller's roll with its own numbers
+    - breaks bindings
+    - a swept check (`sweepCrosses`) breaks any Thrall chain it crosses
+  - Hub and save:
+    - `UNBINDINGS.devil = 'dash'` and `UNBINDING_LINES`; the generic `completeDimension`
+    - the lion wakes
+    - repair stage 2 (needs the relic of Pentacles); the Priestess's `devil` lines
+  - Fixed: the rifle slung on her back was left behind in the world whenever a level was rebuilt.
+  - Tests: `tests/devil-court.test.ts`, plus `sweepCrosses` in `tests/devil.test.ts`.
+  - Smoke: `devilCourtScenario` under `--devil`:
+    - the Knight pins and won't stagger
+    - a trampled seed is crushed and an untrampled one sprouts
+    - the King's coin stays until she steps clear, weighs when taken, and he hires Misers
+    - the Devil shackles, offers the pact (and can't be hurt meanwhile), and accepting doubles damage both ways
+    - his fall frees the dash and wakes the lion
+    - the dash breaks a chain
+  - The V2-9 scenarios now fight in the Devil's open arena (the courtyard's training-dummy colliders got in the way).
 
 ### V2-11: The Tower's climb (space and the collapse rule)
 - **The generator stacks floors** and turns the heading around the tower (`LEVELS.md → The Tower`).

@@ -185,6 +185,32 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
       attack is a flail swing; together they bind. **Shoot the chain** (40 health) and both are freed: the nearer
       turns on you 30% faster, the other runs into the fog and is gone (no reward). Kill one and the other drags the
       chain alone.
+- **As built in V2-10 (Proposed until played): the court, the Devil, the pact and the dash.**
+  - **Knight of Pentacles (mobility):** a slow, heavily armoured advance. Shots can't stagger it (a parry can), and its
+    front is armour. Its lane charge is slow (10 m/s) but runs its full length, and it **pins** what it hits: the
+    Devil's binding, so one roll breaks it. From half health it charges, turns and charges back. Up close it mauls
+    with a ground ring, then falls back.
+  - **Queen of Pentacles (control):** nurtures her side.
+    - She throws lines of coin with a gap (the volley verb in earth).
+    - She **sows gilt seeds** in a ring around you. Each sprouts an Imp when it ripens (3 s), unless you **trample**
+      it first.
+    - From half health she sows four at a time.
+    - Seeds are gilt, not magenta: they're coin to step on, not danger to leave.
+  - **King of Pentacles (command):** at 66% and 33% he **hires two Misers**. His **coin rain** (one zone, then three
+    from phase 2) strikes and leaves a pile of coin on the floor. Walk over a pile and it pays 15 but weighs like a
+    chained hoard. Coin that lands under you isn't taken until you've stepped off it and come back: it's always a
+    choice. Up close: a sceptre slam and a two-swing sweep.
+  - **The Devil (boss, 6.5 m):** horned and bat-winged, the right hand raised and a torch held low, as on the card.
+    - **Phase 1:** raking claws (a two-swing combo), the torch **brand** (a 3.4 m ground ring), and **shackles**: a
+      magenta zone closes where you stand and **binds** you if you're in it, and a roll breaks it.
+    - **At half health he stops and offers the pact:** "double the damage you deal, and double what you take."
+      **E** accepts within 6 s; letting it pass refuses. He can't be hurt while he offers, and the choice lasts the
+      fight (resting or dying resets it).
+    - **Phase 2:** shackles in threes, and coin rain that leaves coin.
+    - **The arena:** the pit at the pedestal's foot, ringed by chained pillars (`LEVELS.md → Boss arenas`).
+  - **His unbinding: the chain-break dash** (**X**, Proposed). A short, very fast burst: 17 m/s for 0.22 s, i-frames
+    the whole way, 14 stamina, 0.9 s cooldown. It breaks any binding, and **any Thrall chain it passes through**.
+    It doesn't tumble, so it reads as a burst rather than a roll.
 
 ### 3. The Tower × Wands: "Everything falls"
 - **The card:** a tower struck by lightning, its crown blown off, with figures falling. It's sudden collapse, and the
@@ -282,7 +308,7 @@ level's exit until it falls.
   restraint, which gives her a new move.** That gives a progression arc without loot, rarity or a skill tree.
   Justice's move is decided (a parry). The other three are still Proposed. Candidates:
   - Justice frees a **parry** (answer in kind). **Decided.**
-  - The Devil frees a **chain-break dash**.
+  - The Devil frees a **chain-break dash**. *(Built in V2-10 on X, Proposed until confirmed.)*
   - The Tower frees a **safe fall or plunge**.
   - The Moon frees the **blindfold**, which is the ending.
 - **Proposed look:** a stocky hooded figure in a rust-red robe (the card's red, desaturated so it never reads as
@@ -379,6 +405,11 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
   cleared), cycling as you talk.
 - **The bull's gate (V2-8):** once Justice is cleared, the bull's gate leads into the Devil's levels. The save keeps
   each road's next level separately.
+- **After the Devil (V2-10):**
+  - Clearing him wakes the lion (its road isn't built yet) and frees the dash.
+  - The King of Pentacles gives up the relic of Pentacles, which the Magician needs for **True the barrel** (repair
+    stage 2, 650, after stage 1).
+  - The High Priestess has four new lines.
 - **Save** (`localStorage`): seed, the next level on each road, cleared dimensions, relics, upgrades, repair stage,
   pentacles, unbindings and where each conversation is. Saved at every rest, level transition, purchase and on quit.
   **Play/Continue** resumes it; **New game** wipes it.
@@ -414,7 +445,8 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 
 ## Open questions
 
-1. **The other three unbinding moves** (the Devil, the Tower, the Moon). They aren't needed for the slice.
+1. **The other unbinding moves.** The Devil's is built as the chain-break dash (V2-10, Proposed until you confirm it).
+   The Tower's (a safe fall or plunge) and the Moon's (the blindfold) are still open.
 2. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
 3. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
 4. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?

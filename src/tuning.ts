@@ -53,6 +53,20 @@ export const tuning = {
     iFrames: 0.3,
     tumbleTurns: 1,
   },
+  /**
+   * The chain-break dash (V2-10, the Devil's unbinding; Proposed): a short, very fast burst with i-frames for its
+   * whole length, cheaper than a roll and quick to recover. It breaks any binding, and any Thrall chain it passes
+   * through. A cooldown keeps it from replacing the roll.
+   */
+  dash: {
+    speed: 17,
+    duration: 0.22,
+    recovery: 0.05,
+    endSpeedMul: 0.5,
+    iFrames: 0.22,
+    staminaCost: 14,
+    cooldown: 0.9,
+  },
   biped: {
     stepThreshold: 0.785,
     stepDuration: 0.1116,
@@ -482,6 +496,111 @@ export const tuning = {
       },
     },
     /**
+     * The Pentacles court (V2-10): the same rank verbs in earth. The Knight's slow, unstoppable charge binds what it
+     * hits; the Queen sows gilt seeds that sprout Imps unless trampled; the King hires Misers and rains coin that
+     * lies where it falls (tempting, and heavy).
+     */
+    knightPentacles: {
+      health: 1100,
+      /** Unstoppable: shots don't stagger it (a parry still does). */
+      poise: 100000,
+      poiseRegen: 0,
+      speed: 1.8,
+      runSpeed: 2.6,
+      accel: 12,
+      turnRate: 3.2,
+      sightRange: 34,
+      leash: 70,
+      staggerTime: 1.2,
+      separation: 2.6,
+      reward: 140,
+      phases: [0.5],
+      retreatTime: 0.8,
+      attacks: {
+        /** A slow lane charge that pins you (bound, then struck) instead of knocking you down. */
+        charge: { kind: 'charge', binds: true, range: 15, windup: 1.2, active: 1.7, recover: 1.5, cooldown: 3, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.2, speed: 10, delay: 1.4 },
+        recharge: { kind: 'charge', binds: true, range: 15, windup: 1.05, active: 1.5, recover: 1.6, cooldown: 4, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.5, speed: 11, hits: 2, comboWindup: 0.8, delay: 1.3, minPhase: 1 },
+        maul: { range: 3.4, windup: 0.95, active: 0.14, recover: 1.1, cooldown: 1.2, damage: 32, knockback: 8, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.4, reach: 2.2 },
+      },
+    },
+    queenPentacles: {
+      health: 900,
+      poise: 140,
+      poiseRegen: 30,
+      speed: 2.4,
+      runSpeed: 4.2,
+      accel: 20,
+      turnRate: 5,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 170,
+      holdRange: 11,
+      phases: [0.5],
+      attacks: {
+        /** Lines of thrown coin with a gap (the volley verb in earth). */
+        coins: { kind: 'volley', range: 26, windup: 1.0, active: 0.1, recover: 1.0, cooldown: 2.4, damage: 16, knockback: 3, arcDeg: 360, lunge: 0, weight: 1, speed: 15, lanes: 7, spacing: 1.7, hits: 2, comboWindup: 0.85 },
+        /** Gilt seeds in a ring around you: each sprouts an Imp when it ripens, unless you step on it first. */
+        sow: { kind: 'sow', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 6, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 1.1, radius: 1.3, delay: 3, count: 2, spawn: 'imp' },
+        harvest: { kind: 'sow', range: 26, windup: 0.8, active: 0.1, recover: 1.1, cooldown: 6.5, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 1.3, radius: 1.3, delay: 3, count: 4, spawn: 'imp', minPhase: 1 },
+        riposte: { range: 2.6, windup: 0.4, active: 0.12, recover: 0.7, cooldown: 1.5, damage: 20, knockback: 6, arcDeg: 140, lunge: 1.4, weight: 1 },
+      },
+    },
+    kingPentacles: {
+      health: 1500,
+      poise: 240,
+      poiseRegen: 30,
+      speed: 2.0,
+      runSpeed: 3.2,
+      accel: 16,
+      turnRate: 3.4,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.2,
+      separation: 2.8,
+      reward: 240,
+      phases: [0.66, 0.33],
+      /** Misers he hires at each phase. */
+      squad: 2,
+      attacks: {
+        /** Coin rains where you stand and strikes; the coin stays on the floor (each pile a weight if taken). */
+        coinRain: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 0.9, cooldown: 4, damage: 30, knockback: 7, arcDeg: 360, lunge: 0, weight: 1, radius: 2.4, delay: 1.6, count: 1, coins: 1 },
+        fortune: { kind: 'verdict', range: 26, windup: 0.8, active: 0.1, recover: 1.0, cooldown: 5, damage: 30, knockback: 7, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.4, delay: 1.6, count: 3, coins: 1, minPhase: 1 },
+        scepter: { range: 3.6, windup: 1.0, active: 0.14, recover: 1.3, cooldown: 1.2, damage: 38, knockback: 9, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },
+        sweep: { range: 3.0, windup: 0.7, active: 0.2, recover: 1.0, cooldown: 1.8, damage: 24, knockback: 6, arcDeg: 170, lunge: 0.8, weight: 0.8, hits: 2, comboWindup: 0.45 },
+      },
+    },
+    /**
+     * The Devil, the arcana (V2-10). Phase 1: claws, a torch brand with a ground ring, and shackles that close where
+     * you stand (bound if you're caught; roll). At half health he stops and offers a pact: double the damage you deal,
+     * and double what you take. Phase 2 adds coin rain and a second shackle.
+     */
+    devil: {
+      health: 3000,
+      poise: 460,
+      poiseRegen: 40,
+      speed: 2.2,
+      runSpeed: 3.6,
+      accel: 14,
+      turnRate: 2.6,
+      sightRange: 60,
+      leash: 200,
+      staggerTime: 1.4,
+      separation: 4,
+      reward: 700,
+      phases: [0.5],
+      /** How long he holds out the pact (s); E accepts, letting it pass refuses. */
+      pactTime: 6,
+      attacks: {
+        rake: { range: 7.5, windup: 0.8, active: 0.22, recover: 1.1, cooldown: 1.0, damage: 32, knockback: 8, arcDeg: 160, lunge: 1.6, weight: 1, hits: 2, comboWindup: 0.5 },
+        brand: { range: 10, windup: 1.2, active: 0.15, recover: 1.5, cooldown: 1.8, damage: 44, knockback: 11, arcDeg: 360, lunge: 1.0, weight: 0.9, radius: 3.4, reach: 5.5 },
+        shackles: { kind: 'shackle', range: 34, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 4, damage: 40, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, radius: 2.2, delay: 1.3, count: 1 },
+        chains: { kind: 'shackle', range: 34, windup: 0.9, active: 0.1, recover: 1.1, cooldown: 4.5, damage: 40, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.1, radius: 2.2, delay: 1.3, count: 3, minPhase: 1 },
+        coinRain: { kind: 'verdict', range: 34, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 4, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 0.9, radius: 2.8, delay: 1.5, count: 3, coins: 1, minPhase: 1 },
+      },
+    },
+    /**
      * Justice, the arcana (V2-6). Phase 1 is the sword: mirrored combos. In phase 2 the scales come down: two great
      * pans settle into the arena, and what she throws onto one side lands on the other (strikes echo across her
      * arena's axis).
@@ -513,6 +632,8 @@ export const tuning = {
      * `bellRadius`; each weight shortens rolls and slows the walk until you rest; an ambush brings Imps up through the
      * cracked floor around it. A risk branch's hoard pays `branchMul` times as much.
      */
+    /** Coin the King of Pentacles' rain leaves on the floor: each pile pays this and weighs like a chained hoard. */
+    coinPile: { pentacles: 15, pickupRadius: 1.2 },
     hoard: {
       pentacles: { bell: 40, weight: 60, ambush: 80 },
       branchMul: 2,

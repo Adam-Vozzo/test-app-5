@@ -12,6 +12,8 @@ export interface MoveInput {
   y: number;
   sprint: boolean;
   rollPressed: boolean;
+  /** The chain-break dash (once the Devil has fallen). */
+  dashPressed?: boolean;
   /** Face the camera yaw (aiming, firing, reloading). */
   combat: boolean;
   /** Multiplier applied by other systems (ADS, reload, heal). */
@@ -35,6 +37,8 @@ export class Controller {
   state: MoveState = 'move';
   stateTime = 0;
   sprinting = false;
+  /** The current 'roll' state is the Devil's dash (fast, short, upright) rather than a tumble. */
+  dashing = false;
   private rollDir = new THREE.Vector3();
   private lastGood = new THREE.Vector3();
   /** External shove (weapon self-knockback, hits) that decays over time. */
@@ -84,11 +88,16 @@ export class Controller {
   get committed() {
     return this.state !== 'move';
   }
+  /** The roll's or the dash's numbers, whichever is under way. */
+  private get rt(): { speed: number; duration: number; recovery: number; endSpeedMul: number; iFrames: number } {
+    return this.dashing ? tuning.dash : tuning.roll;
+  }
   get rollT() {
-    return this.state === 'roll' ? Math.min(1, this.stateTime / Math.max(0.05, tuning.roll.duration)) : 0;
+    // A dash stays upright (no tumble): the rig sees no roll.
+    return this.state === 'roll' && !this.dashing ? Math.min(1, this.stateTime / Math.max(0.05, tuning.roll.duration)) : 0;
   }
   get invulnerable() {
-    return this.state === 'roll' && this.stateTime < tuning.roll.iFrames;
+    return this.state === 'roll' && this.stateTime < this.rt.iFrames;
   }
 
   push(vx: number, vz: number) {
@@ -111,7 +120,6 @@ export class Controller {
   update(dt: number, inp: MoveInput) {
     if (dt <= 0) return;
     const t = tuning.player;
-    const r = tuning.roll;
     this.applyTuning();
     this.stateTime += dt;
 
@@ -127,17 +135,22 @@ export class Controller {
     }
     const moving = wl > 0.1;
 
-    if (this.state === 'move' && inp.rollPressed && this.grounded) {
+    const startDash = this.state === 'move' && !!inp.dashPressed && this.grounded;
+    if (this.state === 'move' && (inp.rollPressed || startDash) && this.grounded) {
       this.state = 'roll';
+      this.dashing = startDash;
       this.stateTime = 0;
       if (moving) this.rollDir.set(wx, 0, wz).normalize();
       else this.rollDir.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
       this.yaw = Math.atan2(-this.rollDir.x, -this.rollDir.z);
-    } else if (this.state === 'roll' && this.stateTime >= r.duration) {
+    }
+    const r = this.rt;
+    if (this.state === 'roll' && this.stateTime >= r.duration) {
       this.state = 'rollRecover';
       this.stateTime = 0;
     } else if (this.state === 'rollRecover' && this.stateTime >= r.recovery) {
       this.state = 'move';
+      this.dashing = false;
       this.stateTime = 0;
     }
 

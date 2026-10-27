@@ -2,7 +2,7 @@
 // approaches, and the brute's charge lane. All in telegraph magenta (STYLE.md signal colour).
 import * as THREE from 'three';
 import { G, groups } from '../physics/world';
-import { SIGNAL } from '../render/palette';
+import { DEVIL, SIGNAL } from '../render/palette';
 import type { EnemyWorld } from './enemy';
 
 interface Knife {
@@ -14,6 +14,20 @@ interface Knife {
   mesh: THREE.Mesh;
 }
 
+/**
+ * What a marked zone does when its time is up: strike whoever stands in it (a verdict, a coin rain), bind them (the
+ * Devil's shackles), or — a seed — sprout something unless it was trampled first (stepping in crushes it).
+ */
+export type ZoneKind = 'strike' | 'shackle' | 'seed';
+
+export interface ZoneOpts {
+  kind?: ZoneKind;
+  /** How long a shackle holds (s). */
+  bindTime?: number;
+  /** Called when the zone resolves: `caught` is whether the player was in it (for a seed: crushed). */
+  onDone?: (caught: boolean, at: THREE.Vector3) => void;
+}
+
 interface Verdict {
   at: THREE.Vector3;
   radius: number;
@@ -22,6 +36,9 @@ interface Verdict {
   damage: number;
   knockback: number;
   g: THREE.Group;
+  kind: ZoneKind;
+  bindTime: number;
+  onDone?: ZoneOpts['onDone'];
 }
 
 const knifeGeo = new THREE.OctahedronGeometry(0.1, 0).scale(0.7, 0.7, 3.2);
@@ -70,6 +87,9 @@ export class Hazards {
   readonly knives: Knife[] = [];
   readonly verdicts: Verdict[] = [];
   private verdictPool: THREE.Group[] = [];
+  private seedPool: THREE.Group[] = [];
+  private seedRingMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.95, depthWrite: false, fog: false });
+  private seedDiscMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.4, depthWrite: false, fog: false });
   private knifePool: THREE.Mesh[] = [];
   private knifeMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false });
 
@@ -99,13 +119,16 @@ export class Hazards {
     if (g) g.visible = false;
   }
 
-  /** A verdict: a marked zone that fills over `delay` seconds, then strikes whoever stands in it. */
-  verdict(at: THREE.Vector3, radius: number, delay: number, damage: number, knockback: number) {
-    let g = this.verdictPool.pop();
+  /** A verdict: a marked zone that fills over `delay` seconds, then strikes whoever stands in it (see ZoneKind). */
+  verdict(at: THREE.Vector3, radius: number, delay: number, damage: number, knockback: number, opts: ZoneOpts = {}) {
+    const kind = opts.kind ?? 'strike';
+    const pool = kind === 'seed' ? this.seedPool : this.verdictPool;
+    let g = pool.pop();
     if (!g) {
       g = new THREE.Group();
-      const ring = new THREE.Mesh(ringGeo, this.ringMat);
-      const disc = new THREE.Mesh(discGeo, this.discMat);
+      // Seeds are coin, not danger: gilt, the hoards' motif (trample them). Everything else is telegraph magenta.
+      const ring = new THREE.Mesh(ringGeo, kind === 'seed' ? this.seedRingMat : this.ringMat);
+      const disc = new THREE.Mesh(discGeo, kind === 'seed' ? this.seedDiscMat : this.discMat);
       g.add(ring, disc);
       g.renderOrder = 5;
       this.scene.add(g);
@@ -113,7 +136,7 @@ export class Hazards {
     g.visible = true;
     g.position.copy(at).setY(at.y + 0.12);
     g.scale.setScalar(radius);
-    this.verdicts.push({ at: at.clone(), radius, t: 0, delay, damage, knockback, g });
+    this.verdicts.push({ at: at.clone(), radius, t: 0, delay, damage, knockback, g, kind, bindTime: opts.bindTime ?? 1.5, onDone: opts.onDone });
   }
 
   /** Fill verdict zones and strike the ones whose time is up. */
@@ -124,15 +147,40 @@ export class Hazards {
       const k = Math.min(1, v.t / v.delay);
       v.g.children[1].scale.setScalar(Math.max(0.02, k));
       v.g.children[0].scale.setScalar(1 + 0.04 * Math.sin(v.t * (8 + 20 * k)));
-      if (v.t < v.delay) continue;
-      w.sound('slamImpact', v.at);
-      w.shake(0.45, v.at);
       const p = w.playerPos;
-      if (Math.hypot(p.x - v.at.x, p.z - v.at.z) <= v.radius && Math.abs(p.y - v.at.y) < 1.6) w.hurtPlayer(v.damage, v.at, v.knockback);
-      v.g.visible = false;
-      this.verdictPool.push(v.g);
-      this.verdicts.splice(i, 1);
+      const inside = Math.hypot(p.x - v.at.x, p.z - v.at.z) <= v.radius && Math.abs(p.y - v.at.y) < 1.6;
+      if (v.kind === 'seed') {
+        // Trampled before it ripens: crushed, nothing grows.
+        if (inside && w.playerAlive) {
+          w.sound('coinJingle', v.at);
+          v.onDone?.(true, v.at);
+          this.retire(i);
+          continue;
+        }
+        if (v.t < v.delay) continue;
+        v.onDone?.(false, v.at);
+        this.retire(i);
+        continue;
+      }
+      if (v.t < v.delay) continue;
+      if (v.kind === 'shackle') {
+        w.sound('chainSnap', v.at);
+        if (inside) w.bindPlayer?.(v.bindTime, v.damage, v.knockback, v.at, null);
+      } else {
+        w.sound('slamImpact', v.at);
+        w.shake(0.45, v.at);
+        if (inside) w.hurtPlayer(v.damage, v.at, v.knockback);
+      }
+      v.onDone?.(inside, v.at);
+      this.retire(i);
     }
+  }
+
+  private retire(i: number) {
+    const v = this.verdicts[i];
+    v.g.visible = false;
+    (v.kind === 'seed' ? this.seedPool : this.verdictPool).push(v.g);
+    this.verdicts.splice(i, 1);
   }
 
   /** A thrown blade: flies straight, stops at walls, hurts on contact. */
@@ -269,7 +317,7 @@ export class Hazards {
     for (const r of this.rings.values()) r.visible = false;
     for (const v of this.verdicts) {
       v.g.visible = false;
-      this.verdictPool.push(v.g);
+      (v.kind === 'seed' ? this.seedPool : this.verdictPool).push(v.g);
     }
     this.verdicts.length = 0;
     for (const k of this.knives) {

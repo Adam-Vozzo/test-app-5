@@ -351,7 +351,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     // Justice's enemies stand on the encounter sockets; the level's court card holds the throne room.
     foeSpots: layout.sockets.map((s) =>
       s.foe === 'miniboss'
-        ? { id: layout.script.miniboss, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: 'throne' as const }
+        ? { id: dim.levels[layout.level]?.court ?? layout.script.miniboss, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: 'throne' as const }
         : { id: s.foe, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? ('ambush' as const) : s.kind === 'patrol' ? ('patrol' as const) : ('stand' as const) },
     ),
     dummySpots: [],

@@ -7,8 +7,9 @@ v2 is an iteration of *A bugs death*, the bug-scale v1 prototype. Its docs are f
 build is the first slice (V2-7): from the hub (The World, with the Magician's shop and the High Priestess) through
 the angel's gate into Justice's three generated levels (Bailiffs, Gavels, Blindfolds, Pages; the Knight, Queen and King
 of Swords) to Justice herself, who frees the parry. Progress saves in the browser. There's also a training courtyard.
-V2-8 has begun the second dimension: once Justice is cleared, the bull's gate leads down into the Devil's descending
-levels (their own enemies come next).
+The second dimension is built too (V2-8 to V2-10). Once Justice is cleared, the bull's gate leads down through the
+Devil's descending levels: Misers, Imps, chained Thralls, the Page of Pentacles, tempting hoards, and the Pentacles
+court. At the bottom is the Devil and his pact. He frees the dash.
 
 ```
 npm install
