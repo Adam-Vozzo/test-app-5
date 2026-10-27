@@ -115,6 +115,70 @@ export function scalesGeo(h: number, stone: number, dark: number, brass: number,
   return merge(parts);
 }
 
+/**
+ * The Devil's throne-pedestal (the landmark): a stepped stone column rising out of the pit, a half-cube block on top
+ * with a gilt band, the iron ring the card's figures are chained to (chains hanging into the fog), and the throne's
+ * horned back. Base at y = 0; the brazier's flame sits at `PEDESTAL_FLAME × h` (a separate unlit mesh).
+ */
+export const PEDESTAL_FLAME = 1.06;
+/** The brazier stands this far in front of the column's axis (× h), toward +Z: the side that faces the levels. */
+export const PEDESTAL_BRAZIER_Z = 0.03;
+export function pedestalGeo(h: number, stone: number, dark: number, gilt: number, giltShade: number) {
+  const w = h * 0.2;
+  const parts: THREE.BufferGeometry[] = [];
+  // The column: three stepped drums, narrowing upward.
+  let y = 0;
+  for (const [k, f] of [[1.5, 0.3], [1.2, 0.32], [1.0, 0.26]] as const) {
+    parts.push(place(block(w * k, h * f, w * k, k > 1.3 ? dark : stone, 0.05, k), 0, y, 0));
+    y += h * f;
+  }
+  // The half-cube and its gilt band.
+  parts.push(place(block(w * 1.35, h * 0.07, w * 1.35, stone, 0.04), 0, y, 0));
+  parts.push(place(block(w * 1.4, h * 0.018, w * 1.4, gilt, 0.03), 0, y + h * 0.03, 0));
+  y += h * 0.07;
+  // The ring on its face, and two chains falling from it into the pit.
+  const ring = facet(new THREE.TorusGeometry(h * 0.035, h * 0.007, 4, 8), giltShade, 0.03);
+  parts.push(place(ring, 0, y - h * 0.1, w * 0.68));
+  for (const side of [-1, 1]) {
+    const from = new THREE.Vector3(side * h * 0.02, y - h * 0.13, w * 0.7);
+    parts.push(bar(from, new THREE.Vector3(side * w * 0.9, y - h * 0.42, w * 0.95), h * 0.006, dark));
+  }
+  // The throne's back with two horns, and the brazier bowl on a short post before it.
+  parts.push(place(block(w * 0.7, h * 0.12, w * 0.16, dark, 0.04), 0, y, -w * 0.3));
+  for (const side of [-1, 1]) {
+    const horn = facet(new THREE.ConeGeometry(h * 0.014, h * 0.07, 4).translate(0, h * 0.035, 0), dark, 0.04);
+    parts.push(place(horn, side * w * 0.3, y + h * 0.12, -w * 0.3, 0, 0, -side * 0.45));
+  }
+  const bz = h * PEDESTAL_BRAZIER_Z;
+  parts.push(place(block(h * 0.012, h * (PEDESTAL_FLAME - 0.04) - y, h * 0.012, dark, 0.03), 0, y, bz));
+  parts.push(place(facet(new THREE.CylinderGeometry(h * 0.035, h * 0.018, h * 0.02, 6), gilt, 0.04), 0, h * (PEDESTAL_FLAME - 0.04), bz));
+  return merge(parts);
+}
+
+/** The brazier's flame: unlit, so it glows through the fog (the warm light leads down). Base at y = 0. */
+export function flameGeo(size: number, color: number) {
+  return paint(new THREE.ConeGeometry(size * 0.5, size, 5).translate(0, size / 2, 0), color);
+}
+
+/** A hoard: a heap of old coin with a few spilled stacks and a strongbox (cover, about 1.1 m). Base at y = 0. */
+export function hoardGeo(size: number, gilt: number, giltShade: number, wood: number, seed = 0) {
+  const heap = facet(new THREE.ConeGeometry(size * 0.9, size * 0.8, 6, 1).translate(0, size * 0.4, 0), giltShade, 0.1, seed);
+  const box = place(block(size * 0.9, size * 0.6, size * 0.6, wood, 0.05, seed), size * 0.35, 0, -size * 0.25, 0, 0.4, 0);
+  const lid = place(block(size * 0.94, size * 0.12, size * 0.64, gilt, 0.04, seed), size * 0.35, size * 0.6, -size * 0.25, 0, 0.4, 0);
+  const stacks = [0, 1, 2].map((i) => place(facet(new THREE.CylinderGeometry(size * 0.16, size * 0.16, size * (0.18 + i * 0.1), 6).translate(0, size * (0.09 + i * 0.05), 0), gilt, 0.06, seed + i), Math.cos(i * 2.1 + seed) * size * 0.95, 0, Math.sin(i * 2.1 + seed) * size * 0.95));
+  return merge([heap, box, lid, ...stacks]);
+}
+
+/** A great pillar of the pit standing out of the fog, a gilt band near its top (Devil hero prop). Base at y = 0. */
+export function pitPillarGeo(h: number, stone: number, dark: number, gilt: number) {
+  const w = Math.max(3, h * 0.11);
+  return merge([
+    block(w, h, w, dark, 0.06),
+    place(block(w * 1.25, h * 0.04, w * 1.25, gilt, 0.04), 0, h * 0.82, 0),
+    place(block(w * 1.4, h * 0.05, w * 1.4, stone, 0.05), 0, h, 0),
+  ]);
+}
+
 /** Hermit's lantern on a post (the checkpoint): post and frame only; the glowing glass is separate. */
 export function lanternPostGeo(post: number, metal: number) {
   const p = block(0.14, 2.2, 0.14, post, 0.05);

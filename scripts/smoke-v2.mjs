@@ -894,3 +894,82 @@ export async function hubScenario({ page, g, wait, shot }) {
   console.log(`  save after reload: ${JSON.stringify(kept)}`);
   if (!kept.parry || !kept.upgrades.includes('flask') || kept.play !== 'Continue') throw new Error('the save should survive a reload');
 }
+
+/** V2-8: the Devil's descent. Through the bull's gate once Justice is cleared; three descending levels; home. */
+export async function devilScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(100);
+    }
+    return false;
+  };
+  // A save that has cleared Justice: the bull is awake.
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, seed: 42, cleared: ['justice'], unbound: ['parry'], progress: { justice: 0 } };
+    window.__tuning.debug.godMode = true;
+    gm.start('hub');
+  });
+  await wait(1200);
+  const gate = await g(() => {
+    const gm = window.__game;
+    const it = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').includes('bull'));
+    if (!it) return null;
+    gm.player.controller.teleport({ x: it.pos.x * 0.95, y: 0.05, z: it.pos.z * 0.95 }, Math.atan2(-it.pos.x, -it.pos.z) + Math.PI);
+    return it.prompt(gm.player.pos);
+  });
+  await wait(400);
+  await g(() => window.__game.input.press('KeyE'));
+  await wait(60);
+  await g(() => window.__game.input.release('KeyE'));
+  const entered = await until(() => window.__game.layout === 'level' && window.__game.dimension === 'devil' && !!window.__game.level, 15000);
+  console.log(`  devil: bull's gate "${gate}", entered ${entered}`);
+  if (!gate?.startsWith('E: through the bull') || !entered) throw new Error("the bull's gate should open into the Devil's levels once Justice is cleared");
+
+  for (let lv = 0; lv < 3; lv++) {
+    await wait(1200);
+    const info = await g(() => {
+      const gm = window.__game;
+      const L = gm.level.generated;
+      const crit = L.graph.critical.map((id) => L.space.rooms.find((r) => r.node === id));
+      return {
+        level: gm.levelIndex + 1,
+        ok: gm.level.report.ok,
+        setPiece: L.script.setPiece.id,
+        drop: +(crit[0].y - crit[crit.length - 1].y).toFixed(1),
+        climbs: crit.some((r, i) => i > 0 && r.y > crit[i - 1].y + 0.05 && r.kit !== 'stair' && crit[i - 1].kit !== 'stair' && crit[i - 1].kit !== 'chainShaft'),
+        sockets: L.sockets.length,
+        foes: gm.enemies.enemies.length,
+        area: gm.area.name,
+        draws: gm.renderer.renderer.info.render.calls,
+      };
+    });
+    console.log('  devil', JSON.stringify(info));
+    if (!info.ok || info.area !== 'The Devil' || info.foes !== info.sockets) throw new Error(`devil level ${lv + 1} should build valid, in its palette, with every socket held`);
+    if (info.drop < 6) throw new Error(`devil level ${lv + 1} should descend (dropped ${info.drop} m)`);
+    if (info.draws > 150) throw new Error(`devil draws ${info.draws} over the 150 budget`);
+    await shot(`70-devil-l${lv + 1}-spawn`);
+    if (lv === 0) {
+      await g(() => { window.__tuning.debug.overview = true; });
+      await wait(900);
+      await shot('71-devil-overview');
+      await g(() => { window.__tuning.debug.overview = false; });
+    }
+    await g(() => window.__game.gotoVista(0));
+    await wait(900);
+    await shot(`72-devil-l${lv + 1}-vista`);
+    await g(() => window.__game.nextLevel());
+  }
+  await until(() => window.__game.layout === 'hub', 15000);
+  await wait(800);
+  const home = await g(() => {
+    const gm = window.__game;
+    const it = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').toLowerCase().includes('bull'));
+    return { layout: gm.layout, progress: gm.save.progress.devil, label: it?.prompt(gm.player.pos), usable: it?.usable(gm.player.pos) };
+  });
+  console.log(`  devil: home ${JSON.stringify(home)}`);
+  if (home.layout !== 'hub' || home.progress !== 3 || home.usable) throw new Error("after the Devil's third level the road should lead home (its arena isn't built yet)");
+  await g(() => { window.__tuning.debug.godMode = false; });
+}

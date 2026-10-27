@@ -2,7 +2,7 @@
 // → Hub characters → dialogue budget).
 import type { ShopItem } from '../core/save';
 
-/** Dimension order: each gate opens when the one before is cleared (DESIGN.md). Only Justice is built. */
+/** Dimension order: each gate opens when the one before is cleared (DESIGN.md). Justice is built; the Devil's levels are (V2-8). */
 export const DIMENSION_ORDER = ['justice', 'devil', 'tower', 'moon'] as const;
 
 /** The unbinding each arcana frees. */
@@ -32,7 +32,7 @@ export const PRIESTESS_LINES: Record<string, readonly string[]> = {
   cleared: [
     'Justice is weighed, and so are you. One cord is gone.',
     'Answer in kind. When a blow comes, meet it. (V: parry)',
-    "The bull's gate stirs. It is not open to you yet.",
+    "The bull is awake. Below its gate, everything has a price.",
     'The Magician will want the relic of Swords.',
   ],
 };

@@ -1,10 +1,11 @@
 // Level generation, layer 3 (LEVELS.md → Space): embed the mission graph. Each node becomes a room kit and each
 // edge a connector kit. Pure: no Three/DOM.
 //
-// Justice lays out on a right-angled grid along one main axis (heading north, -Z), so rooms and connectors are
+// Justice and the Devil lay out on a right-angled grid along one main axis (heading north, -Z), so rooms and connectors are
 // axis-aligned rectangles. The loop bows to one side: the mid lantern exits sideways, the loop rooms run north
 // and turn back, and the gate lands on the axis just north of the lantern. The shortcut is the axis between
 // them. Rooms are stone platforms over a fog-filled drop; parapets and walls bound them (no invisible walls).
+// A descending dimension (the Devil) drops each critical room a step below the last, outside the loop.
 import type { Rng } from '../core/rng';
 import type { DimensionDef, RoomKitDef, RoomKitId } from './dimensions';
 import type { MissionGraph } from './gen-graph';
@@ -163,9 +164,16 @@ export function embed(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nul
   const outDir = (i: number): Dir | null => (i === crit.length - 1 ? null : i === mid ? (S as Dir) : i === lastLoop ? back : N);
 
   const rooms: Room[] = [];
+  // Descent: each critical room past the first sits one step lower, except inside the loop (from its first room to
+  // the gate), which keeps the mid lantern's level so the shortcut runs flat.
+  let drop = 0;
   for (const id of crit) {
     const nd = g.nodes[id];
-    rooms.push(makeRoom(id, nd.kit, dim.kits[nd.kit], rng, inDir(nd.index), outDir(nd.index)));
+    const i = nd.index;
+    if (i > 0 && (i < firstLoop || i > gate)) drop += dim.descent;
+    const r = makeRoom(id, nd.kit, dim.kits[nd.kit], rng, inDir(i), outDir(i));
+    r.y -= drop;
+    rooms.push(r);
   }
   const [cMin, cMax] = dim.connector.length;
   const lens: number[] = [];

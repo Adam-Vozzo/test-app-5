@@ -88,10 +88,23 @@ the first pick (a dusty violet) failed the palette test against the SwordRifle's
 | **The Tower** (Wands, fire) | ash `#9A9490`, charcoal `#3B3836`, scorched wood `#6B5244`, shadow `#1E1B1C` | storm grey-violet `#8E8A9C` | fire orange `#E07A3A` |
 | **The Moon** (Cups, water) | indigo `#3E4466`, marsh teal `#4F7470`, reed `#8D9A7A`, shadow `#1B1E2E` | moon-fog `#C9CEC8` | pale moonlight `#E9E4C4` |
 
+*As built in V2-8 (`DEVIL` in `src/render/palette.ts`, Proposed until played):* dusty sandstone flags `#CDB99A`, umber
+stone `#8F7660`, umber rock `#5A4636`, shadow `#231C18` and dusty spoil `#857559` on the mine floors. Three changes from the table
+above:
+- **Fog:** the smoky amber haze `#B59A7A` failed the telegraph-contrast test (magenta needs a pale or a very dark fog),
+  so the fog is a pale smoky amber `#F0E2CB` under a dusty sky `#C9AB8A`.
+- **Accent:** the ember `#C0573A` sits about 11° of hue from kill red at a similar brightness, so the accent is
+  **old gilt** `#9B7232` (the hoards and the pedestal's band), dark enough never to read as crit gold. The pedestal's
+  brazier burns in the lantern's warm amber instead, the light that leads down. Its flame is a glow, so it opts out of
+  the fog and reads as a warm point from every vista.
+- **Growth:** the oxide green `#5F7A64` read as lawn on the mine floors, so the earth there is dusty spoil.
+
+The palette test now checks every accent against kill red as well as crit gold.
+
 Rules:
 - **Accent colours must stay clear of the signal colours** (below) in hue and saturation. The Tower's fire orange and
-  the Devil's ember get the existing `tests/palette.test.ts` contrast checks against telegraph magenta and kill red.
-- Accents are used on **one motif** per area (the scales, the pedestal glow, fire, moonlight). Never on general props.
+  the Devil's gilt get the `tests/palette.test.ts` checks against telegraph magenta, crit gold and kill red.
+- Accents are used on **one motif** per area (the scales, the Devil's gilt, fire, moonlight). Never on general props.
 
 ### Characters (Proposed)
 - **The Eight of Swords:**

@@ -144,7 +144,10 @@ footprint, walkable area, colliders, exits, cover positions and spawn sockets:
   narrow passes) go before `vista` and `combat` nodes to build the frame-then-reveal rhythm.
 - **Layout:**
   - Justice: rooms are placed along the main heading with a mirror axis.
-  - The Devil: a descending spiral, each room lower than the last.
+  - The Devil: a descending spiral, each room lower than the last. *As built in V2-8:* the same right-angled grid as
+    Justice (not a spiral yet), with each critical room one `descent` step (3 m) below the last. The shortcut loop
+    keeps the mid lantern's level, so its shortcut stays flat. A spiral that turns each step is a later option, once
+    the descent has been played.
   - The Tower: a vertical stack, with the heading rotating around the tower.
   - The Moon: a meandering path between pools, with deliberate near-duplicate rooms.
 - **The landmark** sits beyond the `exit` node, far out in the fog, and every `vista` node is oriented toward it.

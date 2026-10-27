@@ -8,23 +8,12 @@ export type EncounterTemplate = 'arena' | 'guarded' | 'nest' | 'ambush' | 'patro
 /** Socket roles an encounter template places (see gen-dress.ts → encounters). */
 export type SocketRole = 'grunt' | 'guard' | 'ranged' | 'patrol' | 'signature';
 
-export type RoomKitId =
-  | 'start'
-  | 'court'
-  | 'arena'
-  | 'nest'
-  | 'terrace'
-  | 'pass'
-  | 'stair'
-  | 'shrine'
-  | 'gatehouse'
-  | 'throne'
-  | 'threshold'
-  | 'cache'
-  | 'swordField'
-  | 'twinCourts'
-  | 'scalesColonnade'
-  | 'windBridge';
+/**
+ * A room kit's id, a key into the dimension's `kits`. Shared shapes (start, court, arena, nest, terrace, pass, stair,
+ * shrine, gatehouse, throne, threshold, cache) appear in every dimension, restyled; set-piece kits are the
+ * dimension's own (Justice: swordField, twinCourts, scalesColonnade, windBridge).
+ */
+export type RoomKitId = string;
 
 /** How a room's edges are built: tall walls (compression), waist-high parapets (open), or parapets with columns. */
 export type EdgeStyle = 'wall' | 'parapet' | 'colonnade';
@@ -49,7 +38,7 @@ export interface RoomKitDef {
   tier?: { depth: number; height: number };
   /** A central divider along the axis with gaps (the twin courts). */
   divider?: boolean;
-  /** Planted swords strewn over the floor as cover (the sword-graveyard field). */
+  /** Props strewn over the floor as cover (Justice: planted swords on the graveyard field; the Devil: coin hoards). */
   swords?: number;
   /** Grass tufts along the edges (and everywhere off the lanes on earth). */
   grass?: number;
@@ -111,10 +100,20 @@ export interface DimensionDef {
   /** The shortcut loop: rooms inside it, and how long the shortcut itself may be (m). */
   loop: { rooms: [number, number]; shortcut: [number, number] };
   branches: [number, number];
-  /** The landmark stands on the main axis, beyond the exit and at least `fromStart` from the spawn (m). */
-  landmark: { beyondExit: number; fromStart: number; height: number; baseY: number };
-  /** Great swords standing out of the fog near vista sight lines (hero props). */
+  /**
+   * Metres the critical path drops at each room (the Devil: always going down). Rooms inside the shortcut loop stay
+   * on the mid lantern's level, so the shortcut runs flat; 0 keeps the dimension level (Justice).
+   */
+  descent: number;
+  /**
+   * The landmark stands on the main axis, beyond the exit and at least `fromStart` from the spawn (m). `targets` are
+   * the points that must be in plain sight from the spawn and the vistas: [across, up] as fractions of its height.
+   */
+  landmark: { kind: 'scales' | 'pedestal'; beyondExit: number; fromStart: number; height: number; baseY: number; targets: [number, number][] };
+  /** Great props standing out of the fog near vista sight lines (hero props). */
   heroProps: [number, number];
+  /** How the builder draws the strewn floor props and the hero props (data for the builder; the generator only places them). */
+  props: { strewn: 'sword' | 'hoard'; hero: 'sword' | 'pillar' };
   /** Enemies that throw from range (held to the fair-distance rule in validation). */
   rangedFoes: string[];
 }
@@ -190,9 +189,110 @@ export const JUSTICE_DIMENSION: DimensionDef = {
   criticalNodes: [9, 10],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   branches: [1, 2],
-  landmark: { beyondExit: 90, fromStart: 360, height: 175, baseY: -62 },
+  descent: 0,
+  landmark: {
+    kind: 'scales',
+    beyondExit: 90,
+    fromStart: 360,
+    height: 175,
+    baseY: -62,
+    // The beam, the pillar and the two pans.
+    targets: [[0, 1.06], [0, 0.8], [0, 0.55], [-0.35, 0.74], [0.35, 0.74]],
+  },
   heroProps: [1, 3],
+  props: { strewn: 'sword', hero: 'sword' },
   rangedFoes: ['page'],
 };
 
-export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION };
+/**
+ * The Devil × Pentacles (DESIGN.md → The Devil; V2-8): descending vaults and mine galleries, always going down toward
+ * the throne-pedestal glowing in the pit. Not symmetric: hoards and cover lie where greed left them. Enemies are
+ * Justice's archetypes and Swords court cards as placeholders until V2-9/V2-10 bring the Devil's own.
+ */
+export const DEVIL_DIMENSION: DimensionDef = {
+  id: 'devil',
+  name: 'The Devil',
+  arcana: 'The Devil (XV)',
+  suit: 'Pentacles',
+  levels: [
+    {
+      beat: 'introduce',
+      miniboss: 'knight',
+      minibossName: 'Knight of Pentacles',
+      combats: [2, 2],
+      enemies: [2, 3],
+      templates: ['arena', 'patrol', 'guarded', 'signature'],
+      mustInclude: ['signature'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff'], guard: ['bailiff'], ranged: ['bailiff'], patrol: ['bailiff'], signature: ['blindfold'] },
+    },
+    {
+      beat: 'develop',
+      miniboss: 'queen',
+      minibossName: 'Queen of Pentacles',
+      combats: [2, 3],
+      enemies: [3, 4],
+      templates: ['ambush', 'nest', 'guarded', 'arena'],
+      mustInclude: ['nest'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff', 'gavel'], guard: ['bailiff'], ranged: ['page'], patrol: ['bailiff'], signature: ['blindfold'] },
+    },
+    {
+      beat: 'twist',
+      miniboss: 'king',
+      minibossName: 'King of Pentacles',
+      combats: [3, 3],
+      enemies: [4, 5],
+      templates: ['ambush', 'nest', 'arena', 'guarded'],
+      mustInclude: ['ambush'],
+      allowAdjacentCombats: true,
+      roster: { grunt: ['bailiff', 'gavel', 'blindfold'], guard: ['bailiff', 'gavel'], ranged: ['page'], patrol: ['bailiff', 'gavel'], signature: ['blindfold'] },
+    },
+  ],
+  setPieces: [
+    { id: 'goldVault', name: 'the gold vault', kit: 'goldVault', combat: true, vista: false },
+    { id: 'gildedMarket', name: 'the gilded market', kit: 'gildedMarket', combat: true, vista: false },
+    { id: 'chainShaft', name: 'the chain shaft', kit: 'chainShaft', combat: false, vista: true },
+    { id: 'collapsingMine', name: 'the collapsing mine', kit: 'collapsingMine', combat: false, vista: true },
+  ],
+  symmetric: false,
+  kits: {
+    start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
+    court: { w: [22, 28], d: [24, 30], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [4, 5] },
+    arena: { w: [28, 34], d: [28, 34], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', cover: [4, 5], columnHeight: 5 },
+    nest: { w: [24, 28], d: [26, 30], edge: 'wall', turns: true, floor: 0, ground: 'earth', cover: [3, 4], tier: { depth: 6, height: 2.4 } },
+    terrace: { w: [16, 20], d: [14, 18], edge: 'parapet', turns: true, floor: 0, ground: 'earth' },
+    pass: { w: [7, 9], d: [18, 24], edge: 'wall', turns: false, floor: 0, ground: 'earth' },
+    stair: { w: [12, 14], d: [12, 16], edge: 'parapet', turns: true, floor: -2.4, ground: 'flag' },
+    shrine: { w: [14, 16], d: [14, 16], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', columnHeight: 4.5 },
+    gatehouse: { w: [18, 22], d: [18, 22], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [2, 3] },
+    throne: { w: [32, 38], d: [32, 38], edge: 'colonnade', turns: false, floor: 0, ground: 'flag', cover: [2, 2], columnHeight: 6 },
+    threshold: { w: [12, 14], d: [12, 14], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
+    cache: { w: [10, 12], d: [10, 12], edge: 'wall', turns: false, floor: 0, ground: 'flag', swords: 3 },
+    goldVault: { w: [30, 34], d: [30, 34], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [2, 3], swords: 16 },
+    gildedMarket: { w: [36, 40], d: [26, 30], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', cover: [4, 4], divider: true, columnHeight: 5 },
+    chainShaft: { w: [12, 14], d: [40, 46], edge: 'parapet', turns: false, floor: -4, ground: 'flag' },
+    collapsingMine: { w: [8, 10], d: [44, 52], edge: 'wall', turns: false, floor: 0, ground: 'earth', swords: 8 },
+  },
+  nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
+  templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
+  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
+  criticalNodes: [9, 10],
+  loop: { rooms: [2, 3], shortcut: [8, 70] },
+  branches: [1, 2],
+  descent: 3,
+  landmark: {
+    kind: 'pedestal',
+    beyondExit: 110,
+    fromStart: 380,
+    height: 175,
+    baseY: -150,
+    // The brazier, the throne's horns and the upper drum (it rises out of the pit; its base is lost far below).
+    targets: [[0, 1.08], [0, 1.0], [-0.1, 0.96], [0.1, 0.96], [0, 0.9]],
+  },
+  heroProps: [2, 4],
+  props: { strewn: 'hoard', hero: 'pillar' },
+  rangedFoes: ['page'],
+};
+
+export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION };

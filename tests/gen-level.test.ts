@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { JUSTICE_DIMENSION as DIM } from '../src/world/dimensions';
+import { DEVIL_DIMENSION, JUSTICE_DIMENSION as DIM } from '../src/world/dimensions';
 import { isCombat } from '../src/world/gen-graph';
 import { attemptLevel, generateLevel, type LevelLayout } from '../src/world/gen-level';
 import { DX, DZ, connLength, overlaps, roomRect, toLocal } from '../src/world/gen-space';
@@ -260,5 +260,55 @@ describe('level validation catches bad levels', () => {
       }
     }
     expect(found).toBe(true);
+  });
+});
+
+describe('the Devil: a descending dimension (V2-8)', () => {
+  const DEV = DEVIL_DIMENSION;
+  const dparts = (L: LevelLayout): LevelParts => ({ dim: DEV, script: L.script, graph: L.graph, space: L.space, furn: L.furn, sockets: L.sockets, dressing: L.dressing, rangedMin: RANGED });
+  const devil = [0, 1, 2].flatMap((level) => SEEDS.map((seed) => ({ level, seed, ...generateLevel(DEV, level, seed, OPTS) })));
+
+  it('every seed yields a valid level within budget', () => {
+    for (const { layout, report, level, seed } of devil) {
+      expect(report.ok, `L${level + 1} seed ${seed}: ${report.failures.flat().join('; ')}`).toBe(true);
+      expect(validate(dparts(layout))).toEqual([]);
+      expect(report.attempts).toBeLessThanOrEqual(8);
+    }
+  });
+
+  it('always goes down: each step outside the loop drops, the loop and its shortcut stay level', () => {
+    for (const { layout: L } of devil) {
+      const crit = L.graph.critical.map((id) => L.space.rooms.find((r) => r.node === id)!);
+      const kitFloor = (i: number) => DEV.kits[crit[i].kit].floor;
+      const { loop } = L.graph;
+      const gate = L.graph.shortcut.gate;
+      const datum = crit.map((r, i) => r.y - kitFloor(i));
+      for (let i = 1; i < crit.length; i++) {
+        const inLoop = loop.includes(crit[i].node) || crit[i].node === gate;
+        expect(datum[i] - datum[i - 1]).toBeCloseTo(inLoop ? 0 : -DEV.descent, 6);
+      }
+      const sc = L.space.connectors[L.space.shortcut];
+      expect(Math.abs(sc.y1 - sc.y0)).toBeLessThan(0.05);
+      expect(crit[0].y - crit[crit.length - 1].y).toBeGreaterThan(DEV.descent * 3);
+      // Branches hang level off their host.
+      for (const c of L.space.connectors.filter((c) => c.kind === 'branch')) expect(c.y1).toBeCloseTo(c.y0, 6);
+    }
+  });
+
+  it('Justice stays level (descent 0)', () => {
+    for (const { layout: L } of levels) {
+      for (const id of L.graph.critical) {
+        const r = L.space.rooms.find((r) => r.node === id)!;
+        expect(r.y).toBeCloseTo(DIM.kits[r.kit].floor, 6);
+      }
+    }
+  });
+
+  it("the pedestal's brazier is in plain sight from the spawn and every vista", () => {
+    for (const { layout: L } of devil) {
+      const p = dparts(L);
+      expect(landmarkVisible(p, L.dressing.spawn.x, L.dressing.spawn.y, L.dressing.spawn.z)).toBe(true);
+      for (const v of L.dressing.vistas) expect(landmarkVisible(p, v.x, v.y, v.z)).toBe(true);
+    }
   });
 });

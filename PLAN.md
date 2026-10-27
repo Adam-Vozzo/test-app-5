@@ -8,8 +8,8 @@ v1's plan (M0–M6, all complete) is in `archive/v1/PLAN.md`. v2 milestones are 
 > its place next to the auto-pistol? Do generated levels feel designed?**
 
 The slice is **one full dimension (Justice × Swords)**, made of 3 generated levels, a Knight, a Queen, a King and the
-Justice boss, plus a **minimal hub** with one gate and the Magician. Everything else waits until the slice has been
-played. The other three dimensions are listed at the end, without detail on purpose.
+Justice boss, plus a **minimal hub** with one gate and the Magician. The other three dimensions are planned at the end
+(V2-8 onward).
 
 Every milestone ends with a playable build, a commit, a `PLAYTEST.md` entry and a headless-Chromium smoke test with
 screenshots checked against `STYLE.md`. That doesn't change from v1.
@@ -213,13 +213,125 @@ Each trial is one generated room plus one rule (`DESIGN.md → Trial grounds`).
     variant)
 - Each trial ends with a `PLAYTEST.md` entry: is the rule fun, and should it challenge a current dimension?
 
-## Later (after the slice is played; no detail on purpose)
+## Dimensions 2–4 (planned at the user's request, before the slice has been played)
+The slice is done, so the other three dimensions are planned here. Each one follows the Justice pattern: **space →
+rule and enemies → court suit kit and boss**, two or three milestones each. Each milestone still ends with a playable
+build, a commit, a `PLAYTEST.md` entry and a smoke scenario. Per `CLAUDE.md` → Content is data, a new dimension should
+be mostly new data. Where it needs new code, that code is the dimension's **rule**, and each rule is one new verb.
+
+**Decisions needed from the user** (each is Proposed in `DESIGN.md`; marked ⚑ where a milestone depends on it):
+- ⚑ The Devil's, the Tower's and the Moon's **unbinding moves** (candidates: a chain-break dash, a safe fall, and the
+  blindfold as the ending).
+- ⚑ The Devil's **pact** (double damage dealt and taken): keep it, and is it once per fight or a standing choice?
+- ⚑ **Accent colours** per dimension (proposed below; each is checked by `tests/palette.test.ts`).
+- The second and third repair stages' relics and prices, and when the Star arrives in the hub.
+
+### V2-8: The Devil's descent (space and flow) ← in progress (space and flow done; waiting on your playtest)
+- **Make the pipeline multi-dimension.** `DimensionDef` gains:
+  - `descent`: metres the critical path drops per room. The loop stays level, so its shortcut stays flat.
+  - per-dimension landmark sight targets
+  - which props the dimension strews (strewn and hero props)
+
+  The level builder takes its palette and landmark from the dimension. The game tracks which dimension it's in, and
+  the save keeps progress per road.
+- **The Devil × Pentacles space** (`LEVELS.md → The Devil`):
+  - descending vaults and mine galleries, each room lower than the last
+  - set-pieces: the gold vault, the chain shaft, the gilded market, the collapsing mine
+  - **the landmark:** the Devil's throne-pedestal rising out of the pit, its brazier glowing ahead and below
+  - **palette:** umber stone, sooty fog toward a smoky amber light, and old gilt as the accent (dark enough never to
+    read as crit gold)
+- **The bull's gate** opens once Justice is cleared and leads into the Devil's levels.
+- **Placeholders:** until V2-9 the Devil's rooms are held by Justice's archetypes and Swords court cards, and level 3's
+  exit leads home, since the Devil's arena comes in V2-10.
+- Tests cover the descent (every room drops, the loop stays level, connectors stay within slope) and run the same 150
+  seeds as Justice. Smoke: `--devil`.
+- **Done so far:**
+  - `DimensionDef` gained `descent`, landmark `kind` and sight `targets`, and strewn and hero prop kinds
+    (`src/world/dimensions.ts`). `RoomKitId` is now any kit name a dimension defines.
+  - `DEVIL_DIMENSION`: shared rooms restyled, plus four set-piece kits.
+  - `embed` (`gen-space.ts`) drops each critical room outside the loop by `descent`.
+  - Validation reads each dimension's own landmark targets.
+  - The builder (`level.ts`) takes its palette from `AREAS`. New kit pieces: the throne-pedestal with its unlit
+    brazier flame, coin hoards and the great pillars of the pit (`kit.ts`).
+  - `DEVIL` palette. The palette test now also checks accents against kill red.
+  - The game tracks `dimension`. Through the bull's gate are three Devil levels, then home (no arena yet), with
+    progress saved per road; `?mode=level&dim=devil` jumps in.
+  - Tests: 150 Devil seeds valid; every step drops, the loop and branches stay level, Justice stays level, and the
+    brazier is visible from the spawn and the vistas.
+  - Smoke: the `--devil` scenario.
+
+### V2-9: The Devil's rule and enemies (*temptation*)
+- **The rule:**
+  - **Tempting hoards:** pentacles lie in plain sight on pedestals and spill. Taking one costs something, decided by
+    data per hoard: it rings a bell that alerts the room, it **weighs you down** (slower rolls until you rest or spend),
+    or it springs an ambush.
+  - **Binding attacks:** chains that look fatal (a growing magenta coil) but are always broken by one roll.
+- **Enemies.** Archetype verbs are shared and re-skinned as data (`foes.ts`); the Thralls are new code, and they are
+  the rule:
+  - *Miser* (the guard verb, shield → coin chest)
+  - *Imp* (a fast melee harasser; a new light verb)
+  - *Thralls* (signature: a chained pair; the chain between them is a sweeping hazard; shoot the chain and both are
+    freed, one flees and one fights)
+  - *Page of Pentacles* (elite: carries a purse and runs, so it's a chase)
+- **Risk branches:** Devil branches hold bigger hoards with harsher costs (`LEVELS.md → Risk branches`).
+
+### V2-10: Pentacles court cards and the Devil
+- **Suit kit over the rank verbs** (`court.ts`, data):
+  - **Knight of Pentacles:** a slow, unstoppable armoured advance. It's the charge verb, slowed and made unstoppable.
+  - **Queen of Pentacles:** nurtures her side. Volleys become healing seeds you shoot down.
+  - **King of Pentacles:** buys mercenaries and throws coins. Verdicts become coin rain.
+- **The Devil** (boss) on his pedestal arena:
+  - chains, and a mid-fight ⚑ **pact** offer
+  - his unbinding: ⚑ the chain-break dash
+  - the arena by rules: a pit ringed by chained pillars
+- **Hub:** the bull wakes, the lion's gate opens, the relic of Pentacles unlocks repair stage 2, and new Priestess and
+  Magician lines.
+
+### V2-11: The Tower's climb (space and the collapse rule)
+- **The generator stacks floors** and turns the heading around the tower (`LEVELS.md → The Tower`).
+- **The collapse rule:**
+  - floors crumble on a telegraphed timer (cracks glow magenta, then drop)
+  - lightning strikes marked ground
+  - fire spreads along wooden structure
+
+  Physics colliders are removed and restored on rest, like the shortcut door.
+- **Palette:** soot and charred timber, an ember fog, and storm violet held clear of the charge colour (tested).
+
+### V2-12: Wands enemies, court cards and the Crowned Tower
+- **Enemies:**
+  - *Firebrand* (ignites ground)
+  - *Fallers* (signature: drop from above, shown by a growing magenta shadow)
+  - *Builder* (raises barricades)
+  - *Page of Wands* (signal fires call reinforcements)
+- **Court:** the Knight's fire trail, the Queen's black cat and fire zones, and the King burning the floor away.
+- **Boss:** the Crowned Tower. Each phase removes ground, ending on one platform under open sky.
+- **Unbinding:** ⚑ a safe fall or plunge.
+- **Hub:** the Star arrives (heal-flask upgrades).
+
+### V2-13: The Moon's marsh (space and the illusion rule)
+- **The generator meanders between pools,** with deliberate near-duplicate rooms and two towers on the path.
+- **The illusion rule:** reflections cast **no shadow and make no footsteps**. Hitting one dispels it harmlessly.
+  Fake paths and pickups use the same tells. The shadow tell needs a cheap per-foe blob shadow so it reads at
+  pixel scale.
+- **Palette:** deep teal water and a cold moonlit fog. Check it against the weak-spot cyan.
+
+### V2-14: Cups enemies, court cards, the Shadow and the ending
+- **Enemies:**
+  - *Dog and Wolf* (on the multi-legged v1 rig, re-scaled)
+  - *Crayfish* (signature: ripples, then an ambush from the water)
+  - *Phantoms* (decoys)
+  - *Page of Cups* (fish from its cup)
+- **Court:** the Knight's cup (heal or poison, with a tell), the Queen's mirror copies (one casts a shadow), and the
+  King's tidal waves.
+- **Boss:** the Shadow, the Eight of Swords' own shadow using her moves. Its unbinding is the blindfold.
+- **Ending:** the Sun, which is short and has no cutscene (the card's image and one line).
+
+### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel
   mode stays).
-- **The Devil × Pentacles**, **The Tower × Wands**, **The Moon × Cups**: each needs kits, a signature enemy, a suit
-  kit for the court ranks and a boss.
-- The Star and the Fool in the hub, the remaining unbindings, and the Sun ending.
+- The Fool in the hub.
 - A performance pass on real hardware and a deploy.
+- The trial grounds (side track T) stay open.
 
 ## Risks / open questions
 - **Melee feel** is new and the biggest risk. That's why it gets its own milestone and a playtest stop (V2-2).

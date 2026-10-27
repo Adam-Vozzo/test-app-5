@@ -17,7 +17,7 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { GARDEN, JUSTICE, setActiveBiome, WORLD, type AreaLighting } from './render/palette';
+import { AREAS, GARDEN, JUSTICE, setActiveBiome, WORLD, type AreaLighting } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
@@ -32,7 +32,7 @@ import { buildBossArena, type BossWorld } from './world/boss';
 import { buildHub, GATES } from './world/hub';
 import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDINGS } from './world/hub-data';
 import { buildCourtyard } from './world/courtyard';
-import { JUSTICE_DIMENSION } from './world/dimensions';
+import { DIMENSIONS, type DimensionDef } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
 import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/level';
 import { Dummy } from './world/dummy';
@@ -83,7 +83,9 @@ export class Game {
   readonly minimap = new Minimap();
   /** Seed of the current zone or generated level (N rolls a new one). */
   zoneSeed: number;
-  /** Which of the dimension's three levels is playing (0–2). */
+  /** Which dimension the levels belong to (a key into DIMENSIONS). */
+  dimension = 'justice';
+  /** Which of the dimension's three levels is playing (0–2; 3 is its arcana's arena). */
   levelIndex = 0;
   /** The rest point you last rested at (you rise there). */
   private lastRest = 0;
@@ -208,20 +210,22 @@ export class Game {
       this.world = buildHub(this.physics, makeRng(this.save.seed).fork('hub'), {
         gateOpen: (dim) => gateOpen(this.save, DIMENSION_ORDER, dim),
         gateLabel: (dim) => this.gateLabel(dim),
+        built: (dim) => this.roadBuilt(dim),
         enter: (dim) => this.enterDimension(dim),
         shop: () => this.openShop(),
         priestess: () => this.speak('priestess'),
       });
       this.area = WORLD;
-    } else if (this.layout === 'level' && this.levelIndex === 3) {
+    } else if (this.layout === 'level' && this.levelIndex === 3 && this.hasArena) {
       // The dimension's end: Justice's arena under the scales.
       const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork('justice-arena'));
       bw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = bw;
       this.area = JUSTICE;
     } else if (this.layout === 'level') {
-      const { layout, report } = generateLevel(JUSTICE_DIMENSION, this.levelIndex, this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
-      const lw = buildGeneratedLevel(layout, report, JUSTICE_DIMENSION, this.physics);
+      const dim = this.dim;
+      const { layout, report } = generateLevel(dim, Math.min(2, this.levelIndex), this.zoneSeed, { rangedMin: rangedMinDistance(tuning.foes.page.attacks.throw, tuning.roll) });
+      const lw = buildGeneratedLevel(layout, report, dim, this.physics);
       lw.onCache = () => {
         this.vitals.healCharges = Math.min(this.vitals.maxCharges + 1, this.vitals.healCharges + 1);
         this.vitals.currency += tuning.vitals.cachePentacles;
@@ -231,7 +235,7 @@ export class Game {
       // The veil lifts once the level's court card has fallen.
       lw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = lw;
-      this.area = JUSTICE;
+      this.area = AREAS[dim.id] ?? JUSTICE;
       if (!report.ok) this.hud.toast(`level failed validation after ${report.attempts} attempts (see stats)`, 4);
     } else if (this.layout === 'garden' || this.layout === 'kitchen') {
       const z = buildZone(this.zoneSeed, this.layout, this.physics);
@@ -366,18 +370,44 @@ export class Game {
     return this.world && 'boss' in this.world ? (this.world as BossWorld) : null;
   }
 
+  /** The dimension the levels belong to. */
+  get dim(): DimensionDef {
+    return DIMENSIONS[this.dimension] ?? DIMENSIONS.justice;
+  }
+
+  /** Does the current dimension's arcana have its arena yet? (Only Justice's is built; V2-10 brings the Devil's.) */
+  get hasArena() {
+    return this.dimension === 'justice';
+  }
+
+  /** Where a road stands: its next level's name, for gates and toasts. */
+  private stageName(dim: DimensionDef, n: number) {
+    return n === 3 ? (dim.id === 'justice' ? 'the scales' : 'the pedestal') : `level ${n + 1}`;
+  }
+
   /** Walk on: level 1 → 2 → 3 → the arcana's arena → home to the hub. Each step is saved. */
   nextLevel() {
     if (this.levelIndex === 3) {
       this.completeDimension();
       return;
     }
+    const dim = this.dim;
+    if (this.levelIndex === 2 && !this.hasArena) {
+      // The road is built only as far as its King: the arcana's arena comes later, so the way on leads home.
+      this.save = { ...this.save, progress: { ...this.save.progress, [dim.id]: 3 } };
+      this.levelIndex = 0;
+      this.layout = 'hub';
+      this.persist();
+      this.buildLevel();
+      this.hud.toast(`${dim.name} waits below, on the pedestal. (Its arena isn't built yet: the road leads home.)`, 5);
+      return;
+    }
     this.levelIndex++;
-    this.save = { ...this.save, progress: { ...this.save.progress, justice: this.levelIndex } };
+    this.save = { ...this.save, progress: { ...this.save.progress, [dim.id]: this.levelIndex } };
     this.persist();
     this.buildLevel();
-    if (this.levelIndex === 3) this.hud.toast(`${JUSTICE_DIMENSION.name}: the scales`, 3.5);
-    else this.hud.toast(`${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}: ${this.level!.generated.script.setPiece.name}`, 3.5);
+    if (this.levelIndex === 3) this.hud.toast(`${dim.name}: ${this.stageName(dim, 3)}`, 3.5);
+    else this.hud.toast(`${dim.name}, level ${this.levelIndex + 1}: ${this.level!.generated.script.setPiece.name}`, 3.5);
   }
 
   /** Justice has fallen: the dimension is cleared, her unbinding is freed, and the road leads home to the hub. */
@@ -391,23 +421,33 @@ export class Game {
     this.hud.toast(first ? 'Justice is weighed. A cord falls away: you can parry (V). Meet a blow as it lands.' : 'Justice is weighed again.', 6);
   }
 
+  /** Can a gate's road be walked? Its dimension must be built, and its arena or its levels still ahead. */
+  private roadBuilt(dim: string) {
+    const d = DIMENSIONS[dim];
+    if (!d) return false;
+    return dim === 'justice' || (this.save.progress[dim] ?? 0) < 3;
+  }
+
   /** Into a dimension through its gate, at the next level on its road. */
   enterDimension(dim: string) {
-    if (dim !== 'justice' || !gateOpen(this.save, DIMENSION_ORDER, dim)) return;
+    if (!this.roadBuilt(dim) || !gateOpen(this.save, DIMENSION_ORDER, dim)) return;
     this.persist();
+    this.dimension = dim;
     this.layout = 'level';
-    this.levelIndex = Math.min(3, this.save.progress.justice ?? 0);
+    this.levelIndex = Math.min(3, this.save.progress[dim] ?? 0);
     this.buildLevel();
-    this.hud.toast(this.levelIndex === 3 ? `${JUSTICE_DIMENSION.name}: the scales` : `${JUSTICE_DIMENSION.name}, level ${this.levelIndex + 1}`, 3);
+    this.hud.toast(`${this.dim.name}, ${this.stageName(this.dim, this.levelIndex)}`, 3);
   }
 
   private gateLabel(dim: string) {
     const g = GATES.find((x) => x.dim === dim)!;
-    if (dim === 'justice') {
-      const n = this.save.progress.justice ?? 0;
-      return `E: through ${g.name}'s gate (Justice, ${n === 3 ? 'the scales' : `level ${n + 1}`})`;
-    }
-    return gateOpen(this.save, DIMENSION_ORDER, dim) ? `${g.name[0].toUpperCase()}${g.name.slice(1)} is awake, but the road beyond isn't built yet` : `${g.name[0].toUpperCase()}${g.name.slice(1)} sleeps`;
+    const Name = `${g.name[0].toUpperCase()}${g.name.slice(1)}`;
+    if (!gateOpen(this.save, DIMENSION_ORDER, dim)) return `${Name} sleeps`;
+    const d = DIMENSIONS[dim];
+    if (!d) return `${Name} is awake, but the road beyond isn't built yet`;
+    const n = this.save.progress[dim] ?? 0;
+    if (!this.roadBuilt(dim)) return `${Name}'s road is walked as far as it's built (${d.name}'s arena comes later)`;
+    return `E: through ${g.name}'s gate (${d.name}, ${this.stageName(d, n)})`;
   }
 
   /** Carried pentacles into the save, and the save to storage. */
@@ -626,10 +666,12 @@ export class Game {
     this.vitals.currency += reward;
     // The King of his suit gives up its relic (the SwordRifle's next repair needs it).
     if (e instanceof CourtCard && e.rank === 'king' && this.layout === 'level') {
-      const had = this.save.relics.includes('swords');
-      this.save = gainRelic(this.save, 'swords');
+      const suit = this.dim.suit;
+      const relic = suit.toLowerCase();
+      const had = this.save.relics.includes(relic);
+      this.save = gainRelic(this.save, relic);
       this.persist();
-      if (!had) this.hud.toast('The King of Swords gives up the relic of Swords. The Magician will want it.', 4);
+      if (!had) this.hud.toast(`The King of ${suit} gives up the relic of ${suit}. The Magician will want it.`, 4);
     }
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
@@ -956,7 +998,7 @@ export class Game {
     const info = this.renderer.renderer.info;
     const lv = this.level;
     const gen = lv
-      ? `${JUSTICE_DIMENSION.name} L${this.levelIndex + 1} · ${lv.generated.script.setPiece.id} · gen ${lv.report.ok ? 'ok' : 'FAILED'} in ${lv.report.attempts} attempt${lv.report.attempts > 1 ? 's' : ''} (${lv.report.ms.toFixed(1)} ms)` +
+      ? `${this.dim.name} L${this.levelIndex + 1} · ${lv.generated.script.setPiece.id} · gen ${lv.report.ok ? 'ok' : 'FAILED'} in ${lv.report.attempts} attempt${lv.report.attempts > 1 ? 's' : ''} (${lv.report.ms.toFixed(1)} ms)` +
         (lv.report.ok ? '' : `\n  ${lv.report.failures[lv.report.failures.length - 1]?.join('; ')}`) +
         '\n'
       : '';

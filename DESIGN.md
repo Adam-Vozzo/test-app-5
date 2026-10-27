@@ -145,6 +145,19 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - *King of Pentacles*: buys mercenaries mid-fight and throws coins as projectiles.
 - **Boss: the Devil.** Mid-fight he offers a **pact**: double damage dealt and taken. Accept or refuse.
   It's an autonomy choice the player owns.
+- **As built in V2-8 (Proposed until played): the space only.**
+  - **Levels:** the generator lays the Devil's levels on the same right-angled grid as Justice, without the mirror.
+    Each room on the critical path sits a step (3 m) lower than the last, so a level falls about 18 m. The
+    shortcut loop stays level, so the barred shortcut is still a flat walk back.
+  - **Rooms:** walled vaults and pillared halls on sandstone flags, mine galleries on bare earth, and strewn coin
+    hoards (cover) in the vault and the mine.
+  - **Set-pieces:** the gold vault, the gilded market (a divided hall), the chain shaft (a vista that drops 4 m) and
+    the collapsing mine (a long walled gallery).
+  - **Landmark:** the throne-pedestal rises 175 m out of the pit beyond the exit, with great pillars standing in the
+    fog. Its brazier burns above the levels in the lantern's warm light, unfogged so it reads from every vista, and
+    each room you walk takes you further below it.
+  - **Placeholders:** Justice's archetypes and the Swords court cards hold the rooms until V2-9 and V2-10. Level 3's
+    way on leads home, because the Devil's arena isn't built yet.
 
 ### 3. The Tower × Wands: "Everything falls"
 - **The card:** a tower struck by lightning, its crown blown off, with figures falling. It's sudden collapse, and the
@@ -330,13 +343,15 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 **As built in V2-7 (Proposed until played):**
 - **The plaza:** a round stone platform over the fog inside a laurel wreath tied with blue ribbons. The angel's gate
   (Justice) faces the spawn down the axis; the bull, lion and eagle sleep at the other three. Clearing Justice wakes
-  the bull (its road isn't built in this slice). The Hermit's lantern burns by the spawn.
+  the bull, whose gate leads down into the Devil's levels (V2-8). The Hermit's lantern burns by the spawn.
 - **The Magician** (east), behind his table of a cup, a pentacle, a sword and a wand. His one menu sells, for
   pentacles: *Mend the edge* (SwordRifle repair stage 1, 400, needs the relic of Swords that the King of Swords gives
   up), *Tempered rounds* (pistol +15% damage, 250), *Deeper magazine* (+8 rounds, 200) and *Another flask* (+1 heal,
   300). Items are data (`src/world/hub-data.ts`) applied to the defs and vitals.
 - **The High Priestess** (west), between her pillars: 4 lines each for three states (fresh, on the road, Justice
   cleared), cycling as you talk.
+- **The bull's gate (V2-8):** once Justice is cleared, the bull's gate leads into the Devil's levels. The save keeps
+  each road's next level separately.
 - **Save** (`localStorage`): seed, the next level on each road, cleared dimensions, relics, upgrades, repair stage,
   pentacles, unbindings and where each conversation is. Saved at every rest, level transition, purchase and on quit.
   **Play/Continue** resumes it; **New game** wipes it.

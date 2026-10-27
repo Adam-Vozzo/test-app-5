@@ -7,6 +7,8 @@ v2 is an iteration of *A bugs death*, the bug-scale v1 prototype. Its docs are f
 build is the first slice (V2-7): from the hub (The World, with the Magician's shop and the High Priestess) through
 the angel's gate into Justice's three generated levels (Bailiffs, Gavels, Blindfolds, Pages; the Knight, Queen and King
 of Swords) to Justice herself, who frees the parry. Progress saves in the browser. There's also a training courtyard.
+V2-8 has begun the second dimension: once Justice is cleared, the bull's gate leads down into the Devil's descending
+levels (their own enemies come next).
 
 ```
 npm install
@@ -21,7 +23,7 @@ npm run build      # static build in dist/ (relative base, GitHub Pages ready)
 `.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` on every push to `main` (or on demand from the Actions tab).
 One-time setup: **Settings → Pages → Source: GitHub Actions**. The Vite `base` is relative (`./`), so it works under any repository sub-path.
 
-URL params: `?seed=123` (any string works), `?mode=hub`, `?mode=level&level=1` (a generated Justice level, 1–3; 4 is Justice's arena) or `?mode=justice`
+URL params: `?seed=123` (any string works), `?mode=hub`, `?mode=level&level=1` (a generated Justice level, 1–3; 4 is Justice's arena; add `&dim=devil` for the Devil's levels) or `?mode=justice`
 (the training courtyard) to skip the menu. The v1 bug-scale scenes are still
 reachable with `?mode=garden|kitchen|arena|range` until v2 replaces them.
 

@@ -166,21 +166,15 @@ export function segmentHitsBox(a: [number, number, number], b: [number, number, 
   return true;
 }
 
-/** The landmark's beam, pans and pillar: it reads if any of them is in plain sight. */
-export function landmarkTargets(d: Dressing): [number, number, number][] {
+/** The landmark's telling parts (Justice: beam, pans and pillar; the Devil: brazier and horns): it reads if any is in plain sight. */
+export function landmarkTargets(d: Dressing, targets: [number, number][]): [number, number, number][] {
   const { x, z, y, h } = d.landmark;
-  return [
-    [x, y + h * 1.06, z],
-    [x, y + h * 0.8, z],
-    [x, y + h * 0.55, z],
-    [x - h * 0.35, y + h * 0.74, z],
-    [x + h * 0.35, y + h * 0.74, z],
-  ];
+  return targets.map(([u, v]) => [x + u * h, y + v * h, z]);
 }
 
 export function landmarkVisible(p: LevelParts, x: number, y: number, z: number, occ = occluders(p)): boolean {
   const eye: [number, number, number] = [x, y + EYE, z];
-  return landmarkTargets(p.dressing).some((t) => !occ.some((o) => segmentHitsBox(eye, t, o)));
+  return landmarkTargets(p.dressing, p.dim.landmark.targets).some((t) => !occ.some((o) => segmentHitsBox(eye, t, o)));
 }
 
 export function checkLandmark(p: LevelParts): string[] {

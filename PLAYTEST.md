@@ -4,6 +4,38 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-8: the Devil's descent (in progress: the space only)
+You asked me to plan the other dimensions and start on them before the slice has been played. The plan is in
+`PLAN.md`, V2-8 to V2-14. This first step builds **the Devil's levels as space**: they generate, they descend, and you
+can walk them. The Devil's own enemies, rule, court cards and arena are V2-9 and V2-10.
+
+**Try:**
+- From the hub, after clearing Justice (or use `?mode=level&dim=devil&level=1..3` to jump straight in), go through
+  **the bull's gate**.
+- Walk a level from the spawn to the exit:
+  - Each room on the main path is a step lower than the last.
+  - Does it feel like going *down*, toward the glowing pedestal, or just like Justice in brown?
+- Find the shortcut: it still runs flat back to the mid lantern.
+- Look at the set-pieces: the gold vault (strewn hoards as cover), the gilded market, the chain shaft (a 4 m drop
+  with a view) and the collapsing mine (a long gallery). `O` shows the overview and `V` jumps between vistas.
+- After level 3 the way on leads home. The bull's gate then says the road is walked as far as it's built.
+
+**Unsure about:**
+- **3 m per step** (about 18 m per level) may still be too timid to read as a descent. Stairs between rooms carry it, but nothing yet is
+  overhead (the planned low ceilings and beams), so it still reads as open air. Ceilings would hide the landmark, so
+  they need the vista rules to stay intact.
+- **The pedestal is mostly its flame at range.** The column is pale in the fog and the unfogged brazier carries it.
+  That keeps "light leads" but loses the card's silhouette, and the column may need to be darker or nearer.
+- **The layout is a grid, not a spiral.** `LEVELS.md` proposed a descending spiral. The grid kept the shortcut solve
+  and validation unchanged; a spiral is a later step if the grid doesn't feel like going down.
+- **The palette:** the documented smoky amber fog was too dark for the telegraph-contrast rule, and the ember accent
+  sat too close to kill red. The fog is now pale smoky amber and the accent is old gilt (`STYLE.md`). The gilt
+  hoards are the temptation motif, which suits the rule.
+- **Placeholders:**
+  - Justice's Bailiffs, Gavels, Blindfolds and Pages, plus the Swords court cards, hold the Devil's rooms. The level
+    3 King gives up the relic of *Pentacles* although he's dressed as Swords.
+  - Hoards are only cover: the temptation rule that makes them cost something is V2-9.
+
 ## The slice, complete: does it answer the question?
 > **Does one tarot dimension's meaning come across through how it plays? Does the SwordRifle's two-mode loop earn
 > its place next to the auto-pistol? Do generated levels feel designed?**

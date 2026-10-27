@@ -188,6 +188,10 @@ try {
     const { hubScenario } = await import('./smoke-v2.mjs');
     await hubScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  if (process.argv.includes('--devil')) {
+    const { devilScenario } = await import('./smoke-v2.mjs');
+    await devilScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });

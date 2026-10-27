@@ -31,6 +31,8 @@ export interface HubHooks {
   shop(): void;
   priestess(): string;
   gateLabel(dim: string): string;
+  /** Is there a road to walk beyond this gate (its dimension built)? */
+  built(dim: string): boolean;
 }
 
 export interface HubWorld extends BuiltWorld {
@@ -148,7 +150,7 @@ export function buildHub(physics: Physics, rng: Rng, hooks: HubHooks): HubWorld 
       pos: new THREE.Vector3(x * 0.94, 0, z * 0.94),
       radius: 3.6,
       prompt: () => hooks.gateLabel(g.dim),
-      usable: () => hooks.gateOpen(g.dim) && g.dim === 'justice',
+      usable: () => hooks.gateOpen(g.dim) && hooks.built(g.dim),
       use: () => {
         hooks.enter(g.dim);
         return null;

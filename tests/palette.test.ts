@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FOES, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
+import { DEVIL, FOES, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
 
 const rgb = (hex: number) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => v / 255);
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -41,7 +41,7 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
       expect(contrast(SIGNAL.telegraph, p.fog)).toBeGreaterThanOrEqual(2.5);
     });
   }
-  for (const p of [JUSTICE, WORLD] as AreaPalette[]) {
+  for (const p of [JUSTICE, DEVIL, WORLD] as AreaPalette[]) {
     it(`${p.name} (v2 area)`, () => {
       const s = p.surfaces;
       const surfaces = [s.light, s.mid, s.dark, s.shadow, s.growth, p.accent, p.accentShade, p.fog, p.sky ?? p.fog, GEAR.lantern];
@@ -53,6 +53,8 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
       expect(contrast(SIGNAL.telegraph, p.fog)).toBeGreaterThanOrEqual(2.5);
       // The accent motif is never mistaken for crit gold.
       expect(hueGap(p.accent, SIGNAL.crit) >= 15 || contrast(p.accent, SIGNAL.crit) >= 1.5).toBe(true);
+      // …nor for kill red (STYLE.md: the warm accents, the Devil's and the Tower's, are checked against it).
+      expect(hueGap(p.accent, SIGNAL.kill) >= 20 || contrast(p.accent, SIGNAL.kill) >= 1.5).toBe(true);
     });
   }
   it("the Eight of Swords' robe never reads as kill red or telegraph magenta", () => {
@@ -64,7 +66,7 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
   it('the charge colour reads in every area and is never mistaken for a telegraph', () => {
     expect(hueGap(SIGNAL.charge, SIGNAL.telegraph)).toBeGreaterThan(60);
     expect(hueGap(SIGNAL.charge, SIGNAL.weakSpot)).toBeGreaterThan(60);
-    for (const p of [JUSTICE, WORLD] as AreaPalette[]) {
+    for (const p of [JUSTICE, DEVIL, WORLD] as AreaPalette[]) {
       const s = p.surfaces;
       for (const c of [s.light, s.mid, s.dark, s.shadow, s.growth, p.fog, p.accent]) {
         const ok = hueGap(SIGNAL.charge, c) >= 35 || contrast(SIGNAL.charge, c) >= 2;

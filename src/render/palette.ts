@@ -218,6 +218,32 @@ export const JUSTICE: AreaPalette = {
 };
 
 /**
+ * The Devil × Pentacles (V2-8): descending vaults and mine galleries of umber stone under smoky amber haze, always
+ * going down toward the glowing pedestal. Accent motif: old gilt (the hoards, the pedestal's band): dark enough that
+ * it never reads as crit gold.
+ */
+export const DEVIL: AreaPalette = {
+  name: 'The Devil',
+  surfaces: {
+    light: 0xcdb99a, // dusty sandstone flags
+    mid: 0x8f7660, // umber stone
+    dark: 0x5a4636, // umber rock
+    shadow: 0x231c18,
+    growth: 0x857559, // dusty spoil on the mine floors
+  },
+  accent: 0x9b7232, // old gilt
+  accentShade: 0x6e4f22,
+  fog: 0xf0e2cb,
+  sky: 0xc9ab8a,
+  cloud: 0xf3e7d4,
+  hemiSky: 0xf4e6d2,
+  hemiGround: 0x6a5446,
+  sun: 0xffe2c0,
+  dust: 0xd6c3a6,
+  decal: 0x4a382d,
+};
+
+/**
  * The World (XXI), the hub (DESIGN.md → The hub): warm stone inside a great laurel wreath, under a pale lilac dusk,
  * outside the four dimensions. Accent motif: the wreath's ribbons (deep blue, never a signal colour).
  */
@@ -241,6 +267,9 @@ export const WORLD: AreaPalette = {
   dust: 0xdcd5c8,
   decal: 0x564e47,
 };
+
+/** Each dimension's area palette, by dimension id (the level builder and the game read it). */
+export const AREAS: Record<string, AreaPalette> = { justice: JUSTICE, devil: DEVIL };
 
 /** The area currently loaded (FX read dust/decal colours from it). */
 export let activeBiome: AreaLighting = GARDEN;

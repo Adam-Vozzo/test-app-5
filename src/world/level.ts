@@ -5,16 +5,17 @@ import * as THREE from 'three';
 import { makeRng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
 import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
-import { GEAR, JUSTICE } from '../render/palette';
+import { AREAS, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
 import { COVER, EDGE, type Box } from './gen-dress';
 import type { LevelLayout, LevelReport } from './gen-level';
 import { connLength, DX, DZ, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, gateGeo, grassTuftGeo, hillGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, scalesGeo, shade, swordGeo } from './kit';
+import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
-const S = JUSTICE.surfaces;
+/** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
+let S = JUSTICE.surfaces;
 /** How far the platforms' foundations reach down into the fog. */
 const FOUNDATION = 34;
 
@@ -40,6 +41,9 @@ export interface LevelWorld extends BuiltWorld {
 
 export function buildLevel(layout: LevelLayout, report: LevelReport, dim: DimensionDef, physics: Physics): LevelWorld {
   const rng = makeRng(layout.seed).fork(`build-${layout.dimension}-${layout.level}`);
+  const P = AREAS[dim.id] ?? JUSTICE;
+  S = P.surfaces;
+  const hoards = dim.props.strewn === 'hoard';
   const group = new THREE.Group();
   const mat = toonMat();
   const solid: THREE.BufferGeometry[] = [];
@@ -75,7 +79,8 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     if (b.kind === 'edge') edgeGeo(b, solid, staticBox);
     else box(b.x, b.z, b.y, b.sx, b.sz, b.h, boxColor(b));
     if (b.kind === 'plinth') {
-      solid.push(place(swordGeo(3.2, S.light, S.shadow), b.x, b.y + b.h, b.z, 0.06, rng.range(0, Math.PI), 0.05));
+      if (hoards) solid.push(place(hoardGeo(1.1, P.accent, P.accentShade, S.dark, b.x), b.x, b.y + b.h, b.z, 0, rng.range(0, Math.PI), 0));
+      else solid.push(place(swordGeo(3.2, S.light, S.shadow), b.x, b.y + b.h, b.z, 0.06, rng.range(0, Math.PI), 0.05));
     }
   }
   for (const rp of furn.ramps) rampGeo(rp.x0, rp.z0, rp.y0, rp.x1, rp.z1, rp.y1, rp.width, S.light, solid, staticBox, false);
@@ -112,13 +117,23 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     }
   }
 
-  // ---- planted swords (the sword field) and hero swords out in the fog
+  // ---- strewn props (Justice: planted swords on the sword field; the Devil: coin hoards), and hero props in the fog
   for (const s of dr.swords) {
+    if (hoards) {
+      // A hoard is low cover: its size follows the planted length the generator rolled.
+      const size = s.len * 0.5;
+      solid.push(place(hoardGeo(size, P.accent, P.accentShade, S.dark, s.x + s.z), s.x, s.y, s.z, 0, s.yaw, 0));
+      staticBox(s.x, s.y + size * 0.4, s.z, size * 0.6, size * 0.4, size * 0.6);
+      continue;
+    }
     solid.push(place(swordGeo(s.len, shade(S.mid, 1.05), S.dark), s.x, s.y, s.z, s.tilt, s.yaw, 0.04));
     _q.setFromEuler(_e.set(s.tilt, s.yaw, 0.04));
     staticBox(s.x, s.y + s.len * 0.35, s.z, 0.12, s.len * 0.35, 0.12, _q.clone());
   }
-  for (const s of dr.heroSwords) far.push(place(swordGeo(s.len, S.mid, S.dark), s.x, s.y, s.z, s.tilt, s.yaw, 0.04));
+  for (const s of dr.heroSwords) {
+    if (dim.props.hero === 'pillar') far.push(place(pitPillarGeo(s.len, S.mid, S.dark, P.accentShade), s.x, s.y - 10, s.z, 0, s.yaw, 0));
+    else far.push(place(swordGeo(s.len, S.mid, S.dark), s.x, s.y, s.z, s.tilt, s.yaw, 0.04));
+  }
 
   // ---- lanterns: the Hermit's light at every rest point
   const restPoints: RestPoint[] = [];
@@ -194,7 +209,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   interactables.push({
     pos: exitPos,
     radius: 3.4,
-    prompt: () => (world.exitOpen?.() ?? true ? 'E: walk on toward the scales' : `The way on is sealed while the ${layout.script.minibossName} stands`),
+    prompt: () => (world.exitOpen?.() ?? true ? `E: walk on ${dim.landmark.kind === 'pedestal' ? 'down toward the pedestal' : 'toward the scales'}` : `The way on is sealed while the ${layout.script.minibossName} stands`),
     usable: () => world.exitOpen?.() ?? true,
     use: () => {
       world.exited = true;
@@ -205,7 +220,8 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   // ---- caches at the end of branches: a lit reward (a placeholder until pentacles and the Magician exist)
   for (const c of dr.caches) {
     solid.push(place(block(1.6, 0.9, 1.0, S.mid), c.x, c.y, c.z));
-    solid.push(place(swordGeo(1.6, S.light, S.shadow), c.x, c.y + 0.9, c.z, 0, 0.3, 0.6));
+    if (hoards) solid.push(place(hoardGeo(0.5, P.accent, P.accentShade, S.dark), c.x, c.y + 0.9, c.z, 0, 0.3, 0));
+    else solid.push(place(swordGeo(1.6, S.light, S.shadow), c.x, c.y + 0.9, c.z, 0, 0.3, 0.6));
     staticBox(c.x, c.y + 0.45, c.z, 0.8, 0.45, 0.5);
     const glow = glowPool(new THREE.Vector3(c.x, c.y, c.z), 2.4, GEAR.lantern);
     glow.position.y = c.y + 0.06;
@@ -264,9 +280,17 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     const a = (i / 10) * Math.PI * 2 + rng.range(-0.2, 0.2);
     if (Math.abs(Math.atan2(Math.sin(a - toLm), Math.cos(a - toLm))) < 0.25) continue;
     const r = span + rng.range(90, 220);
-    far.push(place(swordGeo(rng.range(40, 80), S.mid, S.dark), cx + Math.sin(a) * r, -40 + rng.range(0, 12), cz + Math.cos(a) * r, rng.range(-0.35, 0.35), rng.range(0, 6.28), rng.range(-0.2, 0.2)));
+    if (dim.props.hero === 'pillar') far.push(place(pitPillarGeo(rng.range(50, 90), S.mid, S.dark, P.accentShade), cx + Math.sin(a) * r, -60 + rng.range(0, 12), cz + Math.cos(a) * r, 0, rng.range(0, 6.28), 0));
+    else far.push(place(swordGeo(rng.range(40, 80), S.mid, S.dark), cx + Math.sin(a) * r, -40 + rng.range(0, 12), cz + Math.cos(a) * r, rng.range(-0.35, 0.35), rng.range(0, 6.28), rng.range(-0.2, 0.2)));
   }
-  far.push(place(scalesGeo(lm.h, S.dark, S.shadow, JUSTICE.accent, JUSTICE.accentShade), lm.x, lm.y, lm.z));
+  if (dim.landmark.kind === 'pedestal') {
+    // The Devil's pedestal rises out of the pit; its brazier burns with the lantern's warm light, the way down.
+    far.push(place(pedestalGeo(lm.h, S.mid, S.dark, P.accent, P.accentShade), lm.x, lm.y, lm.z));
+    // The flame is a glow (FX), so it opts out of the fog: the warm point that leads down reads from every vista.
+    const flame = new THREE.Mesh(flameGeo(lm.h * 0.07, GEAR.lantern), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+    flame.position.set(lm.x, lm.y + lm.h * PEDESTAL_FLAME, lm.z + lm.h * PEDESTAL_BRAZIER_Z);
+    group.add(flame);
+  } else far.push(place(scalesGeo(lm.h, S.dark, S.shadow, P.accent, P.accentShade), lm.x, lm.y, lm.z));
 
   // ---- merge into a few meshes: shadow casters, ground (receives only), far scenery (no shadows)
   group.add(meshOf(merge(solid), mat));
