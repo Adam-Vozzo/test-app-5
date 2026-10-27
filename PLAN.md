@@ -226,7 +226,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
 - ⚑ **Accent colours** per dimension (proposed below; each is checked by `tests/palette.test.ts`).
 - The second and third repair stages' relics and prices, and when the Star arrives in the hub.
 
-### V2-8: The Devil's descent (space and flow) ← in progress (space and flow done; waiting on your playtest)
+### V2-8: The Devil's descent (space and flow) ✅ (waiting on your playtest)
 - **Make the pipeline multi-dimension.** `DimensionDef` gains:
   - `descent`: metres the critical path drops per room. The loop stays level, so its shortcut stays flat.
   - per-dimension landmark sight targets
@@ -242,7 +242,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     read as crit gold)
 - **The bull's gate** opens once Justice is cleared and leads into the Devil's levels.
 - **Placeholders:** until V2-9 the Devil's rooms are held by Justice's archetypes and Swords court cards, and level 3's
-  exit leads home, since the Devil's arena comes in V2-10.
+  exit leads home, since the Devil's arena comes in V2-10. (V2-9 replaced the archetypes.)
 - Tests cover the descent (every room drops, the loop stays level, connectors stay within slope) and run the same 150
   seeds as Justice. Smoke: `--devil`.
 - **Done so far:**
@@ -260,7 +260,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     brazier is visible from the spawn and the vistas.
   - Smoke: the `--devil` scenario.
 
-### V2-9: The Devil's rule and enemies (*temptation*)
+### V2-9: The Devil's rule and enemies (*temptation*) ✅ (waiting on your playtest)
 - **The rule:**
   - **Tempting hoards:** pentacles lie in plain sight on pedestals and spill. Taking one costs something, decided by
     data per hoard: it rings a bell that alerts the room, it **weighs you down** (slower rolls until you rest or spend),
@@ -274,6 +274,33 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     freed, one flees and one fights)
   - *Page of Pentacles* (elite: carries a purse and runs, so it's a chase)
 - **Risk branches:** Devil branches hold bigger hoards with harsher costs (`LEVELS.md → Risk branches`).
+- **Done as:**
+  - `src/enemies/devil.ts`:
+    - the Miser, Imp and Page of Pentacles as data plans (looks, poses, hitboxes) on the one `Foe` state machine,
+      with two new data flags: `hitAndRun` (fall back for `retreatTime` after each attack) and `flees` (keep
+      `holdRange` away, circling inside the leash, and cut only when cornered)
+    - the `Thrall` pair and its `ThrallChain` (one instanced draw, shootable along its length, glowing magenta
+      through the binding's wind-up)
+    - a 'thrall' socket spawns a pair
+  - The binding, `src/player/binding.ts` (pure, tested):
+    - The game roots her while bound, lets any roll through (stamina or not) and draws the tightening coil.
+    - `EnemyWorld.bindPlayer` is the hook.
+  - Pure helpers in `foe-ai.ts`, tested: `segmentDistance`, `flankPoints`, `fleeHeading`.
+  - Hoards:
+    - placed by the dressing layer from `DimensionDef.temptation` (count, costs per level, branch cost) and checked by
+      `checkHoards`
+    - built with their tells (`hoardTellGeo` in `kit.ts`)
+    - paid and costed by the game (`takeHoard`); the weight is a `rollMul` on the controller
+    - feel numbers in `tuning.foes.hoard`
+  - Devil rosters use only the Devil's own; `rangedFoes` is empty (no thrower).
+  - Sounds: chain rattle, snap and break; the bound cinch; imp chitter; coin jingle; the hoard bell.
+  - Tests: `tests/devil.test.ts`; Devil palette checks.
+  - Smoke: `devilFoesScenario`, run under `--devil`:
+    - the binding strikes when it runs out and breaks to a roll at 0 stamina
+    - a real pair binds her
+    - shooting the chain splits them into fight and flee
+    - the Imp falls back, the Page runs and the Miser blocks from the front
+    - each hoard costs what its tell says
 
 ### V2-10: Pentacles court cards and the Devil
 - **Suit kit over the rank verbs** (`court.ts`, data):

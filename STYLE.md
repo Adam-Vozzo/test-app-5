@@ -131,6 +131,20 @@ Rules:
     with a long cape, the Queen in a floor-length slate gown with a pale veil, the King broad in a dark robe and
     squared mantle with a greatsword. Crowns are steel, never brass (brass belongs to the scales).
   - Ground telegraphs (lanes, rings, verdicts) sit 12 cm up so paving never hides them.
+  - *The Devil's commons (V2-9, `DEVIL_FOES`):* soot, rust-brown and dark olive, ≥ 4:1 against the Devil's pale amber
+    fog. Their coin and brass are dull and dark, never the area's gilt (tested).
+    - **Miser:** broad, in a fur collar, hugging a banded strongbox heaped with dull coin, with a coin bag on its
+      back (the weak spot, in cyan).
+    - **Imp:** 1.15 m, soot-red, with horns and a curled tail, crouched low with claws out.
+    - **Page of Pentacles:** small, in dark olive, holding a purse up like the card's pentacle.
+    - **Thralls:** pale-grey, ragged and horned like the card's figures, collared in iron, the chain slung
+      collar to collar between a pair.
+  - *The binding's telegraph:* the chain between a pair **glows magenta** through the wind-up. Caught, a magenta
+    coil circles her and tightens until the blow lands or she rolls.
+  - *Hoard tells (the temptation must be learnable):* each hoard is a gilt heap with a faint gilt glow and one tell.
+    - **bell:** a bell hangs on a crooked post over the heap.
+    - **weight:** chains are looped over it and staked into the floor.
+    - **ambush:** a broken ring of tilted floor slabs surrounds it.
   - *Hub arcana (V2-7):* the Magician (≈ 3.2 m, brown robe, wand raised behind his table of four tools) and the High
     Priestess (seated, deep blue, between a dark and a pale pillar before a veil). The four gate creatures are pale
     and upright when awake, dark and slumped asleep.

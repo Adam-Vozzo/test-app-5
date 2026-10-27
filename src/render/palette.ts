@@ -59,6 +59,26 @@ export const FOES = {
 } as const;
 
 /**
+ * The Devil's enemies (V2-9): soot, rust-brown and dark olive, darker than the sandstone vaults. Their coin and brass
+ * are dull and dark, so neither reads as crit gold nor as the area's gilt (the hoards' motif).
+ */
+export const DEVIL_FOES = {
+  miserCoat: 0x4a3a2e,
+  miserFur: 0x5c4d3f,
+  chestWood: 0x3a2c22,
+  chestBand: 0x5f5236,
+  coin: 0x6e6040,
+  impSkin: 0x4e2a26,
+  impHorn: 0x241b19,
+  pageCoat: 0x3f4a33,
+  pageCap: 0x2e3726,
+  purse: 0x5a4a34,
+  thrallSkin: 0x5d5048,
+  thrallRag: 0x3d342e,
+  iron: 0x2b2826,
+} as const;
+
+/**
  * Court cards (STYLE.md → Characters): taller than the commons, each crowned or crested with a large pale sword, so
  * the suit reads before the face. Steel and slate, never brass (brass is the scales' accent motif).
  */

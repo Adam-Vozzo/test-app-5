@@ -17,7 +17,7 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { AREAS, GARDEN, JUSTICE, setActiveBiome, WORLD, type AreaLighting } from './render/palette';
+import { AREAS, GARDEN, JUSTICE, setActiveBiome, SIGNAL, WORLD, type AreaLighting } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
@@ -28,6 +28,7 @@ import { buy, clearDimension, effects, gainRelic, gateOpen, loadSave, newSave, n
 import { CourtCard } from './enemies/court';
 import { Shop } from './ui/shop';
 import { ParryState } from './weapons/parry';
+import { Binding } from './player/binding';
 import { buildBossArena, type BossWorld } from './world/boss';
 import { buildHub, GATES } from './world/hub';
 import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, UNBINDINGS } from './world/hub-data';
@@ -35,6 +36,7 @@ import { buildCourtyard } from './world/courtyard';
 import { DIMENSIONS, type DimensionDef } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
 import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/level';
+import type { Hoard } from './world/gen-dress';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
 import { Minimap } from './ui/minimap';
@@ -102,6 +104,16 @@ export class Game {
   readonly shop = new Shop();
   /** Justice's unbinding: meet a blow as it lands (V, once she has fallen). */
   readonly parry = new ParryState(tuning.parry);
+  /** The Devil's binding: held, then struck, unless she rolls (one roll always breaks it). */
+  readonly binding = new Binding();
+  private readonly bindFrom = new THREE.Vector3();
+  /** The Devil's weight: hoards taken from under chains, carried until you rest (shorter rolls, a slower walk). */
+  burden = 0;
+  /** The binding's coil around her (telegraph magenta, tightening as the blow nears). */
+  private readonly coil = new THREE.Mesh(
+    new THREE.TorusGeometry(0.7, 0.05, 4, 18).rotateX(Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false, transparent: true, opacity: 0.9, depthWrite: false }),
+  );
   private boundToastT = -10;
   private shopOpenedAt = 0;
   /** Noises the player made since the enemies last listened (gunfire, blades, haste). */
@@ -132,6 +144,9 @@ export class Game {
     this.fx = new Fx(this.renderer, this.physics);
     this.projectiles = new Projectiles(this.renderer.scene);
     this.hazards = new Hazards(this.renderer.scene);
+    this.coil.visible = false;
+    this.coil.renderOrder = 6;
+    this.renderer.scene.add(this.coil);
     this.enemies = new EnemyManager(this.renderer.scene, this.hazards);
     this.enemies.onKilled = (e) => this.onEnemyKilled(e);
     this.input = new Input(this.renderer.renderer.domElement);
@@ -232,6 +247,7 @@ export class Game {
         this.synth.sfx('rest', 0.6);
         return `Left by someone before you: +1 heal, ✪ +${tuning.vitals.cachePentacles}`;
       };
+      lw.onHoard = (h, at) => this.takeHoard(h, at);
       // The veil lifts once the level's court card has fallen.
       lw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = lw;
@@ -260,6 +276,8 @@ export class Game {
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.applyUpgrades();
     this.parry.cancel();
+    this.binding.cancel();
+    this.burden = 0;
     this.player.biped.onFootstep = () => {
       if (!this.player.controller.grounded) return;
       this.synth.footstep();
@@ -304,6 +322,7 @@ export class Game {
       summon: (id, pos, yaw) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`)),
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback, source) => this.hurtPlayer(amount, from, knockback, source),
+      bindPlayer: (time, damage, knockback, from) => this.bindPlayer(time, damage, knockback, from),
       sound: (name, at) => this.sfxAt(name, at),
       shake: (trauma, at) => {
         const d = at.distanceTo(this.player.pos);
@@ -340,7 +359,7 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
@@ -596,6 +615,51 @@ export class Game {
     return true;
   }
 
+  /** The Devil's temptation: a hoard pays, and costs what its tell said it would. */
+  private takeHoard(h: Hoard, at: THREE.Vector3): string {
+    const t = tuning.foes.hoard;
+    const amount = Math.round(t.pentacles[h.cost] * (h.branch ? t.branchMul : 1));
+    this.vitals.currency += amount;
+    this.stats.hoards++;
+    this.synth.sfx('coinJingle');
+    const g = this.money.glyph;
+    if (h.cost === 'bell') {
+      this.sfxAt('hoardBell', at);
+      this.camera.addTrauma(0.15);
+      this.enemies.alertNear(at, t.bellRadius, this.player.pos);
+      return `${g} +${amount}. The bell rings, and everything near hears it.`;
+    }
+    if (h.cost === 'weight') {
+      this.burden = Math.min(t.weightMax, this.burden + 1);
+      return `${g} +${amount}. Heavy: your rolls fall short until you rest.`;
+    }
+    this.sfxAt('ambushTell', at);
+    const n = h.branch ? t.ambushBranchImps : t.ambushImps;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 0.6;
+      const p = new THREE.Vector3(at.x + Math.cos(a) * 2.6, at.y, at.z + Math.sin(a) * 2.6);
+      this.enemyWorld.summon('imp', p, Math.atan2(-(this.player.pos.x - p.x), -(this.player.pos.z - p.z)));
+    }
+    return `${g} +${amount}. Something climbs out of the broken floor.`;
+  }
+
+  /** Caught across a chain: held, then struck, unless she rolls. A roll's i-frames slip it entirely. */
+  bindPlayer(time: number, damage: number, knockback: number, from: THREE.Vector3): boolean {
+    const c = this.player.controller;
+    if (this.vitals.dead) return false;
+    if (c.invulnerable) {
+      this.synth.sfx('dodge');
+      return false;
+    }
+    const first = this.binding.broken === 0 && !this.binding.active;
+    this.binding.catch(time, damage, knockback);
+    this.bindFrom.copy(from);
+    this.synth.sfx('bound');
+    this.camera.addTrauma(0.2);
+    if (first) this.hud.toast('Bound! One roll breaks any binding (Space).', 3);
+    return true;
+  }
+
   /** Answer in kind: the blow is turned, the attacker reels, and the SwordRifle drinks a charge. */
   private parried(source: Hostile | 'projectile', from: THREE.Vector3) {
     const p = tuning.parry;
@@ -639,6 +703,8 @@ export class Game {
     this.camera.snap(at, yaw);
     this.vitals.restore();
     this.arsenal.refillAll();
+    this.binding.cancel();
+    this.burden = 0;
     this.enemies.reset();
     this.world.onReset?.();
     this.projectiles.clear();
@@ -652,6 +718,8 @@ export class Game {
 
   /** Rest at the checkpoint: refill heals + ammo, respawn non-elite enemies. */
   private rest() {
+    if (this.burden > 0) this.hud.toast('You set the weight down.', 2);
+    this.burden = 0;
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
@@ -842,18 +910,23 @@ export class Game {
       if (!v.canRoll() && c.state === 'move') this.synth.sfx('exhausted', 0.6);
     } else this.rollBuffer = Math.max(0, this.rollBuffer - realDt);
     const wantsRoll = control && this.rollBuffer > 0 && !v.busy && !this.arsenal.blocksRoll && !this.parry.busy;
+    // Bound, a roll always goes through (stamina or not): that's the rule.
+    const breaksFree = control && this.rollBuffer > 0 && this.binding.active && alive;
     player.move(simDt, {
       x: ax,
       y: ay,
       sprint: control && (inp.held('ShiftLeft') || inp.held('ShiftRight')) && v.canSprint(),
-      rollPressed: wantsRoll && v.canRoll(),
+      rollPressed: (wantsRoll && v.canRoll()) || breaksFree,
       speedMul:
         (ads ? tuning.player.adsSpeedMul : 1) *
         (gun.reloading ? tuning.player.reloadSpeedMul : 1) *
         this.arsenal.moveMul *
         (v.healing ? tuning.vitals.healMoveMul : 1) *
         (this.parry.busy ? 0.35 : 1) *
+        (this.binding.active ? 0 : 1) *
+        tuning.foes.hoard.weightMoveMul ** this.burden *
         (alive ? 1 : 0),
+      rollMul: tuning.foes.hoard.weightRollMul ** this.burden,
       camYaw: cam.yaw,
     });
     if (wasState !== 'roll' && c.state === 'roll') {
@@ -862,6 +935,20 @@ export class Game {
       this.noise(tuning.foes.noise.roll);
       v.spendRoll();
       this.synth.sfx('roll');
+      if (this.binding.roll() === 'broken') {
+        this.synth.sfx('chainBreak');
+        this.fx.sparksAt(this.chest, _o.set(0, 1, 0), 0xd8d0c4, 14, 5);
+        if (this.binding.broken === 1) this.hud.toast('The binding breaks. One roll always does: you could always have walked away.', 3.5);
+      }
+    }
+    // The binding holds, then strikes.
+    if (simDt > 0 && this.binding.update(simDt) === 'struck') this.hurtPlayer(this.binding.damage, this.bindFrom, this.binding.knockback);
+    this.coil.visible = this.binding.active && alive;
+    if (this.coil.visible) {
+      const k = this.binding.k;
+      this.coil.position.copy(c.pos).setY(c.pos.y + 0.75 + 0.15 * Math.sin(this.clock.elapsed * 18));
+      this.coil.scale.setScalar(1 - 0.5 * k);
+      this.coil.rotation.y = this.clock.elapsed * (3 + 9 * k);
     }
     if (simDt > 0 && v.tick(simDt, c.sprinting) === 'healed') {
       this.synth.sfx('heal');
@@ -979,7 +1066,7 @@ export class Game {
     this.hud.setAmmo(name, held.mag, held.magSize, held.reserve, held.reloadProgress, !!sword);
     this.hud.setCharges(held.mag, held.def.magSize, !!sword && alive);
     this.hud.setSlots(this.arsenal.guns.map((g) => g.def.name), this.arsenal.index);
-    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, v.maxCharges, v.currency, this.money.glyph);
+    this.hud.setVitals(v.health, v.maxHealth, v.stamina, tuning.vitals.maxStamina, v.exhausted, v.healCharges, v.maxCharges, v.currency, this.money.glyph, this.burden);
     const elite = this.enemies.activeElite;
     this.hud.setBoss(elite ? elite.name : null, elite ? elite.health / elite.maxHealth : 0);
     if (nearCheckpoint && !c.committed) this.hud.prompt(`E: rest at ${this.restLabel}`);

@@ -21,7 +21,25 @@ export interface LevelParts {
 export const BUDGET = { rooms: 14, props: 700, lanternClear: 15, entryClear: 6 };
 
 export function validate(p: LevelParts): string[] {
-  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkLandmark(p), ...checkBudget(p)];
+  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkLandmark(p), ...checkBudget(p)];
+}
+
+/** The Devil's temptation: enough hoards, each inside its room, with a cost its level allows. */
+export function checkHoards({ dim, script, graph, space, dressing }: LevelParts): string[] {
+  const tm = dim.temptation;
+  if (!tm) return dressing.hoards.length ? ['hoards: in a dimension without temptation'] : [];
+  const out: string[] = [];
+  const level = ['introduce', 'develop', 'twist'].indexOf(script.beat);
+  const plain = dressing.hoards.filter((h) => !h.branch);
+  if (plain.length < tm.hoards[level][0]) out.push(`hoards: only ${plain.length}`);
+  const branches = graph.nodes.filter((nd) => nd.kind === 'branch').length;
+  if (dressing.hoards.length - plain.length !== branches) out.push('hoards: a branch without its hoard');
+  for (const h of dressing.hoards) {
+    const r = space.rooms.find((x) => x.node === h.node);
+    if (!r || !inRoom(r, h.x, h.z)) out.push(`hoards: one outside room ${h.node}`);
+    if (!h.branch && !tm.costs[level].includes(h.cost)) out.push(`hoards: a ${h.cost} hoard in a level that doesn't teach it`);
+  }
+  return out;
 }
 
 export function checkGraph({ dim, script, graph }: LevelParts): string[] {

@@ -162,7 +162,7 @@ export class Hud {
   }
 
   /** Health / stamina / heal charges / carried currency (with its glyph). */
-  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, currency: number, glyph = '✿') {
+  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, currency: number, glyph = '✿', burden = 0) {
     const h = Math.max(0, hp / maxHp);
     this.hp.style.width = `${h * 100}%`;
     this.hpLagValue = Math.max(h, this.hpLagValue);
@@ -174,10 +174,11 @@ export class Hud {
       this.healsKey = hk;
       this.heals.innerHTML = Array.from({ length: maxHeals }, (_, i) => `<span class="${i < heals ? 'on' : ''}"></span>`).join('') + '<em>Q</em>';
     }
-    const key = currency * 4 + glyph.charCodeAt(0);
+    const key = currency * 64 + glyph.charCodeAt(0) * 8 + burden;
     if (key !== this.pollenKey) {
       this.pollenKey = key;
-      this.pollenEl.textContent = `${glyph} ${currency}`;
+      // The Devil's weight shows beside the purse: what you carry is what slows you.
+      this.pollenEl.textContent = burden > 0 ? `${glyph} ${currency}  ⛓ heavy ×${burden}` : `${glyph} ${currency}`;
     }
   }
 

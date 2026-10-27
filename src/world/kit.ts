@@ -169,6 +169,46 @@ export function hoardGeo(size: number, gilt: number, giltShade: number, wood: nu
   return merge([heap, box, lid, ...stacks]);
 }
 
+/**
+ * A hoard's tell (the Devil's rule must be learnable): a bell hung over it on a crooked post (it rings), chains wound
+ * round the heap (heavy), or a ring of cracked, broken floor around it (something waits below). Base at y = 0.
+ */
+export function hoardTellGeo(cost: 'bell' | 'weight' | 'ambush', size: number, post: number, iron: number, crack: number) {
+  if (cost === 'bell') {
+    const pole = place(block(0.12, size * 2.2, 0.12, post, 0.04), size * 0.9, 0, 0);
+    const arm = place(block(size * 0.95, 0.1, 0.1, post, 0.04), size * 0.45, size * 2.2, 0);
+    const bell = place(facet(new THREE.CylinderGeometry(size * 0.12, size * 0.26, size * 0.34, 6), iron, 0.04), 0, size * 1.75, 0);
+    const cap = place(block(0.08, size * 0.2, 0.08, iron, 0.03), 0, size * 2.05, 0);
+    return merge([pole, arm, bell, cap]);
+  }
+  if (cost === 'weight') {
+    // Two chains looped over the heap and staked into the floor.
+    const parts: THREE.BufferGeometry[] = [];
+    for (const a of [0.5, 2.1]) {
+      const dx = Math.cos(a);
+      const dz = Math.sin(a);
+      for (let i = 0; i < 9; i++) {
+        const t = i / 8 - 0.5;
+        const x = dx * t * size * 2.2;
+        const z = dz * t * size * 2.2;
+        const y = Math.max(0.05, size * 0.8 * (1 - 4 * t * t));
+        parts.push(place(block(0.12, 0.08, 0.2, iron, 0.03), x, y, z, 0, -a, i % 2 ? Math.PI / 2 : 0));
+      }
+      for (const s of [-1, 1]) parts.push(place(block(0.14, 0.3, 0.14, iron, 0.03), dx * s * size * 1.15, 0, dz * s * size * 1.15));
+    }
+    return merge(parts);
+  }
+  // Ambush: a broken ring of floor slabs, tilted, with dark cracks between.
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const r = size * 1.9;
+    parts.push(place(block(size * 0.9, 0.08, 0.16, crack, 0.06, i), Math.cos(a) * r, 0.02, Math.sin(a) * r, 0, -a + Math.PI / 2, 0));
+    parts.push(place(block(size * 0.6, 0.12, size * 0.5, post, 0.08, i), Math.cos(a + 0.3) * r * 0.82, 0.04, Math.sin(a + 0.3) * r * 0.82, (i % 3) * 0.12 - 0.12, -a, 0.1));
+  }
+  return merge(parts);
+}
+
 /** A great pillar of the pit standing out of the fog, a gilt band near its top (Devil hero prop). Base at y = 0. */
 export function pitPillarGeo(h: number, stone: number, dark: number, gilt: number) {
   const w = Math.max(3, h * 0.11);

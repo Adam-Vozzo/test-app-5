@@ -67,6 +67,11 @@ export interface EnemyWorld {
    * parryable: the enemy whose weapon it is, or 'projectile' for a thrown blade. Ground strikes have none.
    */
   hurtPlayer(amount: number, from: THREE.Vector3, knockback: number, source?: Hostile | 'projectile'): boolean;
+  /**
+   * The Devil's binding: hold the player for `time` seconds, then strike for `damage` — unless she rolls, and one roll
+   * always breaks it. Returns true if she was caught (a roll's i-frames or a parry slip it).
+   */
+  bindPlayer?(time: number, damage: number, knockback: number, from: THREE.Vector3, source: Hostile): boolean;
   sound(name: SfxName, at: THREE.Vector3): void;
   shake(trauma: number, at: THREE.Vector3): void;
 }

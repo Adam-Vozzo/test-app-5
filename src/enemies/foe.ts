@@ -10,7 +10,7 @@ import { G, groups, Physics, RAPIER, type DamageInfo, type Damageable } from '..
 import type { LimbRenderer } from '../render/limbs';
 import { tuning } from '../tuning';
 import type { EnemyWorld, Hostile } from './enemy';
-import { attackTimeline, guards, inArc, leashBroken, loudest, pickAttack, slamCentre, type AttackTune, type FoeTune, type TimelinePoint } from './foe-ai';
+import { attackTimeline, fleeHeading, guards, inArc, leashBroken, loudest, pickAttack, slamCentre, type AttackTune, type FoeTune, type TimelinePoint } from './foe-ai';
 import { blankPose, lerpPose, mirrorPose, type ArmPose, type FoePlan } from './foes';
 import { HumanoidRig } from './humanoid';
 
@@ -71,6 +71,8 @@ export class Foe implements Damageable, Hostile {
   protected avoidYaw = 0;
   protected deadT = 0;
   protected patrolT = 0;
+  /** Hit and run: time left falling back after an attack. */
+  protected fallBackT = 0;
   protected alerted = false;
   protected readonly pose = blankPose();
   slain = false;
@@ -167,6 +169,7 @@ export class Foe implements Damageable, Hostile {
     this.tl = null;
     this.cooldowns = {};
     this.gap = 0;
+    this.fallBackT = 0;
     this.deadT = 0;
     this.provoked = false;
     this.alerted = false;
@@ -273,6 +276,7 @@ export class Foe implements Damageable, Hostile {
     this.stateT += dt;
     this.flash = Math.max(0, this.flash - dt);
     this.gap = Math.max(0, this.gap - dt);
+    this.fallBackT = Math.max(0, this.fallBackT - dt);
     for (const k in this.cooldowns) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dt);
     this.sincePoise += dt;
     if (this.sincePoise > 1.5) this.poise = Math.min(c.poise, this.poise + c.poiseRegen * dt);
@@ -444,6 +448,30 @@ export class Foe implements Damageable, Hostile {
     const dz = _to.z / Math.max(1e-3, this.dist);
     const facing = Math.abs(dyaw) < 0.45;
     const choose = () => (this.gap <= 0 && facing ? pickAttack(c.attacks, this.dist, this.cooldowns, this.rng(), this.phaseIdx) : null);
+    if (this.fallBackT > 0) {
+      // Hit and run: back off (still facing you), then dart in again.
+      this.steer(-dx - dz * this.strafeSign * 0.5, -dz + dx * this.strafeSign * 0.5, c.runSpeed, w, dt);
+      return toYaw;
+    }
+    if (this.plan.flees) {
+      // It runs, keeping its distance inside its room, and cuts only when cornered.
+      this.strafeT -= dt;
+      if (this.strafeT <= 0) {
+        this.strafeT = 2.5 + this.rng() * 2;
+        this.strafeSign *= -1;
+      }
+      if (this.dist < (c.holdRange ?? 14)) {
+        const [fx, fz] = fleeHeading(this.ground.x, this.ground.z, w.playerPos.x, w.playerPos.z, this.home.x, this.home.z, c.leash, this.strafeSign as 1 | -1);
+        this.steer(fx, fz, c.runSpeed, w, dt);
+        if (this.dist < 3) {
+          const a = choose();
+          if (a) this.begin(a, w);
+          return toYaw;
+        }
+        return Math.atan2(-fx, -fz);
+      }
+      return toYaw;
+    }
     if (this.plan.ranged) {
       // Hold a range band and circle; throw when it can see you, cut if you get close.
       this.strafeT -= dt;
@@ -523,8 +551,10 @@ export class Foe implements Damageable, Hostile {
     return null;
   }
 
-  /** Called when an attack finishes (the Knight falls back after striking). */
-  protected afterAttack(_name: string) {}
+  /** Called when an attack finishes (the Knight falls back after striking; so does the Imp). */
+  protected afterAttack(_name: string) {
+    if (this.plan.hitAndRun) this.fallBackT = this.cfg.retreatTime ?? 0.8;
+  }
 
   /** The moment a swing, slam or throw lands. */
   protected strikeStart(a: AttackTune, w: EnemyWorld) {

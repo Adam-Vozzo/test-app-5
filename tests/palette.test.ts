@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEVIL, FOES, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
+import { DEVIL, DEVIL_FOES, FOES, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
 
 const rgb = (hex: number) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => v / 255);
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -90,6 +90,24 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
     // The bodies (not the small gear accents) stand out as silhouettes against the pale horizon.
     for (const body of [FOES.bailiffArmour, FOES.shield, FOES.gavelBody, FOES.blindfoldRobe, FOES.pageCoat, FOES.limb]) {
       expect(contrast(body, JUSTICE.fog), `#${body.toString(16)}`).toBeGreaterThanOrEqual(4);
+    }
+  });
+  it("the Devil's enemies never wear a signal colour or the area's gilt, and read dark against its fog", () => {
+    const sat = (hex: number) => {
+      const [r, g, b] = rgb(hex);
+      const max = Math.max(r, g, b);
+      return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+    };
+    for (const [name, c] of Object.entries(DEVIL_FOES)) {
+      for (const sig of [SIGNAL.telegraph, SIGNAL.kill, SIGNAL.weakSpot, SIGNAL.crit, SIGNAL.charge]) {
+        const ok = hueGap(c, sig) >= 35 || contrast(c, sig) >= 2 || sat(c) < 0.2;
+        expect(ok, `${name} vs signal #${sig.toString(16)}`).toBe(true);
+      }
+      // Their coin and brass stay well darker than the hoards' gilt: the motif belongs to the hoards.
+      expect(c === DEVIL.accent).toBe(false);
+    }
+    for (const body of [DEVIL_FOES.miserCoat, DEVIL_FOES.chestWood, DEVIL_FOES.impSkin, DEVIL_FOES.pageCoat, DEVIL_FOES.thrallRag, DEVIL_FOES.thrallSkin]) {
+      expect(contrast(body, DEVIL.fog), `#${body.toString(16)}`).toBeGreaterThanOrEqual(4);
     }
   });
   it('signal colours are distinct from each other', () => {

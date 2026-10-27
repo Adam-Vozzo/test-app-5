@@ -51,7 +51,7 @@ export function attemptLevel(dim: DimensionDef, level: number, seed: number, opt
   if (!space) return { layout: null, fail: ['space: the loop or a branch would not fit'] };
   const furn = furnish(dim, space, rng.fork('kits'));
   const sockets = encounters(dim, graph, space, furn, level, rng.fork('encounters'), opts.rangedMin ?? 0);
-  const dressing = dress(dim, graph, space, furn, sockets, rng.fork('dress'));
+  const dressing = dress(dim, graph, space, furn, sockets, rng.fork('dress'), level);
   const b = space.rooms.map((r) => roomRect(r));
   const bounds = {
     minX: Math.min(...b.map((r) => r.minX)),

@@ -46,6 +46,22 @@ export interface RoomKitDef {
   columnHeight?: number;
 }
 
+/**
+ * The Devil's rule (temptation): what taking a hoard costs. Each cost has its own tell on the hoard, so it's learned,
+ * not guessed: a bell hung over it (rings and wakes the room), chains wound round it (heavy: shorter rolls until you
+ * rest), or a cracked floor around it (Imps come up through it).
+ */
+export type HoardCost = 'bell' | 'weight' | 'ambush';
+
+export interface TemptationDef {
+  /** Hoards in the combat and set-piece rooms of each level. */
+  hoards: [[number, number], [number, number], [number, number]];
+  /** The costs each level's hoards may carry (one new cost at a time, then mixed). */
+  costs: [HoardCost[], HoardCost[], HoardCost[]];
+  /** Risk branches hold a bigger hoard instead of the cache, with this cost. */
+  branchCost: HoardCost;
+}
+
 export interface SetPieceDef {
   id: string;
   name: string;
@@ -116,6 +132,8 @@ export interface DimensionDef {
   props: { strewn: 'sword' | 'hoard'; hero: 'sword' | 'pillar' };
   /** Enemies that throw from range (held to the fair-distance rule in validation). */
   rangedFoes: string[];
+  /** The Devil's temptation: hoards in plain sight that cost something to take. */
+  temptation?: TemptationDef;
 }
 
 export const JUSTICE_DIMENSION: DimensionDef = {
@@ -206,8 +224,9 @@ export const JUSTICE_DIMENSION: DimensionDef = {
 
 /**
  * The Devil × Pentacles (DESIGN.md → The Devil; V2-8): descending vaults and mine galleries, always going down toward
- * the throne-pedestal glowing in the pit. Not symmetric: hoards and cover lie where greed left them. Enemies are
- * Justice's archetypes and Swords court cards as placeholders until V2-9/V2-10 bring the Devil's own.
+ * the throne-pedestal glowing in the pit. Not symmetric: hoards and cover lie where greed left them. Its own
+ * archetypes (V2-9) hold the rooms: Misers, Imps, chained Thralls and the Page of Pentacles. The court cards are
+ * Swords placeholders until V2-10.
  */
 export const DEVIL_DIMENSION: DimensionDef = {
   id: 'devil',
@@ -224,7 +243,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff'], guard: ['bailiff'], ranged: ['bailiff'], patrol: ['bailiff'], signature: ['blindfold'] },
+      roster: { grunt: ['miser'], guard: ['miser'], ranged: ['imp'], patrol: ['imp'], signature: ['thrall'] },
     },
     {
       beat: 'develop',
@@ -235,7 +254,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff', 'gavel'], guard: ['bailiff'], ranged: ['page'], patrol: ['bailiff'], signature: ['blindfold'] },
+      roster: { grunt: ['miser', 'imp'], guard: ['miser'], ranged: ['pagePentacles', 'imp'], patrol: ['imp'], signature: ['thrall'] },
     },
     {
       beat: 'twist',
@@ -246,7 +265,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
       allowAdjacentCombats: true,
-      roster: { grunt: ['bailiff', 'gavel', 'blindfold'], guard: ['bailiff', 'gavel'], ranged: ['page'], patrol: ['bailiff', 'gavel'], signature: ['blindfold'] },
+      roster: { grunt: ['miser', 'imp', 'thrall'], guard: ['miser'], ranged: ['pagePentacles', 'imp'], patrol: ['imp', 'miser'], signature: ['thrall'] },
     },
   ],
   setPieces: [
@@ -292,7 +311,13 @@ export const DEVIL_DIMENSION: DimensionDef = {
   },
   heroProps: [2, 4],
   props: { strewn: 'hoard', hero: 'pillar' },
-  rangedFoes: ['page'],
+  // The Devil's own have no thrower: the Page of Pentacles runs instead (V2-9).
+  rangedFoes: [],
+  temptation: {
+    hoards: [[2, 2], [2, 3], [3, 4]],
+    costs: [['bell'], ['bell', 'weight'], ['bell', 'weight', 'ambush']],
+    branchCost: 'ambush',
+  },
 };
 
 export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION };

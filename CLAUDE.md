@@ -22,8 +22,9 @@ four thin ones.
 > `level.ts`), Justice's enemies (`src/enemies/foe*.ts`, `humanoid.ts`), the Swords court cards (`court.ts`), and
 > Justice and her arena (`justice.ts`, `src/world/boss.ts`) are v2, in
 > metres. **V2-8** (the second dimension, in progress per `PLAN.md`) adds the Devil's descending levels
-> (`DEVIL_DIMENSION` in `src/world/dimensions.ts`, `DEVIL` palette) behind the bull's gate, still held by Justice's
-> enemies as placeholders. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> (`DEVIL_DIMENSION` in `src/world/dimensions.ts`, `DEVIL` palette) behind the bull's gate; **V2-9** adds its enemies
+> (`src/enemies/devil.ts`: Miser, Imp, Page of Pentacles as data; the chained Thralls) and its rule (the binding,
+> `src/player/binding.ts`; tempting hoards placed by `gen-dress.ts`). Its court cards are still Swords placeholders. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -114,7 +115,8 @@ src/
   render/          renderer, palette, geometry helpers, toon materials, atmosphere (fog + sky), pixel mode
                    (low-res blocks + distance-faded depth outline)
   anim/            pure IK + gait logic, BODY proportions, verlet ribbon (blindfold tails), biped rig
-  player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
+  player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement, the Devil's
+                   binding (binding.ts: pure timing; a roll breaks it)
   weapons/         weapon defs, firing, recoil, projectiles; SwordRifle (swing.ts: pure melee timing/pose/charges;
                    swordrifle.ts: modes, blade sweep, charge cells); the parry (parry.ts: pure timing)
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
@@ -122,7 +124,8 @@ src/
   ui/              HUD, crosshair, hit markers, menus, the Magician's shop, tuning panel (presets, Copy JSON)
   enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
                    Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
-                   boss (justice.ts: JusticeBoss extends CourtCard). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
+                   boss (justice.ts: JusticeBoss extends CourtCard); the Devil's archetypes and the Thrall pair
+                   (devil.ts). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
                    manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;

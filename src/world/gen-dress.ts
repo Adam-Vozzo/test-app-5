@@ -2,7 +2,7 @@
 // tiers), the encounter sockets, and the dressing (lanterns, arches, swords, grass, hero props, vista poses).
 // Pure: no Three/DOM. Everything here is plain records the builder turns into meshes and colliders.
 import type { Rng } from '../core/rng';
-import type { DimensionDef, EncounterTemplate, SocketRole } from './dimensions';
+import type { DimensionDef, EncounterTemplate, HoardCost, SocketRole } from './dimensions';
 import type { MissionGraph } from './gen-graph';
 import { connRect, DX, DZ, overlaps, roomRect, toLocal, toWorld, yawOf, type Dir, type Room, type Space } from './gen-space';
 
@@ -408,6 +408,8 @@ export interface Dressing {
   heroSwords: Planted[];
   grass: [number, number, number][];
   caches: { node: number; x: number; z: number; y: number }[];
+  /** The Devil's temptation: hoards in plain sight, each with a cost and its tell. */
+  hoards: Hoard[];
   vistas: Pose[];
   landmark: { x: number; z: number; y: number; h: number };
   /** The shortcut's barred door; it opens only from the `opensFrom` side. */
@@ -416,8 +418,18 @@ export interface Dressing {
   exit: { x: number; z: number; y: number; dir: Dir; width: number };
 }
 
+export interface Hoard {
+  node: number;
+  x: number;
+  z: number;
+  y: number;
+  cost: HoardCost;
+  /** A risk branch's bigger hoard. */
+  branch: boolean;
+}
+
 /** Layer 4: rules, not scatter. Runs after encounters so nothing lands on a socket. */
-export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Furnishing, sockets: Socket[], rng: Rng): Dressing {
+export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Furnishing, sockets: Socket[], rng: Rng, level = 0): Dressing {
   const rooms = space.rooms;
   const byNode = (id: number) => rooms.find((r) => r.node === id)!;
   const start = byNode(g.critical[0]);
@@ -457,6 +469,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
   const swords: Planted[] = [];
   const grass: [number, number, number][] = [];
   const caches: Dressing['caches'] = [];
+  const hoards: Hoard[] = [];
   for (const r of rooms) {
     const kit = dim.kits[r.kit];
     const rr = rng.fork(`dress${r.node}`);
@@ -492,7 +505,44 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
     if (g.nodes[r.node].kind === 'branch') {
       const [x, z] = toWorld(r, 0, r.d / 6);
-      caches.push({ node: r.node, x, z, y: r.y });
+      // In a tempting dimension the branch's reward is a bigger hoard, with the harshest cost.
+      if (dim.temptation) hoards.push({ node: r.node, x, z, y: r.y, cost: dim.temptation.branchCost, branch: true });
+      else caches.push({ node: r.node, x, z, y: r.y });
+    }
+  }
+
+  // Hoards in plain sight: in the fights and set-pieces, off the lanes, sockets and cover, toward the far side.
+  const tm = dim.temptation;
+  if (tm) {
+    const hr = rng.fork('hoards');
+    const want = hr.int(tm.hoards[level][0], tm.hoards[level][1]);
+    const rooms2 = rooms.filter((r) => {
+      const nd = g.nodes[r.node];
+      return nd.kind !== 'branch' && nd.kind !== 'miniboss' && (nd.template !== null || nd.kind === 'setpiece');
+    });
+    for (let i = rooms2.length - 1; i > 0; i--) {
+      const j = Math.floor(hr() * (i + 1));
+      [rooms2[i], rooms2[j]] = [rooms2[j], rooms2[i]];
+    }
+    for (let k = 0; k < rooms2.length * 2 && hoards.filter((h) => !h.branch).length < want; k++) {
+      const r = rooms2[k % rooms2.length];
+      if (hoards.some((h) => h.node === r.node && !h.branch) && k < rooms2.length) continue;
+      const entry: [number, number] = [0, -r.d / 2];
+      const out = r.outDir === null ? null : toLocal(r, ...doorPoint(r, r.outDir));
+      for (let t = 0; t < 40; t++) {
+        const u = hr.range(-r.w / 2 + 2.5, r.w / 2 - 2.5);
+        const v = hr.range(0, r.d / 2 - 2.5);
+        const [x, z] = toWorld(r, u, v);
+        const onLane = (out ? segDist(u, v, entry, out) < 3 : Math.abs(u) < 3) || r.doors.some((d) => Math.hypot(d.x - x, d.z - z) < 5);
+        const crowded =
+          sockets.some((s) => Math.hypot(s.x - x, s.z - z) < 2.5) ||
+          furn.boxes.some((b) => b.kind !== 'edge' && Math.abs(x - b.x) < b.sx / 2 + 1.5 && Math.abs(z - b.z) < b.sz / 2 + 1.5) ||
+          swords.some((s) => Math.hypot(s.x - x, s.z - z) < 2.2) ||
+          hoards.some((h) => Math.hypot(h.x - x, h.z - z) < 6);
+        if (onLane || crowded) continue;
+        hoards.push({ node: r.node, x, z, y: r.y, cost: hr.pick(tm.costs[level]), branch: false });
+        break;
+      }
     }
   }
 
@@ -527,7 +577,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     heroSwords.push({ x, z, y: -34, len: rng.range(40, 64), yaw: rng.range(0, Math.PI * 2), tilt: rng.range(-0.22, 0.22) });
   }
 
-  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, vistas, landmark, door, exit };
+  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, vistas, landmark, door, exit };
 }
 
 export function inRoom(r: Room, x: number, z: number, inset = 0) {

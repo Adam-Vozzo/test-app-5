@@ -318,6 +318,95 @@ export const tuning = {
         cut: { range: 2.2, windup: 0.4, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 14, knockback: 4, arcDeg: 100, lunge: 1.6, weight: 1 },
       },
     },
+    /** The Devil's archetypes (V2-9): the guard, harasser and elite verbs re-skinned, plus the chained Thralls. */
+    miser: {
+      health: 230,
+      poise: 70,
+      poiseRegen: 20,
+      speed: 1.9,
+      runSpeed: 3.0,
+      accel: 14,
+      turnRate: 3.6,
+      sightRange: 22,
+      leash: 30,
+      /** It hugs its chest: blows from this wide a cone in front are turned, except during and after its own swing. */
+      guardConeDeg: 150,
+      staggerTime: 1.1,
+      separation: 2.0,
+      reward: 14,
+      attacks: {
+        club: { range: 2.5, windup: 0.75, active: 0.16, recover: 1.0, cooldown: 1.0, damage: 26, knockback: 6, arcDeg: 90, lunge: 1.4, weight: 1 },
+        shove: { range: 1.8, windup: 0.5, active: 0.12, recover: 0.7, cooldown: 2.4, damage: 12, knockback: 11, arcDeg: 100, lunge: 1.6, weight: 0.7 },
+      },
+    },
+    imp: {
+      health: 70,
+      poise: 14,
+      poiseRegen: 30,
+      speed: 3.6,
+      runSpeed: 6.8,
+      accel: 34,
+      turnRate: 9,
+      sightRange: 22,
+      leash: 32,
+      staggerTime: 0.6,
+      separation: 1.3,
+      reward: 4,
+      /** Hit and run: it falls back this long after each rake, then darts in again. */
+      retreatTime: 0.9,
+      attacks: {
+        rake: { range: 1.8, windup: 0.34, active: 0.1, recover: 0.4, cooldown: 0.5, damage: 9, knockback: 2, arcDeg: 120, lunge: 1.6, weight: 1, hits: 2, comboWindup: 0.2 },
+        pounce: { range: 4.6, windup: 0.5, active: 0.18, recover: 0.6, cooldown: 2.2, damage: 12, knockback: 4, arcDeg: 90, lunge: 4.2, weight: 0.8 },
+      },
+    },
+    pagePentacles: {
+      health: 110,
+      poise: 22,
+      poiseRegen: 25,
+      speed: 3.2,
+      runSpeed: 5.4,
+      accel: 26,
+      turnRate: 8,
+      sightRange: 26,
+      leash: 30,
+      /** It runs to keep this far from you, circling inside its room; it cuts only when cornered. */
+      holdRange: 16,
+      staggerTime: 1.0,
+      separation: 1.6,
+      /** Its purse. */
+      reward: 90,
+      attacks: {
+        cut: { range: 2.2, windup: 0.42, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 12, knockback: 6, arcDeg: 110, lunge: 1.4, weight: 1 },
+      },
+    },
+    thrall: {
+      health: 120,
+      poise: 30,
+      poiseRegen: 22,
+      speed: 2.3,
+      runSpeed: 4.6,
+      accel: 20,
+      turnRate: 5,
+      sightRange: 24,
+      leash: 34,
+      staggerTime: 0.9,
+      separation: 1.4,
+      reward: 8,
+      /** The chain between a pair (m): it can't stretch further. Shoot it (`chainHealth`) and both are freed. */
+      chainLength: 6,
+      chainHealth: 40,
+      /** Freed: the one that fights is this much faster; the one that flees runs for `fleeTime` and is gone. */
+      rage: 1.3,
+      fleeTime: 3,
+      attacks: {
+        flail: { range: 2.8, windup: 0.62, active: 0.18, recover: 0.8, cooldown: 1.2, damage: 18, knockback: 6, arcDeg: 150, lunge: 1.2, weight: 1 },
+        /**
+         * The binding (the Devil's rule): the pair runs either side of you and snaps the chain tight across you. Caught,
+         * you're held for `delay` and then struck for `damage` — unless you roll, and one roll always breaks it.
+         */
+        bind: { kind: 'bind', range: 5.5, windup: 1.25, active: 0.15, recover: 1.0, cooldown: 4.5, damage: 48, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, delay: 1.5, radius: 0.9 },
+      },
+    },
     /**
      * Court-card minibosses (V2-5): rank is the verb (Knight mobility, Queen control, King command), Swords is the
      * flavour. Each escalates at the health fractions in `phases`.
@@ -418,6 +507,21 @@ export const tuning = {
         weigh: { kind: 'volley', range: 34, windup: 1.1, active: 0.1, recover: 1.1, cooldown: 3.0, damage: 22, knockback: 4, arcDeg: 360, lunge: 0, weight: 0.8, speed: 18, lanes: 9, spacing: 2.0, hits: 2, comboWindup: 0.9 },
         balance: { kind: 'verdict', range: 34, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 36, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.1, radius: 3.0, delay: 1.5, count: 1, minPhase: 1 },
       },
+    },
+    /**
+     * The Devil's temptation (V2-9): what a hoard pays and what taking it costs. The bell wakes everyone within
+     * `bellRadius`; each weight shortens rolls and slows the walk until you rest; an ambush brings Imps up through the
+     * cracked floor around it. A risk branch's hoard pays `branchMul` times as much.
+     */
+    hoard: {
+      pentacles: { bell: 40, weight: 60, ambush: 80 },
+      branchMul: 2,
+      bellRadius: 36,
+      weightRollMul: 0.82,
+      weightMoveMul: 0.9,
+      weightMax: 3,
+      ambushImps: 2,
+      ambushBranchImps: 3,
     },
     /** How far each noise carries (m). Walking is nearly silent: the Blindfold hunts gunfire and haste. */
     noise: { pistol: 42, rifle: 55, blade: 16, sprint: 9, roll: 7, walk: 2.5 },

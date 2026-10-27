@@ -118,7 +118,7 @@ A small graph grammar builds the sequence of *experiences* before any geometry e
 | `traverse` | movement and tension without a fight: a narrow pass, a climb, a bridge |
 | `vista` | release; a framed view of the landmark and the next space |
 | `lantern` | checkpoint (the Hermit's lantern); rest, refill, respawn point |
-| `branch` | an optional dead-end with a reward (risk branch in the Devil); 1–2 per level |
+| `branch` | an optional dead-end with a reward (risk branch in the Devil); 1–2 per level. *As built in V2-9:* a Devil branch holds a bigger hoard (twice the pentacles) instead of the cache, always with the ambush cost |
 | `setpiece` | the level's identity node |
 | `gate` | the shortcut's far side; opens back towards an earlier lantern |
 | `miniboss` | the court-card arena; always preceded by a lantern |
@@ -133,6 +133,14 @@ The grammar starts from `start → … → lantern → miniboss → exit`, then 
 
 Constraints: 6–10 nodes on the critical path; no two `combat` nodes adjacent unless the beat is *twist*; the
 `setpiece` sits in the middle third; at least two `vista` nodes.
+
+### Temptation (the Devil's dressing, V2-9)
+The dressing layer also places **hoards** wherever a dimension has a `temptation` table (`dimensions.ts`). Each hoard
+sits in a fight or a set-piece room: on the far side, off the way through, clear of the sockets and cover.
+- **Counts per level:** 2 / 2–3 / 3–4.
+- **Costs introduced one at a time:** level 1 only rings (bell), level 2 adds the weight, and level 3 adds the ambush.
+- **Validation:** checks the count, that each hoard is inside its room, that each cost is one its level teaches, and
+  that every branch has its hoard.
 
 ### 3. Space (embedding the graph)
 Each node becomes a **room kit** and each edge a **connector kit**. Kits are parametric generators that return

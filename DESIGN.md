@@ -158,6 +158,33 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     each room you walk takes you further below it.
   - **Placeholders:** Justice's archetypes and the Swords court cards hold the rooms until V2-9 and V2-10. Level 3's
     way on leads home, because the Devil's arena isn't built yet.
+- **As built in V2-9 (Proposed until played): the rule and the enemies.**
+  - **The binding (the rule's first half):**
+    - A Thrall pair's chain glows magenta as they wind up (1.25 s, from 5.5 m). They run to either side of her and haul it tight
+      across her.
+    - Caught, she's **rooted** and a magenta coil tightens for 1.5 s, then a 48-damage blow lands.
+    - **One roll always breaks it**, with or without stamina, mid-swing or not. A roll's i-frames slip the haul
+      entirely.
+  - **The temptation (the rule's second half):** gilt hoards lie in plain sight in fights and set-pieces. Each pays
+    pentacles and costs what its tell shows:
+    - **bell** (40): the bell rings and wakes everything within 36 m.
+    - **weight** (60): chained down. Each one shortens rolls (×0.82) and slows the walk (×0.9) until you rest, up to
+      three. The purse shows "⛓ heavy ×n".
+    - **ambush** (80): two Imps climb out of the cracked floor.
+
+    Level 1 only rings, level 2 adds the weight, and level 3 adds the ambush. Risk branches hold a double hoard with
+    the ambush and three Imps, instead of the cache.
+  - **Enemies:**
+    - **Miser** (the guard verb): hugs a strongbox that turns blows from a 150° front, except during and after its
+      club swing or shove. Its coin bag on the back is the weak spot.
+    - **Imp** (a fast harasser): a two-rake combo or a pounce, then it falls back before darting in again (hit and
+      run).
+    - **Page of Pentacles** (elite, stays dead): it doesn't fight. It runs to stay 16 m off, circling inside its room,
+      and cuts only when cornered. Its purse pays 90.
+    - **Thralls** (signature): a chained pair (one socket, two bodies; the chain can't stretch past 6 m). Their solo
+      attack is a flail swing; together they bind. **Shoot the chain** (40 health) and both are freed: the nearer
+      turns on you 30% faster, the other runs into the fog and is gone (no reward). Kill one and the other drags the
+      chain alone.
 
 ### 3. The Tower × Wands: "Everything falls"
 - **The card:** a tower struck by lightning, its crown blown off, with figures falling. It's sudden collapse, and the

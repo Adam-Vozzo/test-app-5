@@ -9,10 +9,12 @@ import { AREAS, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
-import { COVER, EDGE, type Box } from './gen-dress';
+import { COVER, EDGE, type Box, type Hoard } from './gen-dress';
+import { tuning } from '../tuning';
+import { DEVIL_FOES } from '../render/palette';
 import type { LevelLayout, LevelReport } from './gen-level';
 import { connLength, DX, DZ, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
+import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
 /** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
 let S = JUSTICE.surfaces;
@@ -35,6 +37,8 @@ export interface LevelWorld extends BuiltWorld {
   shortcutOpen: () => boolean;
   /** What a branch cache gives (set by the game); returns the toast. */
   onCache?: () => string;
+  /** A hoard taken: the game pays it and makes it cost (set by the game); returns the toast. */
+  onHoard?: (h: Hoard, at: THREE.Vector3) => string | null;
   /** The way on opens once the court card has fallen (set by the game). */
   exitOpen?: () => boolean;
 }
@@ -236,6 +240,41 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
         taken = true;
         glow.visible = false;
         return world.onCache?.() ?? null;
+      },
+    });
+  }
+
+  // ---- the Devil's hoards: in plain sight, each with the tell of what it costs (taking one hides its coin)
+  const HOARD_TELL: Record<Hoard['cost'], string> = {
+    bell: 'a bell hangs over it',
+    weight: 'it is chained down: it will weigh on you',
+    ambush: 'the floor around it is broken',
+  };
+  for (const h of dr.hoards) {
+    const size = h.branch ? 1.5 : 1.1;
+    const at = new THREE.Vector3(h.x, h.y, h.z);
+    const yaw = rng.range(0, Math.PI * 2);
+    solid.push(place(hoardTellGeo(h.cost, size, S.dark, DEVIL_FOES.iron, S.shadow), h.x, h.y, h.z, 0, yaw, 0));
+    const coin = meshOf(place(hoardGeo(size, P.accent, P.accentShade, S.dark, h.x + h.z), 0, 0, 0, 0, yaw, 0), mat);
+    coin.position.copy(at);
+    group.add(coin);
+    const glow = glowPool(at, size * 2, P.accent);
+    glow.position.y = h.y + 0.05;
+    group.add(glow);
+    const col = physics.addStatic(RAPIER.ColliderDesc.cuboid(size * 0.6, size * 0.4, size * 0.6).setTranslation(h.x, h.y + size * 0.4, h.z));
+    let taken = false;
+    const value = () => Math.round(tuning.foes.hoard.pentacles[h.cost] * (h.branch ? tuning.foes.hoard.branchMul : 1));
+    interactables.push({
+      pos: at,
+      radius: size + 1.6,
+      prompt: () => (taken ? null : `E: take the hoard (✪ ${value()}): ${HOARD_TELL[h.cost]}`),
+      usable: () => !taken,
+      use: () => {
+        taken = true;
+        coin.visible = false;
+        glow.visible = false;
+        physics.removeCollider(col);
+        return world.onHoard?.(h, at) ?? null;
       },
     });
   }

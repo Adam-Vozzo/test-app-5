@@ -30,7 +30,7 @@ export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
   /** Sound that announces the wind-up. */
-  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict';
+  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter';
 }
 
 export interface FoePlan {
@@ -58,6 +58,10 @@ export interface FoePlan {
   shield: boolean;
   /** Two blades: mirrored swings change hands. */
   dualWield?: boolean;
+  /** Hit and run: after each attack it falls back for `retreatTime` before closing again (the Imp). */
+  hitAndRun?: boolean;
+  /** Runs from you instead of fighting, keeping `holdRange` away inside its leash; cuts only when cornered (the Page of Pentacles). */
+  flees?: boolean;
   limb: number;
   sleeve: number;
   /** Hitboxes relative to the feet (x right, y up, z back), for a 1.6 m body. */
@@ -68,7 +72,7 @@ export interface FoePlan {
   motions: Record<string, AttackMotion>;
 }
 
-const pose = (handR: V3, handL: V3, weapon: V3, off: V3 = [0, 0, 0], crouch = 0, lean = 0): ArmPose => ({ handR, handL, weapon, off, crouch, lean });
+export const pose = (handR: V3, handL: V3, weapon: V3, off: V3 = [0, 0, 0], crouch = 0, lean = 0): ArmPose => ({ handR, handL, weapon, off, crouch, lean });
 
 /**
  * Mirror a pose left ↔ right (the follow-up swing of a combo). A dual-wielder swaps hands (the other blade swings);
@@ -112,7 +116,7 @@ export const blankPose = (): ArmPose => pose([0, 0, 0], [0, 0, 0], [0, 0, 0]);
 
 // ---- gear geometry (faceted, grip at the origin, pointing along -Z)
 
-function swordGeo(len: number, w: number) {
+export function swordGeo(len: number, w: number) {
   const blade = facet(new THREE.BoxGeometry(w, w * 0.3, len).translate(0, 0, -len / 2 - 0.08), FOES.blade, 0.03);
   const guard = block(w * 3.2, 0.04, 0.05, FOES.limb, 0.03);
   const grip = facet(new THREE.BoxGeometry(0.04, 0.04, 0.14).translate(0, 0, 0.02), FOES.limb, 0.03);
@@ -143,7 +147,7 @@ function knifeGeo() {
 // ---- body geometry (chest-rooted, 2–4 primitives)
 
 /** A six-sided tapered body, darker at the hem. Chest-rooted: the top sits just above the chest. */
-function hunchedTorso(top: number, bottom: number, h: number, color: number, shade: number) {
+export function hunchedTorso(top: number, bottom: number, h: number, color: number, shade: number) {
   const g = facet(new THREE.CylinderGeometry(top, bottom, h, 6, 2).translate(0, -h / 2 + 0.2, 0), color, 0.06);
   const hemY = -h + 0.28;
   const pos = g.getAttribute('position') as THREE.BufferAttribute;

@@ -325,6 +325,40 @@ const SFX = {
     crash: L({ kind: 'noise', filter: 'lowpass', f0: 1600, f1: 120, dur: 0.6, gain: 0.9 }),
     thud: L({ kind: 'osc', wave: 'sine', f0: 75, f1: 30, dur: 0.5, gain: 0.9 }),
   },
+  // The Devil's enemies and rule (V2-9): chains rattle before they bind, imps chitter, coins jingle, and a hoard
+  // with a bell on it rings when it's touched.
+  chainRattle: {
+    rattle: L({ kind: 'noise', filter: 'bandpass', f0: 3200, f1: 2200, q: 4, dur: 0.8, gain: 0.32, attack: 0.05 }),
+    clink: L({ kind: 'osc', wave: 'square', f0: 2600, f1: 2500, dur: 0.05, gain: 0.07, delay: 0.3 }),
+    clink2: L({ kind: 'osc', wave: 'square', f0: 2900, f1: 2800, dur: 0.05, gain: 0.07, delay: 0.55 }),
+  },
+  chainSnap: {
+    snap: L({ kind: 'noise', filter: 'highpass', f0: 2500, f1: 1800, dur: 0.12, gain: 0.8 }),
+    clank: L({ kind: 'osc', wave: 'square', f0: 420, f1: 300, dur: 0.18, gain: 0.18 }),
+  },
+  chainBreak: {
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 1800, f1: 800, q: 2, dur: 0.25, gain: 0.8 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1400, f1: 900, dur: 0.4, gain: 0.14 }),
+  },
+  bound: {
+    cinch: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1800, q: 3, dur: 0.35, gain: 0.6 }),
+    low: L({ kind: 'osc', wave: 'sawtooth', f0: 110, f1: 82, dur: 0.6, gain: 0.14 }),
+  },
+  impChitter: {
+    a: L({ kind: 'osc', wave: 'square', f0: 1300, f1: 1700, dur: 0.06, gain: 0.08 }),
+    b: L({ kind: 'osc', wave: 'square', f0: 1500, f1: 1900, dur: 0.06, gain: 0.08, delay: 0.09 }),
+    c: L({ kind: 'osc', wave: 'square', f0: 1700, f1: 2300, dur: 0.08, gain: 0.08, delay: 0.18 }),
+  },
+  coinJingle: {
+    a: L({ kind: 'osc', wave: 'triangle', f0: 3100, f1: 3000, dur: 0.08, gain: 0.08 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 3600, f1: 3500, dur: 0.08, gain: 0.07, delay: 0.07 }),
+    c: L({ kind: 'osc', wave: 'triangle', f0: 2800, f1: 2700, dur: 0.1, gain: 0.07, delay: 0.15 }),
+  },
+  hoardBell: {
+    strike: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 655, dur: 1.6, gain: 0.3 }),
+    over: L({ kind: 'osc', wave: 'sine', f0: 1650, f1: 1640, dur: 1.1, gain: 0.1 }),
+    over2: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 655, dur: 1.4, gain: 0.22, delay: 0.5 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

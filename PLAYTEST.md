@@ -4,6 +4,41 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-9: the Devil's rule and enemies
+The Devil's levels now have **his own enemies and his rule**. Two halves of *temptation*: chains that look fatal
+but always break, and wealth in plain sight that costs something to take. The court cards are still Swords
+placeholders (V2-10).
+
+**Try:**
+- **Thralls:**
+  - Let a pair wind up: the chain between them glows magenta, and they run to either side of you.
+  - Get caught and do nothing: the coil tightens and a heavy blow lands after 1.5 s.
+  - Get caught and press Space: one roll always breaks it, even with no stamina.
+  - Roll *through* the haul: the i-frames slip it.
+- **Shoot the chain** between a pair (aim for its middle): both are freed. The nearer one comes at you faster, and
+  the other runs into the fog.
+- **The Miser:** flank it (the coin bag on its back glows cyan) or bait its club.
+- **The Imps:** they rake and fall back. Are they readable, or just noise?
+- **The Page of Pentacles** (level 2 onward) runs from you. Is chasing it a good kind of greed, or a chore?
+- **Hoards:** read the tell before you take one.
+  - **bell:** a bell over the heap; taking it wakes the room.
+  - **chains:** the hoard is heavy; your rolls fall short until you rest (the purse shows "⛓ heavy").
+  - **broken floor:** Imps climb out.
+  - **Risk branches:** they hold a double hoard with Imps under it.
+  - Do you find yourself weighing whether to take one? That's the whole rule.
+
+**Unsure about:**
+- **Is 1.5 s too generous?** The binding is meant to look fatal but teach "you could always walk away". If rolling
+  out is too easy it won't feel like temptation; if the coil reads as a stun, it will feel unfair. Its numbers are
+  `tuning.foes.thrall.attacks.bind`.
+- **The pair's run to your flanks** is at 1.6× their run speed, so they can arrive within the wind-up. It may look
+  like a slide. The aim locks for the last fifth.
+- **The weight** stacks to three (rolls ×0.55, walk ×0.73 at most). Is resting the right way to shed it? The plan
+  said "rest or spend", but spending only happens in the hub.
+- **The fleeing Thrall gives nothing** when it runs off. That's on purpose (it walked away), but players may feel
+  robbed.
+- **Draw calls** in level 3 reach about 114 with Thrall pairs (the chain is one instanced draw per pair).
+
 ## V2-8: the Devil's descent (in progress: the space only)
 You asked me to plan the other dimensions and start on them before the slice has been played. The plan is in
 `PLAN.md`, V2-8 to V2-14. This first step builds **the Devil's levels as space**: they generate, they descend, and you
@@ -31,7 +66,7 @@ can walk them. The Devil's own enemies, rule, court cards and arena are V2-9 and
 - **The palette:** the documented smoky amber fog was too dark for the telegraph-contrast rule, and the ember accent
   sat too close to kill red. The fog is now pale smoky amber and the accent is old gilt (`STYLE.md`). The gilt
   hoards are the temptation motif, which suits the rule.
-- **Placeholders:**
+- **Placeholders** (V2-9 has since replaced the enemies and added the rule):
   - Justice's Bailiffs, Gavels, Blindfolds and Pages, plus the Swords court cards, hold the Devil's rooms. The level
     3 King gives up the relic of *Pentacles* although he's dressed as Swords.
   - Hoards are only cover: the temptation rule that makes them cost something is V2-9.

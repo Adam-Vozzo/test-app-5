@@ -16,6 +16,8 @@ export interface MoveInput {
   combat: boolean;
   /** Multiplier applied by other systems (ADS, reload, heal). */
   speedMul: number;
+  /** Roll speed multiplier (the Devil's weight: a burdened roll falls short). */
+  rollMul?: number;
   camYaw: number;
 }
 
@@ -143,7 +145,7 @@ export class Controller {
     let tz = 0;
     if (this.state === 'roll') {
       const k = Math.min(1, this.stateTime / Math.max(0.05, r.duration));
-      const sp = r.speed * (1 - (1 - r.endSpeedMul) * k * k);
+      const sp = r.speed * (1 - (1 - r.endSpeedMul) * k * k) * (inp.rollMul ?? 1);
       tx = this.rollDir.x * sp;
       tz = this.rollDir.z * sp;
       this.vel.x = tx;

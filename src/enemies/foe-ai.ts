@@ -2,7 +2,7 @@
 // choice by range and weight, attack arcs, hearing, and the fair-distance rule for ranged throws.
 // The Foe class (foe.ts) drives bodies and physics from these answers; tests/foe-ai.test.ts covers them.
 
-export type FoeId = 'bailiff' | 'gavel' | 'blindfold' | 'page';
+export type FoeId = 'bailiff' | 'gavel' | 'blindfold' | 'page' | 'miser' | 'imp' | 'pagePentacles' | 'thrall';
 /** Court-card minibosses (rank is the verb, suit is the flavour). */
 export type CourtRank = 'knight' | 'queen' | 'king';
 
@@ -30,13 +30,14 @@ export interface AttackTune {
   /** Projectile speed (throws, volleys) or dash speed (charges). */
   speed?: number;
   /** A rank verb with its own code (charge, volley, verdict, summon); plain attacks leave it out. */
-  kind?: 'charge' | 'volley' | 'verdict';
+  kind?: 'charge' | 'volley' | 'verdict' | 'bind';
   /** Only from this phase on (court cards escalate at health thresholds). */
   minPhase?: number;
   /** Volleys: how many blade lanes, and how far apart (m). */
   lanes?: number;
   spacing?: number;
-  /** Verdicts: how long a marked zone waits before it strikes (s), and how many it marks. */
+  /** Verdicts: how long a marked zone waits before it strikes (s), and how many it marks. Binds: how long the
+   * binding holds before its blow lands (`delay`), and how close to the chain counts as caught (`radius`). */
   delay?: number;
   count?: number;
 }
@@ -65,6 +66,11 @@ export interface FoeTune {
   /** Court cards: how long the Knight falls back after striking (s); how many the King summons per phase. */
   retreatTime?: number;
   squad?: number;
+  /** Thralls: the chain between a pair, its health, the freed fighter's speed-up and how long the other flees. */
+  chainLength?: number;
+  chainHealth?: number;
+  rage?: number;
+  fleeTime?: number;
   attacks: Record<string, AttackTune>;
 }
 
@@ -214,4 +220,56 @@ export function mirrorAcross(x: number, z: number, cx: number, cz: number, yaw: 
   const rz = z - cz;
   const along = rx * ux + rz * uz;
   return [cx + 2 * along * ux - rx, cz + 2 * along * uz - rz];
+}
+
+/** Distance in the ground plane from (px, pz) to the segment (ax, az)–(bx, bz). */
+export function segmentDistance(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const len2 = dx * dx + dz * dz;
+  const t = len2 < 1e-9 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2));
+  return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
+}
+
+/**
+ * Where a chained pair runs to bind you: either side of you along their chain's current axis, `half` metres out,
+ * so the chain snaps tight across you. Returns [leadX, leadZ, partnerX, partnerZ].
+ */
+export function flankPoints(px: number, pz: number, leadX: number, leadZ: number, partnerX: number, partnerZ: number, half: number): [number, number, number, number] {
+  let nx = leadX - partnerX;
+  let nz = leadZ - partnerZ;
+  const n = Math.hypot(nx, nz);
+  if (n < 1e-6) {
+    nx = 1;
+    nz = 0;
+  } else {
+    nx /= n;
+    nz /= n;
+  }
+  return [px + nx * half, pz + nz * half, px - nx * half, pz - nz * half];
+}
+
+/**
+ * A fleeing enemy's heading: away from the player, bent sideways (`sign` picks the side) as it nears the edge of its
+ * leash so it circles its room instead of leaving it. Returns a unit vector [x, z].
+ */
+export function fleeHeading(x: number, z: number, px: number, pz: number, homeX: number, homeZ: number, leash: number, sign: 1 | -1): [number, number] {
+  let ax = x - px;
+  let az = z - pz;
+  const a = Math.hypot(ax, az) || 1;
+  ax /= a;
+  az /= a;
+  const hx = homeX - x;
+  const hz = homeZ - z;
+  const fromHome = Math.hypot(hx, hz);
+  // 0 near home, 1 at the leash: blend from straight away to along the edge (and back toward home a little).
+  const edge = Math.max(0, Math.min(1, (fromHome / Math.max(1, leash) - 0.45) / 0.4));
+  const tx = -az * sign;
+  const tz = ax * sign;
+  let ox = ax * (1 - edge) + tx * edge + (fromHome > 1e-6 ? (hx / fromHome) * edge * 0.6 : 0);
+  let oz = az * (1 - edge) + tz * edge + (fromHome > 1e-6 ? (hz / fromHome) * edge * 0.6 : 0);
+  const o = Math.hypot(ox, oz) || 1;
+  ox /= o;
+  oz /= o;
+  return [ox, oz];
 }

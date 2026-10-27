@@ -947,7 +947,8 @@ export async function devilScenario({ g, wait, shot }) {
       };
     });
     console.log('  devil', JSON.stringify(info));
-    if (!info.ok || info.area !== 'The Devil' || info.foes !== info.sockets) throw new Error(`devil level ${lv + 1} should build valid, in its palette, with every socket held`);
+    // A Thrall socket holds a chained pair, so there can be more enemies than sockets.
+    if (!info.ok || info.area !== 'The Devil' || info.foes < info.sockets) throw new Error(`devil level ${lv + 1} should build valid, in its palette, with every socket held`);
     if (info.drop < 6) throw new Error(`devil level ${lv + 1} should descend (dropped ${info.drop} m)`);
     if (info.draws > 150) throw new Error(`devil draws ${info.draws} over the 150 budget`);
     await shot(`70-devil-l${lv + 1}-spawn`);
@@ -971,5 +972,197 @@ export async function devilScenario({ g, wait, shot }) {
   });
   console.log(`  devil: home ${JSON.stringify(home)}`);
   if (home.layout !== 'hub' || home.progress !== 3 || home.usable) throw new Error("after the Devil's third level the road should lead home (its arena isn't built yet)");
+  await g(() => { window.__tuning.debug.godMode = false; });
+}
+
+/** V2-9: the Devil's enemies and rule. Thralls bind (a roll breaks it, waiting gets you struck), the chain can be shot
+ * through (one flees, one fights), the Imp hits and runs, the Page of Pentacles runs, the Miser hugs its chest, and
+ * each hoard costs what its tell says. */
+export async function devilFoesScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(60);
+    }
+    return false;
+  };
+  const put = (x, z, yaw) =>
+    g(([x, z, yaw]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = 0;
+    }, [x, z, yaw]);
+  const spawn = (id, x, z, yaw, idle = 'stand') =>
+    g(([id, x, z, yaw, idle]) => {
+      const gm = window.__game;
+      const made = gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw, idle }], gm.physics, gm.rng.fork(`smoke-${id}-${gm.enemies.enemies.length}`));
+      return made.length;
+    }, [id, x, z, yaw, idle]);
+  const clearFoes = () => g(() => { const gm = window.__game; gm.enemies.clear(); });
+  const tapSpace = async () => {
+    await g(() => window.__game.input.press('Space'));
+    await wait(60);
+    await g(() => window.__game.input.release('Space'));
+  };
+
+  await g(() => window.__game.start('justice'));
+  await wait(1200);
+  await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = false;
+    window.__tuning.debug.showAI = true;
+    for (const d of gm.dummies) d.dispose(gm.renderer.scene);
+    gm.dummies.length = 0;
+  });
+
+  // 1. The binding, alone: waiting gets you struck; one roll breaks it (stamina or not).
+  await put(0, 6, 0);
+  await wait(400);
+  const hp0 = await g(() => window.__game.vitals.health);
+  await g(() => window.__game.bindPlayer(0.8, 30, 4, window.__game.player.pos.clone().add({ x: 0, y: 0, z: -2 })));
+  const held = await g(() => window.__game.binding.active);
+  await until(() => !window.__game.binding.active, 8000);
+  const hp1 = await g(() => window.__game.vitals.health);
+  await g(() => { window.__game.vitals.stamina = 0; window.__game.bindPlayer(3, 30, 4, window.__game.player.pos.clone()); });
+  await wait(300);
+  const moved0 = await g(() => window.__game.player.pos.toArray());
+  await tapSpace();
+  const broke = await until(() => !window.__game.binding.active && window.__game.binding.broken > 0, 3000);
+  await wait(600);
+  const hp2 = await g(() => window.__game.vitals.health);
+  const moved1 = await g(() => window.__game.player.pos.toArray());
+  console.log(`  binding: held ${held}, struck ${hp0} → ${hp1}; broken by a roll at 0 stamina ${broke}, health ${hp2}, rolled ${Math.hypot(moved1[0] - moved0[0], moved1[2] - moved0[2]).toFixed(2)} m`);
+  if (!held || hp1 !== hp0 - 30 || !broke || hp2 !== hp1) throw new Error('a binding should strike when it runs out, and one roll should always break it');
+
+  // 2. A Thrall pair: they wind up (the chain glows), run either side and snap it across her.
+  await g(() => { window.__tuning.debug.godMode = true; window.__game.vitals.restore(); });
+  await clearFoes();
+  await put(0, 8, 0);
+  const pair = await spawn('thrall', 0, -2, Math.PI);
+  const wound = await until(() => { const e = window.__game.enemies.enemies; return e[0].attack === 'bind' && e[0].phase === 'windup' && e[0].tl.k > 0.55; }, 25000);
+  await shot('80-thralls-bind-windup');
+  const bound = await until(() => window.__game.binding.active, 6000);
+  await wait(250);
+  await shot('81-thralls-bound');
+  await tapSpace();
+  const freed = await until(() => !window.__game.binding.active, 3000);
+  console.log(`  thralls: pair spawned ${pair}, bind wound up ${wound}, bound ${bound}, rolled free ${freed}`);
+  if (pair !== 2 || !wound || !bound || !freed) throw new Error('a Thrall pair should bind her across their chain, and a roll should break it');
+
+  // 3. Shoot the chain through: both are freed, the nearer fights (faster), the other flees and is gone.
+  await g(() => {
+    const e = window.__game.enemies.enemies;
+    e[0].chain.takeDamage({ amount: 999, crit: false, point: e[0].center.clone(), dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 });
+  });
+  const split = await until(() => { const e = window.__game.enemies.enemies; return e[0].role !== 'chained' && e[1].role !== 'chained'; }, 4000);
+  const roles = await g(() => window.__game.enemies.enemies.map((e) => e.role).sort().join(','));
+  const fled = await until(() => window.__game.enemies.enemies.some((e) => e.role === 'flee' && !e.alive), 15000);
+  console.log(`  chain shot through: split ${split} (${roles}), the freed one ran off ${fled}`);
+  if (!split || roles !== 'fight,flee' || !fled) throw new Error('shooting the chain should free both: one fights, one flees');
+
+  // 4. The Imp hits and runs; the Page of Pentacles runs; the Miser hugs its chest (front blocked, back open).
+  await clearFoes();
+  await put(0, 8, 0);
+  await spawn('imp', 0, 2, Math.PI);
+  const raked = await until(() => window.__game.enemies.enemies[0].fallBackT > 0, 15000);
+  console.log(`  imp: struck and fell back ${raked}`);
+  if (!raked) throw new Error('the Imp should fall back after a rake');
+  await clearFoes();
+  await spawn('pagePentacles', 0, 0, Math.PI);
+  await put(0, 7, 0);
+  await wait(300);
+  const d0 = await g(() => { const f = window.__game.enemies.enemies[0]; return Math.hypot(f.ground.x - window.__game.player.pos.x, f.ground.z - window.__game.player.pos.z); });
+  await until(() => window.__game.enemies.enemies[0].state === 'approach', 8000);
+  await wait(2500);
+  const d1 = await g(() => { const f = window.__game.enemies.enemies[0]; return Math.hypot(f.ground.x - window.__game.player.pos.x, f.ground.z - window.__game.player.pos.z); });
+  console.log(`  page of pentacles: ${d0.toFixed(1)} m → ${d1.toFixed(1)} m (it runs)`);
+  if (!(d1 > d0 + 3)) throw new Error('the Page of Pentacles should run from her');
+  await clearFoes();
+  await spawn('miser', 0, 2, Math.PI);
+  const guard = await g(() => {
+    const f = window.__game.enemies.enemies[0];
+    return { front: f.blocks({ x: 0, y: 0, z: -1 }), back: f.blocks({ x: 0, y: 0, z: 1 }) };
+  });
+  console.log(`  miser: front blocked ${guard.front}, back open ${!guard.back}`);
+  if (!guard.front || guard.back) throw new Error('the Miser should turn blows from the front, not the back');
+
+  // 5. The look: all four in a Devil level's first room.
+  await g(() => {
+    const gm = window.__game;
+    gm.dimension = 'devil';
+    gm.levelIndex = 0;
+    gm.zoneSeed = 42;
+    gm.start('level');
+  });
+  await wait(1500);
+  await clearFoes();
+  const sp = await g(() => { const s = window.__game.level.generated.dressing.spawn; return [s.x, s.y, s.z]; });
+  await g(([x, y, z]) => {
+    const gm = window.__game;
+    window.__tuning.debug.showAI = false;
+    const at = (dx, dz) => ({ x: x + dx, y, z: z + dz });
+    gm.enemies.spawnFoes(
+      [
+        { id: 'miser', pos: at(-3, -8), yaw: Math.PI, idle: 'stand' },
+        { id: 'imp', pos: at(-0.8, -6.5), yaw: Math.PI, idle: 'stand' },
+        { id: 'pagePentacles', pos: at(1.8, -8), yaw: Math.PI, idle: 'stand' },
+        { id: 'thrall', pos: at(0, -12.5), yaw: Math.PI, idle: 'stand' },
+      ],
+      gm.physics,
+      gm.rng.fork('lineup'),
+    );
+    gm.player.controller.teleport({ x, y: y + 0.05, z: z + 1 }, 0);
+    gm.camera.snap(gm.player.pos, 0);
+    gm.camera.pitch = -0.05;
+  }, sp);
+  await wait(900);
+  await shot('82-devil-foes-lineup');
+
+  // 6. The hoards: each costs what its tell says.
+  await clearFoes();
+  const costs = await g(() => {
+    const gm = window.__game;
+    const at = gm.player.pos.clone();
+    const n0 = gm.enemies.enemies.length;
+    const purse0 = gm.vitals.currency;
+    gm.enemies.spawnFoes([{ id: 'miser', pos: { x: at.x + 8, y: at.y, z: at.z - 20 }, yaw: 0, idle: 'stand' }], gm.physics, gm.rng.fork('bell'));
+    gm.takeHoard({ node: 0, x: at.x, z: at.z, y: at.y, cost: 'bell', branch: false }, at);
+    const woke = gm.enemies.enemies[n0].state !== 'idle';
+    gm.takeHoard({ node: 0, x: at.x, z: at.z, y: at.y, cost: 'weight', branch: false }, at);
+    const burden = gm.burden;
+    const n1 = gm.enemies.enemies.length;
+    gm.takeHoard({ node: 0, x: at.x, z: at.z, y: at.y, cost: 'ambush', branch: true }, at);
+    const imps = gm.enemies.enemies.slice(n1).filter((e) => e.id === 'imp').length;
+    return { woke, burden, imps, paid: gm.vitals.currency - purse0 };
+  });
+  console.log(`  hoards: bell woke the room ${costs.woke}, weight ×${costs.burden}, ambush brought ${costs.imps} imps, paid ${costs.paid}`);
+  if (!costs.woke || costs.burden !== 1 || costs.imps !== 3 || costs.paid !== 40 + 60 + 160) throw new Error('each hoard should pay and cost what its tell says');
+  // A real hoard in the level, through its interactable (the builder's wiring), and its tell on screen.
+  await clearFoes();
+  const real = await g(() => {
+    const gm = window.__game;
+    const h = gm.level.generated.dressing.hoards.find((x) => !x.branch);
+    if (!h) return null;
+    gm.player.controller.teleport({ x: h.x, y: h.y + 0.05, z: h.z + 4.5 }, 0);
+    gm.camera.snap(gm.player.pos, 0);
+    gm.camera.pitch = -0.15;
+    return h.cost;
+  });
+  await wait(900);
+  await shot('83-devil-hoard-tell');
+  const took = await g(() => {
+    const gm = window.__game;
+    const hoards = gm.world.interactables.filter((i) => (i.prompt(gm.player.pos) ?? '').startsWith('E: take the hoard'));
+    const it = hoards.sort((a, b) => a.pos.distanceTo(gm.player.pos) - b.pos.distanceTo(gm.player.pos))[0];
+    if (!it) return null;
+    const prompt = it.prompt(gm.player.pos);
+    const before = gm.stats.hoards;
+    it.use(gm.player.pos);
+    return { prompt, took: gm.stats.hoards === before + 1, again: it.usable(gm.player.pos) };
+  });
+  console.log(`  hoard in the level (${real}): ${JSON.stringify(took)}`);
+  if (!took || !took.took || took.again) throw new Error('a hoard in the level should be taken once through its prompt');
   await g(() => { window.__tuning.debug.godMode = false; });
 }

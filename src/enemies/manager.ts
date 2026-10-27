@@ -7,9 +7,13 @@ import { Enemy, type EnemyWorld, type Hostile } from './enemy';
 import { Foe, type FoeIdle } from './foe';
 import { COURT_PLANS, CourtCard, isCourtRank } from './court';
 import { JUSTICE_PLAN, JusticeBoss } from './justice';
-import { PLANS } from './foes';
+import { PLANS, type FoePlan } from './foes';
+import { DEVIL_PLANS, spawnThrallPair } from './devil';
 import type { Hazards } from './hazards';
 import type { EnemyKind } from './types';
+
+/** Every common archetype by id: Justice's and the Devil's (data plans read by the one Foe state machine). */
+const ARCHETYPES: Record<string, FoePlan> = { ...PLANS, ...DEVIL_PLANS };
 
 export interface SpawnSpec {
   kind: EnemyKind;
@@ -44,17 +48,24 @@ export class EnemyManager {
   }
 
   spawnFoes(specs: FoeSpawn[], physics: EnemyWorld['physics'], rng: Rng): Foe[] {
-    return specs.map((s, i) => {
+    return specs.flatMap((s, i) => {
       const r = rng.fork(`foe${this.enemies.length}-${i}`);
-      const e =
-        s.id === 'justice'
-          ? new JusticeBoss(JUSTICE_PLAN, this.scene, physics, s.pos, s.yaw, r)
-          : isCourtRank(s.id)
-            ? new CourtCard(COURT_PLANS[s.id], this.scene, physics, s.pos, s.yaw, r)
-            : new Foe(PLANS[s.id as keyof typeof PLANS], this.scene, physics, s.pos, s.yaw, s.idle, r);
-      e.onKilled = (x) => this.onKilled(x);
-      this.enemies.push(e);
-      return e;
+      // A Thrall socket holds a chained pair.
+      const made: Foe[] =
+        s.id === 'thrall'
+          ? spawnThrallPair(this.scene, physics, s.pos, s.yaw, s.idle, r)
+          : [
+              s.id === 'justice'
+                ? new JusticeBoss(JUSTICE_PLAN, this.scene, physics, s.pos, s.yaw, r)
+                : isCourtRank(s.id)
+                  ? new CourtCard(COURT_PLANS[s.id], this.scene, physics, s.pos, s.yaw, r)
+                  : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
+            ];
+      for (const e of made) {
+        e.onKilled = (x) => this.onKilled(x);
+        this.enemies.push(e);
+      }
+      return made;
     });
   }
 
@@ -67,7 +78,7 @@ export class EnemyManager {
   }
 
   /** Wake every enemy within `radius` of `from` (a Page's whistle). */
-  alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller: Hostile) {
+  alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller?: Hostile) {
     for (const e of this.enemies) if (e !== caller && e.alive && e.center.distanceTo(from) <= radius) e.alert?.(at);
   }
 
