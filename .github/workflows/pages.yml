@@ -4,7 +4,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # The repository's default branch (it has no `main`).
+    branches: [claude/confident-faraday-skgvuh]
   workflow_dispatch:
 
 permissions:
@@ -30,6 +31,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       - run: npm test
       - run: npm run build
+      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
