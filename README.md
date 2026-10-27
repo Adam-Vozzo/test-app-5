@@ -26,7 +26,9 @@ npm run build      # static build in dist/ (relative base, GitHub Pages ready)
 
 ## Deploy (GitHub Pages)
 
-`.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` on every push to `main` (or on demand from the Actions tab).
+`.github/workflows/pages.yml` runs the tests, builds, and deploys `dist/` on every push to the default branch
+(`claude/confident-faraday-skgvuh`), or on demand from the Actions tab. The game is served at
+<https://adam-vozzo.github.io/test-app-5/>.
 One-time setup: **Settings → Pages → Source: GitHub Actions**. The Vite `base` is relative (`./`), so it works under any repository sub-path.
 
 URL params: `?seed=123` (any string works), `?mode=hub`, `?mode=level&level=1` (a generated Justice level, 1–3; 4 is Justice's arena; add `&dim=devil` for the Devil's levels) or `?mode=justice`
