@@ -17,7 +17,7 @@ import { damp } from './core/math';
 import { Player } from './player/player';
 import { ColliderDebug } from './render/debug';
 import { LimbRenderer } from './render/limbs';
-import { AREAS, GARDEN, JUSTICE, setActiveBiome, SIGNAL, WORLD, type AreaLighting } from './render/palette';
+import { AREAS, GARDEN, JUSTICE, MOON, setActiveBiome, SIGNAL, WORLD, type AreaLighting } from './render/palette';
 import { Renderer } from './render/renderer';
 import { tuning } from './tuning';
 import { Hud } from './ui/hud';
@@ -40,6 +40,7 @@ import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/leve
 import type { Hoard } from './world/gen-dress';
 import { CoinPiles } from './world/coins';
 import { Thrall } from './enemies/devil';
+import { Foe } from './enemies/foe';
 import { sweepCrosses } from './enemies/foe-ai';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
@@ -72,6 +73,8 @@ export class Game {
   readonly panel = new Panel();
   readonly menus: Menus;
   readonly limbs: LimbRenderer;
+  /** The Moon's reflections draw their limbs here: no shadows (the tell). */
+  readonly ghostLimbs: LimbRenderer;
   readonly colliderDebug: ColliderDebug;
   readonly rng: Rng;
   camera!: OTSCamera;
@@ -164,6 +167,7 @@ export class Game {
     this.renderer = new Renderer(container);
     this.renderer.applyBiome(JUSTICE);
     this.limbs = new LimbRenderer(this.renderer.scene);
+    this.ghostLimbs = new LimbRenderer(this.renderer.scene, 512, false);
     this.colliderDebug = new ColliderDebug(this.renderer.scene);
     this.fx = new Fx(this.renderer, this.physics);
     this.projectiles = new Projectiles(this.renderer.scene);
@@ -279,6 +283,11 @@ export class Game {
         return `Left by someone before you: +1 heal, ✪ +${tuning.vitals.cachePentacles}`;
       };
       lw.onHoard = (h, at) => this.takeHoard(h, at);
+      lw.onReflection = (at) => {
+        this.sfxAt('shimmer', at);
+        this.stats.dispelled++;
+        return 'It was a reflection. Nothing was ever there.';
+      };
       // The veil lifts once the level's court card has fallen.
       lw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = lw;
@@ -404,7 +413,7 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, chainsBroken: 0, coinsTaken: 0, decksCracked: 0, decksBurnt: 0, strikes: 0, falls: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, chainsBroken: 0, coinsTaken: 0, decksCracked: 0, decksBurnt: 0, strikes: 0, falls: 0, dispelled: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
@@ -766,7 +775,7 @@ export class Game {
         this.hud.toast('You fall, and land on your feet.', 2);
       } else {
         this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
-        this.hud.toast('You fell. Nothing stays standing.', 2);
+        this.hud.toast(this.dimension === 'moon' ? 'The path lied. You come up where you last stood on stone.' : 'You fell. Nothing stays standing.', 2.5);
       }
     }
   }
@@ -893,6 +902,14 @@ export class Game {
     }
     // The Crowned Tower falls: the storm passes, and its top floor holds again (the way on is across it).
     if (e.name === 'The Crowned Tower') this.bossWorld?.decks?.reset();
+    // A reflection: dispelled, with a shimmer, for nothing.
+    if (e instanceof Foe && e.illusion) {
+      this.sfxAt('shimmer', e.center);
+      this.fx.sparksAt(e.center, new THREE.Vector3(0, 1, 0), MOON.accent, 14, 3);
+      this.stats.dispelled++;
+      if (this.stats.dispelled === 1) this.hud.toast('A reflection. It cast no shadow, and it made no sound.', 3.5);
+      return;
+    }
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
     if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);
@@ -1250,11 +1267,13 @@ export class Game {
 
     // 6. Animate rig + weapon.
     this.limbs.begin();
+    this.ghostLimbs.begin();
     player.animate(simDt, this.aimPoint, cam.aimOrigin, cam.adsAmount, this.gun.pose);
     player.draw(this.limbs, simDt);
     this.arsenal.afterAnimate(this.gunCtx);
-    this.enemies.draw(this.limbs);
+    this.enemies.draw(this.limbs, this.ghostLimbs);
     this.limbs.end();
+    this.ghostLimbs.end();
 
     this.renderer.followShadow(player.pos);
     this.colliderDebug.update(this.physics, tuning.debug.showHitboxes);

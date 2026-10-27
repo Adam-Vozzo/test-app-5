@@ -4,6 +4,34 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-13: the Moon's marsh (the space and the rule)
+After the Tower, the eagle's gate opens on **the Moon**: three level marsh levels of near-identical islands over dark
+water, with the Moon low ahead between two towers. Its own enemies and the Shadow are V2-14. Until then it borrows
+archetypes from the first three dimensions and the Swords court.
+
+**Also fixed (affects every dimension):** enemies never actually took steps. Their feet were re-planted under them
+every frame, so they glided. They walk now, and real ones make soft **footsteps** near you and have a **blob
+shadow** under them.
+
+**Try:**
+- **Look for the tells:** a reflection has **no shadow** and **makes no sound**. Some enemies in each room are
+  reflections, more as you go: 20%, 30%, then 40%.
+- **Let a reflection swing at you:** nothing happens. Hit one: it shimmers away and pays nothing. It cost you the time
+  and the position.
+- **False paths:** one branch per level is a causeway that isn't there. Real causeways cast a shadow on the water; the
+  false one doesn't. Walk it and you sink.
+
+**Unsure about:**
+- **Is the shadow tell readable?** The blob shadows make it readable at range, but in the pale moon-fog, mid-fight,
+  you may not look down. Footsteps help up close.
+- **Is a reflection's harmlessness a relief or a cheat?** The design says reflections cost "time and position". If
+  they never hurt, players may learn to ignore everything; if they could hurt, they'd break pillar 2. I went
+  harmless.
+- **The false path** only shows if you look at the water under it. That's fair by the letter of the rule, but it's a
+  narrow tell.
+- **Near-duplicate rooms** reuse a few earth kits. It's on purpose ("paths that look alike"), but may just read as
+  repetition.
+
 ## V2-12: the Tower's enemies, court and the Crowned Tower
 The Tower is complete: its own enemies feed its rule (fire on the timber), the Wands court fights on burning decks,
 and the Crowned Tower's top floor falls away under you. Beating it frees the **safe fall** and brings **the Star**

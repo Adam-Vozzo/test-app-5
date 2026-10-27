@@ -22,7 +22,21 @@ export interface LevelParts {
 export const BUDGET = { rooms: 14, props: 700, lanternClear: 15, entryClear: 6 };
 
 export function validate(p: LevelParts): string[] {
-  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkScaffolds(p), ...checkLandmark(p), ...checkBudget(p)];
+  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkScaffolds(p), ...checkIllusions(p), ...checkLandmark(p), ...checkBudget(p)];
+}
+
+/** The Moon: false paths are only ever branches (never the way on), and no room is all reflections. */
+export function checkIllusions({ dim, space, sockets, dressing }: LevelParts): string[] {
+  const out: string[] = [];
+  if (!dim.illusion) return dressing.falsePaths.length || sockets.some((s) => s.illusion) ? ['illusions: in a dimension without them'] : [];
+  for (const i of dressing.falsePaths) if (space.connectors[i]?.kind !== 'branch') out.push(`illusions: connector ${i} is a false path on the way on`);
+  const rooms = new Set(sockets.map((s) => s.node));
+  for (const n of rooms) {
+    const here = sockets.filter((s) => s.node === n && s.kind !== 'miniboss');
+    if (here.length && here.every((s) => s.illusion)) out.push(`illusions: room ${n} holds only reflections`);
+  }
+  if (sockets.some((s) => s.kind === 'miniboss' && s.illusion)) out.push('illusions: the court card is a reflection');
+  return out;
 }
 
 /** The Tower's collapse: every scaffold room's doors are joined by sound decks before anything has been stepped on. */

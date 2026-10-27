@@ -375,6 +375,15 @@ const SFX = {
     crack: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 800, dur: 0.15, gain: 0.9 }),
     roll: L({ kind: 'noise', filter: 'lowpass', f0: 500, f1: 80, dur: 1.6, gain: 0.8, delay: 0.05 }),
   },
+  // The Moon (V2-13): real things have footsteps (soft, low); a reflection dispels with a glassy shimmer.
+  foeStep: {
+    thud: L({ kind: 'noise', filter: 'lowpass', f0: 420, f1: 160, dur: 0.08, gain: 0.32 }),
+  },
+  shimmer: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 1760, f1: 2640, dur: 0.5, gain: 0.12 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 2200, f1: 3300, dur: 0.45, gain: 0.07, delay: 0.08 }),
+    air: L({ kind: 'noise', filter: 'highpass', f0: 5000, f1: 7000, dur: 0.5, gain: 0.12 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

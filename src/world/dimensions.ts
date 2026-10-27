@@ -75,6 +75,18 @@ export interface CollapseDef {
   rotten: [number, number, number];
 }
 
+/**
+ * The Moon's rule (illusion, but fair): a share of each level's enemies are reflections, and some branches are paths
+ * that aren't there. The tells are consistent and learnable: reflections cast no shadow and make no footsteps; a false
+ * boardwalk casts no shadow on the water. Hitting a reflection dispels it harmlessly.
+ */
+export interface IllusionDef {
+  /** Share of enemy sockets that hold a reflection, per level. */
+  share: [number, number, number];
+  /** How many branches per level are false paths (their boardwalk isn't there, their cache is a reflection). */
+  falseBranches: number;
+}
+
 export interface SetPieceDef {
   id: string;
   name: string;
@@ -140,19 +152,23 @@ export interface DimensionDef {
    * The landmark stands on the main axis, beyond the exit and at least `fromStart` from the spawn (m). `targets` are
    * the points that must be in plain sight from the spawn and the vistas: [across, up] as fractions of its height.
    */
-  landmark: { kind: 'scales' | 'pedestal' | 'tower'; beyondExit: number; fromStart: number; height: number; baseY: number; targets: [number, number][] };
+  landmark: { kind: 'scales' | 'pedestal' | 'tower' | 'moon'; beyondExit: number; fromStart: number; height: number; baseY: number; targets: [number, number][] };
   /** Great props standing out of the fog near vista sight lines (hero props). */
   heroProps: [number, number];
   /** Where the arcana waits, for gates and toasts: its landmark's name and the way to it. */
   seat: { name: string; way: string };
   /** How the builder draws the strewn floor props and the hero props (data for the builder; the generator only places them). */
-  props: { strewn: 'sword' | 'hoard' | 'rubble'; hero: 'sword' | 'pillar' };
+  props: { strewn: 'sword' | 'hoard' | 'rubble' | 'reed'; hero: 'sword' | 'pillar' };
   /** Enemies that throw from range (held to the fair-distance rule in validation). */
   rangedFoes: string[];
   /** The Devil's temptation: hoards in plain sight that cost something to take. */
   temptation?: TemptationDef;
   /** The Tower's collapse: timber decks that crack, burn and fall. */
   collapse?: CollapseDef;
+  /** The Moon's illusions: reflections among the enemies, false paths among the branches. */
+  illusion?: IllusionDef;
+  /** Islands in a marsh (the Moon): a water plane under the level instead of the fog-filled drop. */
+  water?: boolean;
 }
 
 export const JUSTICE_DIMENSION: DimensionDef = {
@@ -444,4 +460,99 @@ export const TOWER_DIMENSION: DimensionDef = {
   collapse: { tile: 3, rotten: [0.1, 0.16, 0.24] },
 };
 
-export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION, tower: TOWER_DIMENSION };
+/**
+ * The Moon × Cups (DESIGN.md → The Moon; V2-13): islands in a fogged marsh joined by boardwalks over dark water, the
+ * enormous low Moon and its two towers always ahead. Level (no climb, no descent), and the rooms look alike on
+ * purpose. The rule is illusion, but fair (IllusionDef). Its own enemies come in V2-14: until then its rooms are
+ * held by archetypes from the first three dimensions, and its throne rooms by the Swords court.
+ */
+export const MOON_DIMENSION: DimensionDef = {
+  id: 'moon',
+  name: 'The Moon',
+  arcana: 'The Moon (XVIII)',
+  suit: 'Cups',
+  levels: [
+    {
+      beat: 'introduce',
+      miniboss: 'knight',
+      minibossName: 'Knight of Cups',
+      combats: [2, 2],
+      enemies: [2, 3],
+      templates: ['arena', 'patrol', 'guarded', 'signature'],
+      mustInclude: ['signature'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff'], guard: ['bailiff'], ranged: ['imp'], patrol: ['imp'], signature: ['blindfold'] },
+    },
+    {
+      beat: 'develop',
+      miniboss: 'queen',
+      minibossName: 'Queen of Cups',
+      combats: [2, 3],
+      enemies: [3, 4],
+      templates: ['ambush', 'nest', 'guarded', 'arena'],
+      mustInclude: ['nest'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff', 'imp'], guard: ['bailiff'], ranged: ['page'], patrol: ['imp'], signature: ['blindfold'] },
+    },
+    {
+      beat: 'twist',
+      miniboss: 'king',
+      minibossName: 'King of Cups',
+      combats: [3, 3],
+      enemies: [4, 5],
+      templates: ['ambush', 'nest', 'arena', 'guarded'],
+      mustInclude: ['ambush'],
+      allowAdjacentCombats: true,
+      roster: { grunt: ['bailiff', 'imp', 'blindfold'], guard: ['bailiff', 'gavel'], ranged: ['page'], patrol: ['imp', 'bailiff'], signature: ['blindfold'] },
+    },
+  ],
+  setPieces: [
+    { id: 'twoTowerGate', name: 'the two-tower gate', kit: 'twoTowerGate', combat: true, vista: false },
+    { id: 'crayfishShallows', name: 'the crayfish shallows', kit: 'crayfishShallows', combat: true, vista: false },
+    { id: 'reflectingPool', name: 'the reflecting pool crossing', kit: 'reflectingPool', combat: false, vista: true },
+    { id: 'drownedPath', name: 'the drowned path', kit: 'drownedPath', combat: false, vista: true },
+  ],
+  symmetric: false,
+  kits: {
+    start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 50 },
+    court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'earth', cover: [2, 3], swords: 6, grass: 70 },
+    arena: { w: [28, 32], d: [28, 32], edge: 'parapet', turns: true, floor: 0, ground: 'earth', cover: [3, 4], swords: 8, grass: 90 },
+    nest: { w: [24, 28], d: [26, 30], edge: 'wall', turns: true, floor: 0, ground: 'earth', cover: [2, 3], tier: { depth: 6, height: 2.4 }, grass: 60 },
+    terrace: { w: [16, 20], d: [14, 18], edge: 'parapet', turns: true, floor: 0, ground: 'earth', grass: 50 },
+    pass: { w: [7, 9], d: [18, 24], edge: 'wall', turns: false, floor: 0, ground: 'earth', grass: 20 },
+    stair: { w: [12, 14], d: [12, 16], edge: 'parapet', turns: true, floor: 1.6, ground: 'earth', grass: 30 },
+    shrine: { w: [14, 16], d: [14, 16], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', columnHeight: 5 },
+    gatehouse: { w: [18, 22], d: [18, 22], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [1, 2] },
+    throne: { w: [32, 38], d: [32, 38], edge: 'colonnade', turns: false, floor: 0, ground: 'flag', cover: [2, 2], columnHeight: 7 },
+    threshold: { w: [12, 14], d: [12, 14], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 20 },
+    cache: { w: [10, 12], d: [10, 12], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 30 },
+    twoTowerGate: { w: [30, 34], d: [28, 32], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [2, 2], divider: true },
+    crayfishShallows: { w: [30, 34], d: [30, 34], edge: 'parapet', turns: true, floor: 0, ground: 'earth', cover: [3, 4], swords: 12, grass: 120 },
+    reflectingPool: { w: [14, 16], d: [44, 52], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
+    drownedPath: { w: [6, 7], d: [46, 54], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 40 },
+  },
+  nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
+  templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
+  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
+  criticalNodes: [9, 10],
+  loop: { rooms: [2, 3], shortcut: [8, 70] },
+  branches: [1, 2],
+  descent: 0,
+  landmark: {
+    kind: 'moon',
+    beyondExit: 150,
+    fromStart: 420,
+    height: 200,
+    baseY: -80,
+    // The Moon's disc, and the tops of the two towers beneath it.
+    targets: [[0, 1.0], [0, 0.9], [0, 1.1], [-0.18, 0.62], [0.18, 0.62]],
+  },
+  heroProps: [2, 4],
+  seat: { name: 'the Moon', way: 'on between the towers' },
+  props: { strewn: 'reed', hero: 'pillar' },
+  rangedFoes: ['page'],
+  illusion: { share: [0.2, 0.3, 0.4], falseBranches: 1 },
+  water: true,
+};
+
+export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION, tower: TOWER_DIMENSION, moon: MOON_DIMENSION };

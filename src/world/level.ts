@@ -15,7 +15,7 @@ import { tuning } from '../tuning';
 import { DEVIL_FOES } from '../render/palette';
 import type { LevelLayout, LevelReport } from './gen-level';
 import { connLength, DX, DZ, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
+import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, MOON_R, moonTowersGeo, reedGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
 /** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
 let S = JUSTICE.surfaces;
@@ -38,6 +38,8 @@ export interface LevelWorld extends BuiltWorld {
   shortcutOpen: () => boolean;
   /** What a branch cache gives (set by the game); returns the toast. */
   onCache?: () => string;
+  /** A reflected cache reached (the Moon): nothing there (set by the game); returns the toast. */
+  onReflection?: (at: THREE.Vector3) => string;
   /** A hoard taken: the game pays it and makes it cost (set by the game); returns the toast. */
   onHoard?: (h: Hoard, at: THREE.Vector3) => string | null;
   /** The way on opens once the court card has fallen (set by the game). */
@@ -91,7 +93,9 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   if (decks) group.add(decks.group);
 
   // ---- connectors: causeway decks on piers, or stairs; parapets both sides unless walled
-  for (const c of space.connectors) connectorGeo(c, solid, far, staticBox);
+  // The Moon's false paths: the boardwalk is drawn, but it casts no shadow on the water and nothing holds you up.
+  const noBox: StaticBox = () => {};
+  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox) : connectorGeo(c, solid, far, staticBox)));
 
   // ---- kit structure: edges, cover, tiers, dividers, connector walls
   for (const b of furn.boxes) {
@@ -138,6 +142,12 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
 
   // ---- strewn props (Justice: planted swords on the sword field; the Devil: coin hoards), and hero props in the fog
   for (const s of dr.swords) {
+    if (dim.props.strewn === 'reed') {
+      // Reed beds in the shallows: low cover you can see over.
+      solid.push(place(reedGeo(s.len * 0.6, S.growth, S.mid, s.x + s.z), s.x, s.y, s.z, 0, s.yaw, 0));
+      staticBox(s.x, s.y + 0.5, s.z, 0.6, 0.5, 0.6);
+      continue;
+    }
     if (rubble) {
       const size = s.len * 0.55;
       solid.push(place(rubbleGeo(size, S.mid, S.light, s.x + s.z), s.x, s.y, s.z, 0, s.yaw, 0));
@@ -244,10 +254,12 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
 
   // ---- caches at the end of branches: a lit reward (a placeholder until pentacles and the Magician exist)
   for (const c of dr.caches) {
-    solid.push(place(block(1.6, 0.9, 1.0, S.mid), c.x, c.y, c.z));
-    if (hoards) solid.push(place(hoardGeo(0.5, P.accent, P.accentShade, S.dark), c.x, c.y + 0.9, c.z, 0, 0.3, 0));
-    else solid.push(place(swordGeo(1.6, S.light, S.shadow), c.x, c.y + 0.9, c.z, 0, 0.3, 0.6));
-    staticBox(c.x, c.y + 0.45, c.z, 0.8, 0.45, 0.5);
+    // A reflected cache (the Moon) casts no shadow, and taking it takes nothing.
+    const into = c.reflection ? far : solid;
+    into.push(place(block(1.6, 0.9, 1.0, S.mid), c.x, c.y, c.z));
+    if (hoards) into.push(place(hoardGeo(0.5, P.accent, P.accentShade, S.dark), c.x, c.y + 0.9, c.z, 0, 0.3, 0));
+    else into.push(place(swordGeo(1.6, S.light, S.shadow), c.x, c.y + 0.9, c.z, 0, 0.3, 0.6));
+    if (!c.reflection) staticBox(c.x, c.y + 0.45, c.z, 0.8, 0.45, 0.5);
     const glow = glowPool(new THREE.Vector3(c.x, c.y, c.z), 2.4, GEAR.lantern);
     glow.position.y = c.y + 0.06;
     group.add(glow);
@@ -260,6 +272,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
       use: () => {
         taken = true;
         glow.visible = false;
+        if (c.reflection) return world.onReflection?.(new THREE.Vector3(c.x, c.y, c.z)) ?? 'It was a reflection.';
         return world.onCache?.() ?? null;
       },
     });
@@ -321,7 +334,11 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   const cx = (b.minX + b.maxX) / 2;
   const cz = (b.minZ + b.maxZ) / 2;
   const span = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) / 2;
-  far.push(place(paint(new THREE.CircleGeometry(span + 700, 24).rotateX(-Math.PI / 2), S.dark), cx, -FOUNDATION - 12, cz));
+  if (dim.water) {
+    // The Moon's marsh: dark water just under the islands, which takes the shadows (the false paths cast none).
+    const waterY = Math.min(...space.rooms.map((r) => r.y)) - 1.2;
+    flat.push(place(paint(new THREE.CircleGeometry(span + 700, 32).rotateX(-Math.PI / 2), shade(S.dark, 0.85)), cx, waterY, cz));
+  } else far.push(place(paint(new THREE.CircleGeometry(span + 700, 24).rotateX(-Math.PI / 2), S.dark), cx, -FOUNDATION - 12, cz));
   const lm = dr.landmark;
   const toLm = Math.atan2(lm.x - cx, lm.z - cz);
   for (const [r0, r1, n, y, hMin, hMax, color] of [
@@ -343,7 +360,13 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     if (dim.props.hero === 'pillar') far.push(place(pitPillarGeo(rng.range(50, 90), S.mid, S.dark, P.accentShade), cx + Math.sin(a) * r, -60 + rng.range(0, 12), cz + Math.cos(a) * r, 0, rng.range(0, 6.28), 0));
     else far.push(place(swordGeo(rng.range(40, 80), S.mid, S.dark), cx + Math.sin(a) * r, -40 + rng.range(0, 12), cz + Math.cos(a) * r, rng.range(-0.35, 0.35), rng.range(0, 6.28), rng.range(-0.2, 0.2)));
   }
-  if (dim.landmark.kind === 'tower') {
+  if (dim.landmark.kind === 'moon') {
+    // The two towers, and the Moon low between them: unfogged, the light that leads on.
+    far.push(place(moonTowersGeo(lm.h, S.dark, S.shadow), lm.x, lm.y, lm.z));
+    const moon = new THREE.Mesh(new THREE.CircleGeometry(lm.h * MOON_R, 32), new THREE.MeshBasicMaterial({ color: P.accent, fog: false }));
+    moon.position.set(lm.x, lm.y + lm.h, lm.z - 4);
+    group.add(moon);
+  } else if (dim.landmark.kind === 'tower') {
     far.push(place(towerGeo(lm.h, S.light, S.dark, P.accent), lm.x, lm.y, lm.z));
     // Lightning in the storm over the break: an unfogged glow, the way up.
     const glow = new THREE.Mesh(flameGeo(lm.h * 0.05, 0xe8e4ff), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
@@ -379,7 +402,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     foeSpots: layout.sockets.map((s) =>
       s.foe === 'miniboss'
         ? { id: dim.levels[layout.level]?.court ?? layout.script.miniboss, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: 'throne' as const }
-        : { id: s.foe, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? ('ambush' as const) : s.kind === 'patrol' ? ('patrol' as const) : ('stand' as const) },
+        : { id: s.foe, pos: V(s.x, s.y, s.z), yaw: s.yaw, idle: s.template === 'ambush' ? ('ambush' as const) : s.kind === 'patrol' ? ('patrol' as const) : ('stand' as const), illusion: s.illusion },
     ),
     dummySpots: [],
     enemySpots: [],

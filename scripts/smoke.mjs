@@ -199,6 +199,10 @@ try {
     await towerScenario({ page, g, hold, release, press, look, wait, shot });
     await towerFoesScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  if (process.argv.includes('--moon')) {
+    const { moonScenario } = await import('./smoke-v2.mjs');
+    await moonScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });

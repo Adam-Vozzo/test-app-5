@@ -132,8 +132,9 @@ export class HumanoidRig {
     this.forward.set(0, 0, -1).applyQuaternion(this.yawQuat);
     this.right.set(1, 0, 0).applyQuaternion(this.yawQuat);
     if (!this.placed) {
-      this.placed = true;
+      // (reset clears `placed`, so set it after: otherwise every frame replants the feet and nothing ever steps)
       this.reset(root, yaw);
+      this.placed = true;
     }
 
     if (dead) {

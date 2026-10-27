@@ -244,6 +244,35 @@ export function rubbleGeo(size: number, timber: number, stone: number, seed = 0)
   return merge([heap, ...beams]);
 }
 
+/**
+ * The Moon's landmark: two dark towers either side of the way on (the card's), with the Moon itself (a separate
+ * unfogged disc of radius `MOON_R × h`) hung low between them at height h. Base at y = 0.
+ */
+export const MOON_R = 0.32;
+export function moonTowersGeo(h: number, stone: number, dark: number) {
+  const parts: THREE.BufferGeometry[] = [];
+  for (const s of [-1, 1]) {
+    const x = s * h * 0.18;
+    const w = h * 0.08;
+    parts.push(place(block(w, h * 0.55, w, stone, 0.05, s), x, 0, 0));
+    parts.push(place(block(w * 1.25, h * 0.05, w * 1.25, dark, 0.04), x, h * 0.55, 0));
+    parts.push(place(block(w * 0.5, h * 0.05, w * 0.06, dark, 0.02), x, h * 0.45, w * 0.5));
+  }
+  return merge(parts);
+}
+
+/** A reed bed: a clump of tall thin blades (marsh cover). Base at y = 0. */
+export function reedGeo(size: number, reed: number, dark: number, seed = 0) {
+  const parts: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < 9; i++) {
+    const a = i * 2.39996 + seed;
+    const r = (i / 9) * size * 0.45;
+    const h = size * (0.9 + ((i * 7) % 5) * 0.12);
+    parts.push(place(facet(new THREE.ConeGeometry(0.06, h, 3).translate(0, h / 2, 0), i % 3 ? reed : dark, 0.08, seed + i), Math.cos(a) * r, 0, Math.sin(a) * r, ((i % 3) - 1) * 0.15, a, ((i % 2) - 0.5) * 0.25));
+  }
+  return merge(parts);
+}
+
 /** A great pillar of the pit standing out of the fog, a gilt band near its top (Devil hero prop). Base at y = 0. */
 export function pitPillarGeo(h: number, stone: number, dark: number, gilt: number) {
   const w = Math.max(3, h * 0.11);

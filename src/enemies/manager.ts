@@ -34,16 +34,39 @@ export interface FoeSpawn {
   pos: THREE.Vector3;
   yaw: number;
   idle: FoeIdle;
+  /** The Moon: a reflection (no shadow, no footsteps, harmless; one hit dispels it). */
+  illusion?: boolean;
 }
+
+const _bm = new THREE.Matrix4();
+const _bq = new THREE.Quaternion();
+const _bp = new THREE.Vector3();
+const _bs = new THREE.Vector3();
 
 export class EnemyManager {
   readonly enemies: Hostile[] = [];
   onKilled: (e: Hostile) => void = () => {};
+  /**
+   * A soft dark blob under every real v2 enemy (one instanced draw): the shadow reads at any range and at pixel scale.
+   * The Moon's reflections have none: that's their tell.
+   */
+  private blobs: THREE.InstancedMesh;
 
   constructor(
     private scene: THREE.Scene,
     private hazards: Hazards,
-  ) {}
+  ) {
+    const tex = blobTexture();
+    this.blobs = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, color: 0x000000, opacity: 0.45 }),
+      256,
+    );
+    this.blobs.count = 0;
+    this.blobs.frustumCulled = false;
+    this.blobs.renderOrder = 1;
+    scene.add(this.blobs);
+  }
 
   spawnAll(specs: SpawnSpec[], physics: EnemyWorld['physics']) {
     for (const s of specs) {
@@ -77,6 +100,7 @@ export class EnemyManager {
             ];
       for (const e of made) {
         e.onKilled = (x) => this.onKilled(x);
+        if (s.illusion) e.makeIllusion();
         this.enemies.push(e);
       }
       return made;
@@ -132,12 +156,38 @@ export class EnemyManager {
     }
   }
 
-  draw(limbs: LimbRenderer) {
-    for (const e of this.enemies) if (e.group.visible) e.draw(limbs);
+  /** Reflections draw their limbs into `ghosts` (a renderer that casts no shadow), and get no blob shadow. */
+  draw(limbs: LimbRenderer, ghosts: LimbRenderer = limbs) {
+    let n = 0;
+    for (const e of this.enemies) {
+      if (!e.group.visible) continue;
+      const ghost = e instanceof Foe && e.illusion;
+      e.draw(ghost ? ghosts : limbs);
+      if (ghost || !(e instanceof Foe) || n >= 256) continue;
+      const size = e.plan.radius * (e.plan.height / 1.6) * 3.4 * e.rig.group.scale.x;
+      _bm.compose(_bp.copy(e.ground).setY(e.ground.y + 0.05), _bq.identity(), _bs.set(size, 1, size));
+      this.blobs.setMatrixAt(n++, _bm);
+    }
+    this.blobs.count = n;
+    this.blobs.instanceMatrix.needsUpdate = true;
   }
 
   /** The elite currently fighting the player (for the boss bar). */
   get activeElite(): Hostile | null {
     return this.enemies.find((e) => e.bar && e.aggroed) ?? null;
   }
+}
+
+/** A soft round falloff for the blob shadows. */
+function blobTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.6, 'rgba(255,255,255,0.6)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
 }

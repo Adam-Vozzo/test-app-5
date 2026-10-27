@@ -300,6 +300,26 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - *King of Cups*: throned on the water, sending tidal waves.
 - **Boss: the Moon / the Shadow.** The Moon's light casts the Eight of Swords' own shadow, which fights with her moves.
   This is the Jungian shadow, and the last thing holding her back is herself.
+- **As built in V2-13 (Proposed until played): the space and the rule.**
+  - **Levels:** islands in a fogged marsh, **level** (no climb, no descent), joined by causeways over **dark water**.
+    The rooms are near-duplicates on purpose: earth islands, reeds, low parapets.
+  - **Landmark:** the Moon, an enormous pale disc hung low and unfogged, with **two dark towers** beneath it.
+  - **Set-pieces:** the two-tower gate, the crayfish shallows (reed beds), the reflecting pool crossing, and the
+    drowned path (a long narrow causeway).
+  - **Reflections:** 20% / 30% / 40% of each level's enemies (never a whole room, never the court card). The tells
+    are consistent:
+    - **No shadow:** every real enemy now has a soft blob shadow under it, as well as its cast shadow; reflections
+      have neither.
+    - **No footsteps:** real enemies now make soft footsteps near you; reflections are silent.
+
+    A reflection's swings and rings look real but touch nothing, and one hit dispels it with a shimmer, for no
+    pentacles.
+  - **False paths:** one branch per level is a causeway that isn't there. It's drawn, but casts no shadow on the
+    water and holds nothing up, so you sink and come up on the last stone (a fall). Its cache is a reflection too:
+    "Nothing was ever there."
+  - **The eagle's gate** opens once the Tower is cleared.
+  - **Placeholders:** the rooms hold archetypes from the first three dimensions and the Swords court until V2-14,
+    and level 3 leads home.
 
 ## Trial grounds (Decided: exists; concepts Proposed)
 

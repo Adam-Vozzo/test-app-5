@@ -364,8 +364,33 @@ export const TOWER: AreaPalette = {
   decal: 0x3b3432,
 };
 
+/**
+ * The Moon × Cups (V2-13): indigo and marsh teal under a pale moon-fog, dark water between the islands. Accent motif:
+ * moonlight, a pale blue-white (the table's warm moonlight sat on crit gold's hue at its brightness; tested).
+ */
+export const MOON: AreaPalette = {
+  name: 'The Moon',
+  surfaces: {
+    light: 0xb9c2bd, // pale silt and moonlit stone
+    mid: 0x4f7470, // marsh teal
+    dark: 0x3e4466, // indigo
+    shadow: 0x1b1e2e,
+    growth: 0x8d9a7a, // reeds
+  },
+  accent: 0xc8d4e8, // moonlight
+  accentShade: 0x8f9ab8,
+  fog: 0xe2e6e0,
+  sky: 0x9aa3b8,
+  cloud: 0xd6dbe2,
+  hemiSky: 0xe6eaee,
+  hemiGround: 0x3e4a52,
+  sun: 0xe8eef8,
+  dust: 0xc7ccc8,
+  decal: 0x2e3442,
+};
+
 /** Each dimension's area palette, by dimension id (the level builder and the game read it). */
-export const AREAS: Record<string, AreaPalette> = { justice: JUSTICE, devil: DEVIL, tower: TOWER };
+export const AREAS: Record<string, AreaPalette> = { justice: JUSTICE, devil: DEVIL, tower: TOWER, moon: MOON };
 
 /** The area currently loaded (FX read dust/decal colours from it). */
 export let activeBiome: AreaLighting = GARDEN;

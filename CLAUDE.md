@@ -30,7 +30,9 @@ four thin ones.
 > lion's gate (`TOWER_DIMENSION`, `TOWER` palette) and its rule, collapse: timber decks (`src/world/scaffold.ts`
 > pure, `decks.ts` runtime), lightning, fire and falls (`Game.collapse`). **V2-12** adds its own
 > (`src/enemies/tower-foes.ts`: Firebrand, Faller, Builder, Page of Wands, the cat), the Wands court and the Crowned
-> Tower (`court-wands.ts`, its top-floor arena via `boss.ts`), the safe fall, and the Star in the hub. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> Tower (`court-wands.ts`, its top-floor arena via `boss.ts`), the safe fall, and the Star in the hub. **V2-13**
+> adds the Moon's marsh (`MOON_DIMENSION`, `MOON` palette, water) behind the eagle's gate and its rule, illusion:
+> reflections among the enemies (`Foe.illusion`: no shadow, no footsteps, harmless, one hit dispels) and false paths. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -70,7 +72,7 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--pistol` and `--sword` are v2; `--enemies` and
+  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol` and `--sword` are v2; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 

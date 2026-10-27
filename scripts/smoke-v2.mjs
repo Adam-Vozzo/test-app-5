@@ -1631,7 +1631,8 @@ export async function towerFoesScenario({ g, wait, shot }) {
   await wait(800);
   await shot('104-hub-star');
   console.log(`  tower fallen: ${JSON.stringify(home)}`);
-  if (!home.cleared.includes('tower') || !home.fall || !home.star || !home.eagle?.includes('awake')) throw new Error('the Crowned Tower falling should free the safe fall, bring the Star and wake the eagle');
+  // (The eagle's road is built since V2-13: its gate is open.)
+  if (!home.cleared.includes('tower') || !home.fall || !home.star || !home.eagle?.startsWith("E: through the eagle's gate")) throw new Error('the Crowned Tower falling should free the safe fall, bring the Star and wake the eagle');
 
   // 7. The Star's pool sells heal upgrades.
   const bought = await g(() => {
@@ -1672,5 +1673,158 @@ export async function towerFoesScenario({ g, wait, shot }) {
   const hp = await g(() => window.__game.vitals.health);
   console.log(`  safe fall: fell ${fell}, health ${fall} → ${hp}`);
   if (!fell || hp !== fall) throw new Error('once the Tower has fallen, a fall should cost nothing');
+  await g(() => { window.__tuning.debug.godMode = false; window.__tuning.debug.showAI = false; });
+}
+
+/** V2-13: the Moon's marsh. Through the eagle's gate; reflections cast no shadow, make no footsteps, can't hurt, and
+ * one hit dispels them; a false path drops you into the water; a reflected cache holds nothing. */
+export async function moonScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(80);
+    }
+    return false;
+  };
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, seed: 42, cleared: ['justice', 'devil', 'tower'], unbound: ['parry', 'dash', 'fall'], progress: {} };
+    window.__tuning.debug.godMode = true;
+    gm.start('hub');
+  });
+  await wait(1200);
+  const gate = await g(() => {
+    const gm = window.__game;
+    const it = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').includes('eagle'));
+    if (!it) return null;
+    gm.player.controller.teleport({ x: it.pos.x * 0.95, y: 0.05, z: it.pos.z * 0.95 }, 0);
+    return it.prompt(gm.player.pos);
+  });
+  await wait(300);
+  await g(() => window.__game.input.press('KeyE'));
+  await wait(60);
+  await g(() => window.__game.input.release('KeyE'));
+  const entered = await until(() => window.__game.layout === 'level' && window.__game.dimension === 'moon' && !!window.__game.level, 15000);
+  console.log(`  moon: eagle's gate "${gate}", entered ${entered}`);
+  if (!gate?.startsWith("E: through the eagle") || !entered) throw new Error("the eagle's gate should open into the Moon once the Tower is cleared");
+  await wait(1200);
+
+  for (let lv = 0; lv < 3; lv++) {
+    if (lv > 0) {
+      await g(() => window.__game.nextLevel());
+      await wait(1500);
+    }
+    const info = await g(() => {
+      const gm = window.__game;
+      const L = gm.level.generated;
+      return {
+        level: gm.levelIndex + 1,
+        ok: gm.level.report.ok,
+        setPiece: L.script.setPiece.id,
+        foes: gm.enemies.enemies.length,
+        reflections: gm.enemies.enemies.filter((e) => e.illusion).length,
+        falsePaths: L.dressing.falsePaths.length,
+        area: gm.area.name,
+        draws: gm.renderer.renderer.info.render.calls,
+      };
+    });
+    console.log('  moon', JSON.stringify(info));
+    if (!info.ok || info.area !== 'The Moon' || info.reflections < 1) throw new Error(`moon level ${lv + 1} should build valid, with reflections among its enemies`);
+    if (info.draws > 150) throw new Error(`moon draws ${info.draws} over the 150 budget`);
+    await shot(`105-moon-l${lv + 1}-spawn`);
+    if (lv === 0) {
+      await g(() => window.__game.gotoVista(0));
+      await wait(900);
+      await shot('106-moon-vista');
+
+      // A reflection and the real thing side by side: one casts a shadow, one doesn't; the real one has footsteps.
+      const seen = await g(() => {
+        const gm = window.__game;
+        gm.enemies.clear();
+        const s = gm.level.generated.dressing.spawn;
+        const steps = { n: 0 };
+        const sfx = gm.sfxAt.bind(gm);
+        gm.sfxAt = (name, at) => {
+          if (name === 'foeStep') steps.n++;
+          return sfx(name, at);
+        };
+        window.__steps = steps;
+        gm.enemies.spawnFoes(
+          [
+            { id: 'bailiff', pos: { x: s.x - 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol' },
+            { id: 'bailiff', pos: { x: s.x + 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol', illusion: true },
+          ],
+          gm.physics,
+          gm.rng.fork('moon-pair'),
+        );
+        gm.player.controller.teleport({ x: s.x, y: s.y + 0.05, z: s.z }, 0);
+        gm.camera.snap(gm.player.pos, 0);
+        gm.camera.pitch = -0.1;
+        window.__tuning.debug.showAI = true;
+        const [real, ghost] = gm.enemies.enemies;
+        let realShadow = false;
+        let ghostShadow = false;
+        real.group.traverse((o) => (realShadow ||= o.castShadow));
+        ghost.group.traverse((o) => (ghostShadow ||= o.castShadow));
+        return { realShadow, ghostShadow };
+      });
+      await wait(2500);
+      await shot('107-moon-reflection');
+      const steps = await g(() => window.__steps.n);
+      // The reflection's swings touch nothing; one hit dispels it, for nothing.
+      const harmless = await g(() => {
+        const gm = window.__game;
+        window.__tuning.debug.godMode = false;
+        gm.vitals.restore();
+        gm.enemies.enemies[0].despawn();
+        const ghost = gm.enemies.enemies[1];
+        gm.player.controller.teleport({ x: ghost.ground.x, y: ghost.ground.y + 0.05, z: ghost.ground.z + 2.2 }, 0);
+        ghost.alert(gm.player.pos);
+        return gm.vitals.health;
+      });
+      const swung = await until(() => { const e = window.__game.enemies.enemies[1]; return e.attack && e.phase === 'recover'; }, 15000);
+      const after = await g(() => window.__game.vitals.health);
+      const dispelled = await g(() => {
+        const gm = window.__game;
+        const e = gm.enemies.enemies[1];
+        const purse = gm.vitals.currency;
+        e.takeDamage({ amount: 1, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: -1 }, knockback: 0, stagger: 0 });
+        window.__tuning.debug.godMode = true;
+        return { gone: !e.alive, paid: gm.vitals.currency - purse, count: gm.stats.dispelled };
+      });
+      console.log(`  reflection: shadow real ${seen.realShadow} / reflection ${seen.ghostShadow}, footsteps heard ${steps}, it swung ${swung} and health ${harmless} → ${after}, one hit dispels ${JSON.stringify(dispelled)}`);
+      if (!seen.realShadow || seen.ghostShadow || steps < 1 || !swung || after !== harmless || !dispelled.gone || dispelled.paid !== 0) throw new Error('a reflection should cast no shadow, make no footsteps, touch nothing, and go at one hit for nothing');
+
+      // A false path: the boardwalk is drawn but nothing holds you; you sink and come up on the last stone.
+      const fp = await g(() => {
+        const gm = window.__game;
+        const L = gm.level.generated;
+        const i = L.dressing.falsePaths[0];
+        if (i === undefined) return null;
+        const c = L.space.connectors[i];
+        gm.player.controller.teleport({ x: (c.ax + c.bx) / 2, y: c.y0 + 0.3, z: (c.az + c.bz) / 2 }, 0);
+        return true;
+      });
+      const sank = fp ? await until(() => window.__game.stats.falls > 0, 8000) : true;
+      // And its cache is a reflection.
+      const cache = await g(() => {
+        const gm = window.__game;
+        const k = gm.level.generated.dressing.caches.find((x) => x.reflection);
+        if (!k) return null;
+        const it = gm.world.interactables.find((i) => i.pos.distanceTo({ x: k.x, y: k.y, z: k.z }) < 0.1);
+        const purse = gm.vitals.currency;
+        const toast = it.use(gm.player.pos);
+        return { toast, paid: gm.vitals.currency - purse };
+      });
+      console.log(`  false path: sank ${sank}; reflected cache ${JSON.stringify(cache)}`);
+      if (!sank || (cache && (cache.paid !== 0 || !cache.toast?.includes('reflection')))) throw new Error('a false path should drop you, and a reflected cache hold nothing');
+    }
+  }
+  await g(() => window.__game.nextLevel());
+  await until(() => window.__game.layout === 'hub', 15000);
+  const home = await g(() => ({ layout: window.__game.layout, progress: window.__game.save.progress.moon }));
+  console.log(`  moon: home ${JSON.stringify(home)}`);
+  if (home.layout !== 'hub' || home.progress !== 3) throw new Error("after the Moon's third level the road should lead home (its arena comes in V2-14)");
   await g(() => { window.__tuning.debug.godMode = false; window.__tuning.debug.showAI = false; });
 }

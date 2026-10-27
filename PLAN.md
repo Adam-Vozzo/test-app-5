@@ -422,12 +422,40 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - home: the safe fall freed, the Star present, the eagle awake; the Star's menu sells a flask
     - a fall costs nothing once unbound
 
-### V2-13: The Moon's marsh (space and the illusion rule)
+### V2-13: The Moon's marsh (space and the illusion rule) ✅ (waiting on your playtest)
 - **The generator meanders between pools,** with deliberate near-duplicate rooms and two towers on the path.
 - **The illusion rule:** reflections cast **no shadow and make no footsteps**. Hitting one dispels it harmlessly.
   Fake paths and pickups use the same tells. The shadow tell needs a cheap per-foe blob shadow so it reads at
   pixel scale.
 - **Palette:** deep teal water and a cold moonlit fog. Check it against the weak-spot cyan.
+- **Done as:**
+  - `MOON_DIMENSION`: level, near-duplicate earth kits, four set-pieces, `IllusionDef` (reflection share by level,
+    false branches), `water`, and the Moon landmark (`moonTowersGeo` plus an unfogged disc).
+  - Generator:
+    - sockets carry `illusion`; the dressing carries `falsePaths` and reflected caches
+    - validated by `checkIllusions`
+  - Builder:
+    - a water plane under the islands (it takes the shadows)
+    - false paths drawn without shadow or collider; reflected caches likewise
+    - reed beds as cover
+  - `Foe.illusion`:
+    - no cast shadow; limbs drawn into a shadowless `LimbRenderer`
+    - no footsteps
+    - its world is wrapped: hurt, bind, ignite, coin, summon, knives and lobs do nothing; telegraphs show
+    - one hit dispels it, for no reward
+  - Real enemies now make **footsteps** and have **blob shadows** (`EnemyManager`, one instanced draw).
+  - **Fixed: enemy feet never stepped.** Since V2-4, `HumanoidRig.reset` cleared the `placed` flag that `update`
+    had just set, so every frame re-planted the feet and enemies glided. They now walk.
+    `tests/humanoid.test.ts` guards it.
+  - Falls into the drop (or the marsh) are handled in every generated level, not just the Tower's.
+  - `MOON` palette (tested); the eagle's gate.
+  - Tests: `tests/moon.test.ts`.
+  - Smoke: `--moon`:
+    - through the eagle's gate; three levels with reflections
+    - the real enemy casts a shadow and steps, the reflection does neither
+    - a reflection's swing does nothing and one hit dispels it for nothing
+    - a false path sinks you; a reflected cache holds nothing
+    - home
 
 ### V2-14: Cups enemies, court cards, the Shadow and the ending
 - **Enemies:**

@@ -113,6 +113,15 @@ toward amber from the table's `#E07A3A`, which sat within 20° of kill red. Deck
 
 Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
 
+*As built in V2-13 (`MOON`, Proposed until played):*
+- **Surfaces:** pale silt `#B9C2BD`, marsh teal `#4F7470`, indigo `#3E4466`, shadow `#1B1E2E` and reeds `#8D9A7A`.
+- **Fog and sky:** a pale moon-fog `#E2E6E0` (the table's `#C9CEC8` was too dark for telegraph contrast) over dark
+  water.
+- **Accent:** **moonlight** `#C8D4E8`, a pale blue-white. The table's warm `#E9E4C4` had crit gold's hue at crit
+  gold's brightness. It's used on the unfogged Moon disc and a reflection's dispel shimmer.
+- **Blob shadows:** every real v2 enemy now has a soft round blob shadow under it (one instanced draw) as well as its
+  cast shadow, so "it casts a shadow" reads at range and at pixel scale. The Moon's reflections have neither.
+
 *The Tower's figures (V2-12, `TOWER_FOES`):* soot, char and wine-dark cloth, ≥ 4:1 against the storm fog.
 - **Firebrand:** hooded, carrying a torch with a dull ember-brown head (the accent's fire burns only on the decks and
   the crown).

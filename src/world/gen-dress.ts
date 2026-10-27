@@ -93,6 +93,8 @@ export interface Socket {
   yaw: number;
   /** Which enemy stands here (from the beat's roster); the miniboss's rank comes from the level script. */
   foe: string;
+  /** The Moon: a reflection, not the thing itself (no shadow, no footsteps; one hit dispels it). */
+  illusion?: boolean;
 }
 
 export interface Furnishing {
@@ -389,6 +391,17 @@ export function encounters(dim: DimensionDef, g: MissionGraph, space: Space, fur
         add('signature', 0, r.d / 4, r.y, true);
         break;
     }
+    // The Moon: some of the room's enemies are reflections, never all of them (one at least is real).
+    const ill = dim.illusion;
+    if (ill && sockets.length > 1) {
+      const n = Math.min(sockets.length - 1, Math.round(sockets.length * ill.share[level]));
+      const order = sockets.map((_, i) => i).filter((i) => sockets[i].kind !== 'miniboss');
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(rr() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      for (const i of order.slice(0, n)) sockets[i].illusion = true;
+    }
     out.push(...sockets);
   }
   return out;
@@ -408,7 +421,9 @@ export interface Dressing {
   swords: Planted[];
   heroSwords: Planted[];
   grass: [number, number, number][];
-  caches: { node: number; x: number; z: number; y: number }[];
+  caches: { node: number; x: number; z: number; y: number; reflection?: boolean }[];
+  /** The Moon: branch connectors that are false paths (no boardwalk is really there). */
+  falsePaths: number[];
   /** The Devil's temptation: hoards in plain sight, each with a cost and its tell. */
   hoards: Hoard[];
   /** The Tower's collapse: timber deck grids in scaffold rooms, some rotten. */
@@ -538,9 +553,25 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
     if (g.nodes[r.node].kind === 'branch') {
       const [x, z] = toWorld(r, 0, r.d / 6);
+      // (A false path's cache is a reflection too: the whole branch is a lie. Marked below.)
       // In a tempting dimension the branch's reward is a bigger hoard, with the harshest cost.
       if (dim.temptation) hoards.push({ node: r.node, x, z, y: r.y, cost: dim.temptation.branchCost, branch: true });
       else caches.push({ node: r.node, x, z, y: r.y });
+    }
+  }
+
+  // The Moon's false paths: some branches' boardwalks aren't there (and their caches are reflections).
+  const falsePaths: number[] = [];
+  if (dim.illusion) {
+    const fr = rng.fork('false-paths');
+    const branchConns = space.connectors.map((c, i) => [c, i] as const).filter(([c]) => c.kind === 'branch');
+    for (let i = branchConns.length - 1; i > 0; i--) {
+      const j = Math.floor(fr() * (i + 1));
+      [branchConns[i], branchConns[j]] = [branchConns[j], branchConns[i]];
+    }
+    for (const [c, i] of branchConns.slice(0, dim.illusion.falseBranches)) {
+      falsePaths.push(i);
+      for (const k of caches) if (k.node === c.to) k.reflection = true;
     }
   }
 
@@ -645,7 +676,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     heroSwords.push({ x, z, y: -34, len: rng.range(40, 64), yaw: rng.range(0, Math.PI * 2), tilt: rng.range(-0.22, 0.22) });
   }
 
-  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, scaffolds, vistas, landmark, door, exit };
+  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, scaffolds, falsePaths, vistas, landmark, door, exit };
 }
 
 export function inRoom(r: Room, x: number, z: number, inset = 0) {

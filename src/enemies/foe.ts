@@ -79,6 +79,14 @@ export class Foe implements Damageable, Hostile {
   readonly home = new THREE.Vector3();
   homeYaw = 0;
   onKilled: (e: Hostile) => void = () => {};
+  /**
+   * The Moon: a reflection. It casts no shadow and makes no footsteps (the tells); its attacks wind up like the real
+   * thing but touch nothing; one hit dispels it, for no reward.
+   */
+  illusion = false;
+  /** The world it last updated in (for footstep sounds between updates). */
+  protected lastWorld: EnemyWorld | null = null;
+  private ghostWorld: EnemyWorld | null = null;
 
   readonly id: string;
 
@@ -111,7 +119,47 @@ export class Foe implements Damageable, Hostile {
     }
     this.home.copy(pos);
     this.homeYaw = yaw;
+    // Real things make footsteps (soft, near you); reflections don't: the tell.
+    this.rig.onFootstep = (p) => {
+      const w = this.lastWorld;
+      if (this.illusion || !w || !this.alive) return;
+      if (Math.hypot(w.playerPos.x - p.x, w.playerPos.z - p.z) < 16) w.sound('foeStep', p);
+    };
     this.respawn();
+  }
+
+  /** Make this a reflection: no shadow (body and gear), harmless, dispelled by one hit. */
+  makeIllusion() {
+    this.illusion = true;
+    this.rig.group.traverse((o) => {
+      o.castShadow = false;
+    });
+  }
+
+  /** The world as a reflection sees it: its swings and rings show, but nothing it does can touch her. */
+  private ghost(w: EnemyWorld): EnemyWorld {
+    if (this.ghostWorld && (this.ghostWorld as unknown as { real: EnemyWorld }).real === w) return this.ghostWorld;
+    const hz = w.hazards;
+    const hazards = new Proxy(hz, {
+      get(t, p) {
+        if (p === 'knife' || p === 'lob') return () => {};
+        if (p === 'verdict') return (at: THREE.Vector3, r: number, d: number) => t.verdict(at, r, d, 0, 0);
+        const v = (t as unknown as Record<string | symbol, unknown>)[p];
+        return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
+      },
+    });
+    const ghost = Object.create(w) as EnemyWorld & { real: EnemyWorld };
+    Object.assign(ghost, {
+      real: w,
+      hazards,
+      hurtPlayer: () => false,
+      bindPlayer: () => false,
+      dropCoins: () => {},
+      ignite: () => {},
+      summon: () => null,
+    });
+    this.ghostWorld = ghost;
+    return ghost;
   }
 
   get cfg(): FoeTune {
@@ -136,7 +184,7 @@ export class Foe implements Damageable, Hostile {
     return this.cfg.health;
   }
   get reward() {
-    return this.cfg.reward;
+    return this.illusion ? 0 : this.cfg.reward;
   }
   /** Common enemies (even elites like the Page) don't take over the boss bar. */
   get bar() {
@@ -228,6 +276,12 @@ export class Foe implements Damageable, Hostile {
 
   takeDamage(info: DamageInfo): boolean {
     if (!this.alive) return false;
+    // A reflection: one hit and it's gone.
+    if (this.illusion) {
+      this.health = 0;
+      this.die();
+      return true;
+    }
     const c = this.cfg;
     this.health -= info.amount;
     this.flash = tuning.foes.hitFlashTime;
@@ -266,7 +320,9 @@ export class Foe implements Damageable, Hostile {
     this.hazards?.hideRing(this);
   }
 
-  update(dt: number, w: EnemyWorld) {
+  update(dt: number, real: EnemyWorld) {
+    this.lastWorld = real;
+    const w = this.illusion ? this.ghost(real) : real;
     this.hazards = w.hazards;
     if (dt <= 0) {
       this.syncVisuals();
