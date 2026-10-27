@@ -123,6 +123,32 @@ export const TOWER_FOES = {
 } as const;
 
 /**
+ * The Moon's figures (V2-14): wet indigo, slate and bone against the pale moon-fog. The Shadow is near-black with the
+ * Eight of Swords' own silhouette: her red is gone from it.
+ */
+export const MOON_FOES = {
+  dogFur: 0x5a5650,
+  wolfFur: 0x3a3c44,
+  crayShell: 0x4a3a44,
+  crayClaw: 0x2e2630,
+  phantom: 0x6c7a80,
+  pageCoat: 0x34405a,
+  pageCap: 0x22293a,
+  cup: 0x6a6e78,
+  fish: 0x46566a,
+  crest: 0xd0d4dc,
+  knightArmour: 0x3e4a62,
+  knightCape: 0x262e40,
+  queenGown: 0x38425c,
+  queenVeil: 0x7e8a92,
+  kingRobe: 0x2c3448,
+  kingMantle: 0x48546e,
+  crown: 0x8a909c,
+  shadow: 0x15161c,
+  shadowEdge: 0x2a2c36,
+} as const;
+
+/**
  * The Pentacles court (V2-10): earth-dark armour and robes, each wearing the suit as a large pale disc crest. The
  * crest is bone, not gold: never crit gold, never the area's gilt.
  */

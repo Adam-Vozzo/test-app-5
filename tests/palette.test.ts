@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEVIL, DEVIL_FOES, FOES, MOON, TOWER, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
+import { DEVIL, DEVIL_FOES, FOES, MOON, MOON_FOES, TOWER, GARDEN, GEAR, JUSTICE, KITCHEN, PLAYER, SIGNAL, WORLD, type AreaPalette, type BiomePalette } from '../src/render/palette';
 
 const rgb = (hex: number) => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => v / 255);
 const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -109,6 +109,26 @@ describe('telegraph colour stands out in every biome (STYLE.md pillar 2)', () =>
     for (const body of [DEVIL_FOES.miserCoat, DEVIL_FOES.chestWood, DEVIL_FOES.impSkin, DEVIL_FOES.pageCoat, DEVIL_FOES.thrallRag, DEVIL_FOES.thrallSkin]) {
       expect(contrast(body, DEVIL.fog), `#${body.toString(16)}`).toBeGreaterThanOrEqual(4);
     }
+  });
+  it("the Moon's figures never wear a signal colour or the moonlight, and read dark against its pale fog", () => {
+    const sat = (hex: number) => {
+      const [r, g, b] = rgb(hex);
+      const max = Math.max(r, g, b);
+      return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
+    };
+    for (const [name, c] of Object.entries(MOON_FOES)) {
+      for (const sig of [SIGNAL.telegraph, SIGNAL.kill, SIGNAL.weakSpot, SIGNAL.crit, SIGNAL.charge]) {
+        const ok = hueGap(c, sig) >= 35 || contrast(c, sig) >= 2 || sat(c) < 0.2;
+        expect(ok, `${name} vs signal #${sig.toString(16)}`).toBe(true);
+      }
+      expect(c === MOON.accent, name).toBe(false);
+    }
+    for (const body of [MOON_FOES.dogFur, MOON_FOES.wolfFur, MOON_FOES.crayShell, MOON_FOES.pageCoat, MOON_FOES.knightArmour, MOON_FOES.queenGown, MOON_FOES.kingRobe, MOON_FOES.shadow]) {
+      expect(contrast(body, MOON.fog), `#${body.toString(16)}`).toBeGreaterThanOrEqual(4);
+    }
+    // The Shadow is hers with the red gone: near black, no hue to speak of.
+    expect(sat(MOON_FOES.shadow)).toBeLessThan(0.3);
+    expect(lum(MOON_FOES.shadow)).toBeLessThan(lum(PLAYER.robe));
   });
   it('signal colours are distinct from each other', () => {
     expect(hueGap(SIGNAL.telegraph, SIGNAL.weakSpot)).toBeGreaterThan(90);

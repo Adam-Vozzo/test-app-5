@@ -122,6 +122,23 @@ Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
 - **Blob shadows:** every real v2 enemy now has a soft round blob shadow under it (one instanced draw) as well as its
   cast shadow, so "it casts a shadow" reads at range and at pixel scale. The Moon's reflections have neither.
 
+*The Moon's figures (V2-14, `MOON_FOES`, Proposed until played):* wet indigo, slate and bone, ≥ 4:1 against the pale
+moon-fog, never a signal colour or the moonlight (tested; the Phantom's and the Queen's veil were desaturated away
+from the charge violet).
+- **Dog and Wolf:** crouched on all fours, the dog's ears pricked, the wolf darker with its ears laid back.
+- **Crayfish:** a low, plated shell with pincers and a fanned tail.
+- **Phantom:** a slate-grey shroud with a pointed hood and reaching arms (the Seven of Cups' veiled figure).
+- **Page of Cups:** dark blue, holding out a pale cup with a fish looking out of it.
+- **Cups court:** wears the suit as a **pale cup crest**. The King carries a trident.
+- **The Shadow:** her silhouette, near black, with her red gone: the hood, the blindfold's two tails, the
+  SwordRifle and the pistol.
+- **The Knight's cup:** the true draught is **moonlight** (the motif), shining up in a soft beam; the poisoned one is
+  dark.
+- **The King's wave:** a translucent telegraph-magenta wall with a solid crest; the gap is drawn on the floor in
+  lanes first, like the Queen of Swords' volley.
+- **The Sun (the ending):** the card drawn in code as an SVG over a warm overlay: the sun with straight and wavy
+  rays, sunflowers on the wall, the child on a pale horse.
+
 *The Tower's figures (V2-12, `TOWER_FOES`):* soot, char and wine-dark cloth, ≥ 4:1 against the storm fog.
 - **Firebrand:** hooded, carrying a torch with a dull ember-brown head (the accent's fire burns only on the decks and
   the crown).
@@ -143,7 +160,7 @@ Rules:
   - **Rust-red robe** `#923A33`: the card's red, desaturated and dark enough (≥ 2:1 contrast) that it never reads
     as kill-red `#FF3B30`. V2-1's palette test darkened it from the first pick, `#9E3B32`.
   - **Off-white blindfold** `#E8E0D0`, pushed up, with **cloth tails** that trail behind her as cheap secondary motion
-    (a procedural verlet ribbon).
+    (a procedural verlet ribbon). The Moon's unbinding (V2-14) takes it off: band, knot and tails.
   - **Dark stick limbs** `#1E1A1C`.
 
   She is the warmest mid-value shape in any cool scene and the darkest shape in any pale one. That's v1's "one bright

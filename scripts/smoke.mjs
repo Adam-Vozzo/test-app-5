@@ -199,9 +199,11 @@ try {
     await towerScenario({ page, g, hold, release, press, look, wait, shot });
     await towerFoesScenario({ page, g, hold, release, press, look, wait, shot });
   }
-  if (process.argv.includes('--moon')) {
-    const { moonScenario } = await import('./smoke-v2.mjs');
-    await moonScenario({ page, g, hold, release, press, look, wait, shot });
+  if (process.argv.includes('--moon') || process.argv.includes('--moonfoes')) {
+    const { moonScenario, moonFoesScenario } = await import('./smoke-v2.mjs');
+    // (--moonfoes: only the Moon's own, its court, the Shadow and the ending; it sets up its own save)
+    if (process.argv.includes('--moon')) await moonScenario({ page, g, hold, release, press, look, wait, shot });
+    await moonFoesScenario({ page, g, hold, release, press, look, wait, shot });
   }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');

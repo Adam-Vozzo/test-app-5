@@ -457,7 +457,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - a false path sinks you; a reflected cache holds nothing
     - home
 
-### V2-14: Cups enemies, court cards, the Shadow and the ending
+### V2-14: Cups enemies, court cards, the Shadow and the ending ✅ (waiting on your playtest)
 - **Enemies:**
   - *Dog and Wolf* (on the multi-legged v1 rig, re-scaled)
   - *Crayfish* (signature: ripples, then an ambush from the water)
@@ -467,6 +467,43 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
   King's tidal waves.
 - **Boss:** the Shadow, the Eight of Swords' own shadow using her moves. Its unbinding is the blindfold.
 - **Ending:** the Sun, which is short and has no cutscene (the card's image and one line).
+- **Done as:**
+  - **Changed from the plan:** the Dog and the Wolf are built on the v2 humanoid rig crouched on all fours (like the
+    Tower's cat), not the v1 multi-legged rig. The v1 rig is in beetle units with its own state machine; porting it
+    for two enemies would have meant a second AI. Say if you want the real quadruped.
+  - `src/enemies/moon-foes.ts`:
+    - `MOON_PLANS` (Dog, Wolf, Crayfish, Phantom, Page of Cups, fish) as data.
+    - `MoonFoe`: the **howl** (a long wind-up; its partner is maddened for `rageTime`: faster, quicker to strike) and
+      the **pour** (fish from the cup, a few at a time, never more than four; a stagger stops it).
+    - `Lurker` (the Crayfish): unseen under the water until you're near; its ripples fill where you stand, and it
+      surges up there. Armoured in front, soft tail behind.
+    - Phantoms carry `FoePlan.phantom`: always reflections.
+  - `src/enemies/court-cups.ts`:
+    - `CupsCard`:
+      - the **cup** (`offer`): set down a few steps short of you, only with room between you (`AttackTune.minRange`),
+        and it can't be drunk the moment it lands. Moonlight (the accent) shining up out of it heals; a dark draught
+        poisons.
+      - the **mirror**: copies of itself as reflections, then it trades places with one (`Foe.placeAt`).
+      - the **wave**: a tidal wall down the room with one gap, drawn on the floor first. The follow-up mirrors the gap.
+    - `ShadowBoss`: her silhouette near-black:
+      - her pistol's quick shots, the rifle's single heavy lane, a three-swing combo and a charged ring
+      - it rolls aside when she fires
+      - at 60% and 30% the Moon is eclipsed a step and it splits into reflections
+  - Hazards: `wave` and `cup` (pooled); a reflection's waves wash over her, and its cups never appear.
+  - The Moon's arena (`boss.ts` kind `moon`): an island in the marsh under the two towers, the Moon close overhead.
+  - **The ending:** the Moon frees the **blindfold** (`UNBINDINGS.moon`). Her blindfold and its tails come off the
+    rig, and the **Sun** overlay follows: the card drawn in code (SVG), one line, and "Return to the World". No New
+    Game+: every gate stays open to walk again.
+  - The Moon's rosters and its Cups court replace V2-13's placeholders. `MOON_FOES` palette (tested). New sounds:
+    howl, ripple, wave, pour, drink, poison, sunrise.
+  - Tests: `tests/moon-court.test.ts`.
+  - Smoke: `--moon` now goes on from level 3 to the arena, then (also alone as `--moonfoes`):
+    - the howl maddens the pair; the Crayfish ripples and surges
+    - a Phantom is a reflection; the Page pours fish
+    - the cup heals or poisons by its tell; the Queen's copies, of which only she holds the bar
+    - the King's wave and wolves
+    - the Shadow wakes, splits at its phase, and falls
+    - the blindfold comes off and the Sun shows
 
 ### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel

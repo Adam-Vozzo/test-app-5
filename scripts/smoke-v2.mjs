@@ -1822,9 +1822,176 @@ export async function moonScenario({ g, wait, shot }) {
     }
   }
   await g(() => window.__game.nextLevel());
-  await until(() => window.__game.layout === 'hub', 15000);
-  const home = await g(() => ({ layout: window.__game.layout, progress: window.__game.save.progress.moon }));
-  console.log(`  moon: home ${JSON.stringify(home)}`);
-  if (home.layout !== 'hub' || home.progress !== 3) throw new Error("after the Moon's third level the road should lead home (its arena comes in V2-14)");
+  const arena = await until(() => window.__game.levelIndex === 3 && window.__game.bossWorld?.boss === 'moon', 15000);
+  console.log(`  moon: on to the Shadow's island ${arena}`);
+  if (!arena) throw new Error("after the Moon's third level the road should lead to its arena (V2-14)");
+  await g(() => { window.__tuning.debug.godMode = false; window.__tuning.debug.showAI = false; });
+}
+
+/** V2-14: the Moon's own (Dog and Wolf, the Crayfish, Phantoms, the Page of Cups), the Cups court, the Shadow, and
+ * the ending (the blindfold, then the Sun). Runs in the Moon's arena (centre z −96). */
+export async function moonFoesScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(80);
+    }
+    return false;
+  };
+  const Z = -96;
+  const put = (x, z, yaw, pitch = 0.05) =>
+    g(([x, z, yaw, pitch]) => {
+      const gm = window.__game;
+      gm.player.controller.teleport({ x, y: 0.05, z }, yaw);
+      gm.camera.snap(gm.player.pos, yaw);
+      gm.camera.pitch = pitch;
+    }, [x, z, yaw, pitch]);
+  const spawn = (id, x, z, yaw, idle = 'stand') =>
+    g(([id, x, z, yaw, idle]) => {
+      const gm = window.__game;
+      gm.enemies.spawnFoes([{ id, pos: { x, y: 0, z }, yaw, idle }], gm.physics, gm.rng.fork(`smoke-${id}-${gm.enemies.enemies.length}`));
+      return gm.enemies.enemies.length - 1;
+    }, [id, x, z, yaw, idle]);
+  const fresh = () =>
+    g(() => {
+      const gm = window.__game;
+      gm.enemies.clear();
+      gm.vitals.restore();
+    });
+  const hurt = (i, frac) =>
+    g(([i, frac]) => {
+      const e = window.__game.enemies.enemies[i];
+      e.takeDamage({ amount: Math.max(1, e.health - e.maxHealth * frac), crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 });
+    }, [i, frac]);
+
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, seed: 42, cleared: ['justice', 'devil', 'tower'], unbound: ['parry', 'dash', 'fall'], progress: { moon: 3 } };
+    gm.dimension = 'moon';
+    gm.levelIndex = 3;
+    gm.zoneSeed = 42;
+    gm.start('level');
+    window.__tuning.debug.godMode = true;
+    window.__tuning.debug.showAI = true;
+  });
+  await wait(1500);
+
+  // 1. The Dog and the Wolf: one howls, the other is maddened.
+  await fresh();
+  await put(0, Z + 10, 0);
+  const di = await spawn('dog', -2, Z - 4, Math.PI);
+  const wi = await spawn('wolf', 2, Z - 4, Math.PI);
+  const howled = await until(([a, b]) => { const es = window.__game.enemies.enemies; return es[a].maddened || es[b].maddened; }, 30000, [di, wi]);
+  await shot('108-moon-dog-wolf');
+  console.log(`  dog and wolf: a howl maddened the other ${howled}`);
+  if (!howled) throw new Error('the Dog and the Wolf should howl for each other');
+
+  // 2. The Crayfish: under the water until you're near; ripples where you stand, then it surges up.
+  await fresh();
+  await put(0, Z + 14, 0);
+  const ci = await spawn('crayfish', 0, Z, 0);
+  const under = await g((i) => !window.__game.enemies.enemies[i].group.visible, ci);
+  await put(0, Z + 4, 0, -0.2);
+  const rising = await until((i) => window.__game.enemies.enemies[i].lurk === 'rising', 4000, ci);
+  await wait(500);
+  await shot('109-moon-crayfish-ripples');
+  const up = await until((i) => { const e = window.__game.enemies.enemies[i]; return e.lurk === 'up' && e.group.visible; }, 6000, ci);
+  console.log(`  crayfish: unseen ${under}, ripples ${rising}, surged up ${up}`);
+  if (!under || !rising || !up) throw new Error('the Crayfish should wait unseen, ripple where she stands, and surge up');
+
+  // 3. A Phantom is a reflection wherever it stands; the Page of Cups pours fish.
+  await fresh();
+  await put(0, Z + 8, 0);
+  const ph = await spawn('phantom', -4, Z - 2, Math.PI);
+  const phantom = await g((i) => window.__game.enemies.enemies[i].illusion, ph);
+  const pi = await spawn('pageCups', 3, Z - 4, Math.PI);
+  const fish = await until(() => window.__game.enemies.enemies.some((e) => e.id === 'fish' && e.summoned), 25000);
+  await wait(400);
+  await shot('110-moon-page-cups');
+  console.log(`  phantom is a reflection ${phantom}; page of cups (${pi}) poured fish ${fish}`);
+  if (!phantom || !fish) throw new Error('a Phantom should be a reflection, and the Page of Cups should pour fish');
+
+  // 4. The Knight of Cups sets down a cup: drink it (moonlight heals, the dark one poisons).
+  await fresh();
+  // (far enough that the cup is all that reaches: it's offered only with room between you)
+  await put(0, Z + 10, 0);
+  await spawn('knightCups', 0, Z - 12, Math.PI, 'throne');
+  const offered = await until(() => window.__game.hazards.cups.length > 0, 40000);
+  await wait(300);
+  await shot('111-moon-knight-cup');
+  const drink = await g(() => {
+    const gm = window.__game;
+    window.__tuning.debug.godMode = false;
+    const c = gm.hazards.cups[0];
+    if (!c) return null;
+    gm.enemies.enemies[0].despawn();
+    gm.vitals.health = 60;
+    gm.vitals.hurtStun = 0;
+    gm.player.controller.teleport({ x: c.at.x, y: c.at.y + 0.05, z: c.at.z }, 0);
+    return { good: c.good, before: 60 };
+  });
+  await wait(400);
+  const drank = await g(() => ({ hp: window.__game.vitals.health, left: window.__game.hazards.cups.length }));
+  await g(() => { window.__tuning.debug.godMode = true; });
+  const fair = drink && drank.left === 0 && (drink.good ? drank.hp > drink.before : drank.hp < drink.before);
+  console.log(`  knight of cups: offered ${offered}, drank ${JSON.stringify(drink)} → ${JSON.stringify(drank)}`);
+  if (!offered || !fair) throw new Error("the Knight of Cups' cup should heal when it's moonlight and poison when it's dark");
+
+  // 5. The Queen of Cups: two copies of her, and she trades places with one (only she casts a shadow).
+  await fresh();
+  await put(0, Z + 6, 0);
+  await spawn('queenCups', 0, Z - 6, Math.PI, 'throne');
+  const mirrored = await until(() => window.__game.enemies.enemies[0].reflections?.length >= 2, 45000);
+  await wait(300);
+  await shot('112-moon-queen-mirror');
+  const copies = await g(() => window.__game.enemies.enemies.filter((e) => e.id === 'queenCups').map((e) => ({ illusion: e.illusion, bar: e.bar })));
+  console.log(`  queen of cups: mirrored ${mirrored}, ${JSON.stringify(copies)}`);
+  if (!mirrored || copies.filter((c) => c.bar).length !== 1) throw new Error('the Queen of Cups should make copies of herself, and only she holds the bar');
+
+  // 6. The King of Cups: tidal waves with a gap; his wolves at each phase.
+  await fresh();
+  await put(0, Z + 10, 0);
+  await spawn('kingCups', 0, Z - 6, Math.PI, 'throne');
+  const waved = await until(() => window.__game.hazards.waves.length > 0, 40000);
+  await wait(250);
+  await shot('113-moon-king-wave');
+  await hurt(0, 0.6);
+  const wolves = await until(() => window.__game.enemies.enemies.filter((e) => e.id === 'wolf' && e.summoned).length >= 2, 6000);
+  console.log(`  king of cups: a wave ${waved}, wolves ${wolves}`);
+  if (!waved || !wolves) throw new Error('the King of Cups should send waves and call wolves');
+
+  // 7. The Shadow: her own moves; at its phases the Moon is eclipsed and it splits into reflections.
+  await g(() => { const gm = window.__game; gm.start('level'); });
+  await wait(1500);
+  await put(0, Z + 10, 0, 0.12);
+  const woke = await until(() => window.__game.enemies.enemies[0].state !== 'idle', 20000);
+  await wait(1500);
+  await shot('114-moon-shadow');
+  const blind0 = await g(() => window.__game.player.biped.wearsBlindfold);
+  await hurt(0, 0.55);
+  const split = await until(() => window.__game.enemies.enemies.filter((e) => e.id === 'shadow' && e.illusion && e.alive).length >= 2, 8000);
+  await wait(600);
+  await shot('115-moon-shadow-split');
+  await hurt(0, 0);
+  const open = await until(() => window.__game.bossWorld.exitOpen(), 5000);
+  console.log(`  the shadow: woke ${woke}, split ${split}, falls and the way opens ${open}`);
+  if (!woke || !split || !open) throw new Error('the Shadow should wake, split into reflections at its phase, and fall');
+
+  // 8. The ending: the blindfold comes off, and the Sun.
+  await g(() => window.__game.nextLevel());
+  const sun = await until(() => window.__game.menus.sunShown && window.__game.layout === 'hub', 10000);
+  await wait(600);
+  await shot('116-the-sun');
+  const end = await g(() => {
+    const gm = window.__game;
+    return { cleared: gm.save.cleared, unbound: gm.save.unbound, blindfold: gm.player.biped.wearsBlindfold, line: document.querySelector('.overlay.sun .line')?.textContent };
+  });
+  await g(() => window.__game.closeSun());
+  await wait(800);
+  const back = await g(() => !window.__game.menus.sunShown && window.__game.mode === 'playing');
+  await shot('117-hub-unbound');
+  console.log(`  the sun: shown ${sun}, ${JSON.stringify(end)}, closed ${back} (blindfold before ${blind0})`);
+  if (!sun || !end.unbound.includes('blindfold') || end.blindfold || !blind0 || !end.line || !back) throw new Error('the Moon should free the blindfold, and the Sun should follow');
   await g(() => { window.__tuning.debug.godMode = false; window.__tuning.debug.showAI = false; });
 }

@@ -2,11 +2,11 @@
 // → Hub characters → dialogue budget).
 import type { ShopItem } from '../core/save';
 
-/** Dimension order: each gate opens when the one before is cleared (DESIGN.md). Justice and the Devil are built. */
+/** Dimension order: each gate opens when the one before is cleared (DESIGN.md). All four are built (V2-14). */
 export const DIMENSION_ORDER = ['justice', 'devil', 'tower', 'moon'] as const;
 
 /** The unbinding each arcana frees. */
-export const UNBINDINGS: Record<string, string> = { justice: 'parry', devil: 'dash', tower: 'fall' };
+export const UNBINDINGS: Record<string, string> = { justice: 'parry', devil: 'dash', tower: 'fall', moon: 'blindfold' };
 
 /** What each arcana says as it falls and its cord comes away (first time; then the short line). */
 export const UNBINDING_LINES: Record<string, { first: string; again: string }> = {
@@ -19,7 +19,14 @@ export const UNBINDING_LINES: Record<string, { first: string; again: string }> =
     first: 'The Crowned Tower falls, and the storm passes. A cord burns through: when you fall now, you land on your feet.',
     again: 'The Tower falls again. Nothing stays standing; you do.',
   },
+  moon: {
+    first: 'Her Shadow is gone into the light. The last thing binding you was you.',
+    again: 'The Moon sets again. You know the way through it now.',
+  },
 };
+
+/** The ending (V2-14): the Sun, the card's image and one line. No cutscene. */
+export const SUN_LINE = 'The blindfold comes off. It is morning, and nothing was ever holding you.';
 
 /** The Star's pool (V2-12): heal upgrades, after the Tower. Same overlay as the Magician's table. */
 export const STAR_SHOP: ShopItem[] = [
@@ -64,7 +71,14 @@ export const PRIESTESS_LINES: Record<string, readonly string[]> = {
     'Everything you built on fell. You are still here.',
     'The Star has come down to the pool. She keeps water for you.',
     'When you fall now, you land. (A fall no longer hurts.)',
-    "The eagle is awake. Its road isn't built yet.",
+    'The eagle is awake. Beyond it, not everything is real.',
+  ],
+  // The Moon has set, and the blindfold is off (V2-14): the ending.
+  moon: [
+    'You can see. You always could.',
+    'Every gate is open. Walk them again if you like; nothing is owed.',
+    'The Sun came up while you were below the Moon.',
+    'Nothing binds you now. That was always true.',
   ],
   // The Devil has fallen (V2-10).
   devil: [

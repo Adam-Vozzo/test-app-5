@@ -2,7 +2,7 @@
 // choice by range and weight, attack arcs, hearing, and the fair-distance rule for ranged throws.
 // The Foe class (foe.ts) drives bodies and physics from these answers; tests/foe-ai.test.ts covers them.
 
-export type FoeId = 'bailiff' | 'gavel' | 'blindfold' | 'page' | 'miser' | 'imp' | 'pagePentacles' | 'thrall' | 'firebrand' | 'faller' | 'builder' | 'pageWands' | 'cat';
+export type FoeId = 'bailiff' | 'gavel' | 'blindfold' | 'page' | 'miser' | 'imp' | 'pagePentacles' | 'thrall' | 'firebrand' | 'faller' | 'builder' | 'pageWands' | 'cat' | 'dog' | 'wolf' | 'crayfish' | 'phantom' | 'pageCups' | 'fish';
 /** Court-card minibosses (rank is the verb, suit is the flavour). */
 export type CourtRank = 'knight' | 'queen' | 'king';
 
@@ -27,10 +27,12 @@ export interface AttackTune {
   /** Ground-ring radius (slams) and how far ahead it lands. */
   radius?: number;
   reach?: number;
+  /** Never chosen closer than this (the Knight of Cups sets his cup down only with room between you). */
+  minRange?: number;
   /** Projectile speed (throws, volleys) or dash speed (charges). */
   speed?: number;
   /** A rank verb with its own code (charge, volley, verdict, summon); plain attacks leave it out. */
-  kind?: 'charge' | 'volley' | 'verdict' | 'bind' | 'sow' | 'shackle' | 'barricade' | 'signal';
+  kind?: 'charge' | 'volley' | 'verdict' | 'bind' | 'sow' | 'shackle' | 'barricade' | 'signal' | 'spawn' | 'howl' | 'offer' | 'mirror' | 'wave';
   /** A charge that binds what it hits instead of striking it (the Knight of Pentacles): held for `delay`, then struck. */
   binds?: boolean;
   /** Sown seeds: what sprouts from one that ripens untrampled (the Queen of Pentacles). */
@@ -80,6 +82,11 @@ export interface FoeTune {
   fallTime?: number;
   /** Builders: how long a barricade stands (s). */
   barricadeTime?: number;
+  /** Dog and Wolf: how long a howl maddens the other (s). */
+  rageTime?: number;
+  /** The Shadow: how often it rolls out of your line of fire (s), and how fast. */
+  dodgeCooldown?: number;
+  dodgeSpeed?: number;
   /** Court cards: how long the Knight falls back after striking (s); how many the King summons per phase. */
   retreatTime?: number;
   squad?: number;
@@ -133,7 +140,7 @@ export function attackTimeline(a: AttackTune, t: number): TimelinePoint {
  */
 export function pickAttack(attacks: Record<string, AttackTune>, dist: number, cooldowns: Record<string, number>, roll: number, phase = 0): string | null {
   const fits = Object.entries(attacks).filter(
-    ([name, a]) => dist <= a.range && (cooldowns[name] ?? 0) <= 0 && !(a.speed && a.kind !== 'charge' && dist < 4) && !(a.lob && dist < 4) && !(a.kind === 'charge' && dist < 5) && (a.minPhase ?? 0) <= phase,
+    ([name, a]) => dist <= a.range && dist >= (a.minRange ?? 0) && (cooldowns[name] ?? 0) <= 0 && !(a.speed && a.kind !== 'charge' && dist < 4) && !(a.lob && dist < 4) && !(a.kind === 'charge' && dist < 5) && (a.minPhase ?? 0) <= phase,
   );
   if (!fits.length) return null;
   // Prefer the tightest attack that reaches: a shield bash up close, the thrust a step out.

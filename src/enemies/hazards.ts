@@ -2,7 +2,7 @@
 // approaches, and the brute's charge lane. All in telegraph magenta (STYLE.md signal colour).
 import * as THREE from 'three';
 import { G, groups } from '../physics/world';
-import { DEVIL, SIGNAL } from '../render/palette';
+import { DEVIL, MOON, MOON_FOES, SIGNAL } from '../render/palette';
 import type { EnemyWorld } from './enemy';
 
 interface Knife {
@@ -71,9 +71,46 @@ export interface GlobImpact {
   ignite: number;
 }
 
+/**
+ * A tidal wave (the King of Cups): a wall of water rolling down the room, the full width but for one gap. It hurts
+ * whoever it meets outside the gap, once; a roll's i-frames carry you through it.
+ */
+interface Wave {
+  origin: THREE.Vector3;
+  fx: number;
+  fz: number;
+  width: number;
+  gapAt: number;
+  gapWidth: number;
+  speed: number;
+  dist: number;
+  s: number;
+  damage: number;
+  knockback: number;
+  done: boolean;
+  g: THREE.Group;
+}
+
+/** The Knight of Cups' cup, set down to be drunk: moonlight heals, the dark draught poisons. */
+interface Cup {
+  at: THREE.Vector3;
+  good: boolean;
+  amount: number;
+  t: number;
+  life: number;
+  g: THREE.Group;
+}
+
 const ringGeo = new THREE.RingGeometry(0.88, 1, 32).rotateX(-Math.PI / 2);
 const discGeo = new THREE.CircleGeometry(1, 32).rotateX(-Math.PI / 2);
 const globGeo = new THREE.IcosahedronGeometry(0.2, 1);
+const waveGeo = new THREE.BoxGeometry(1, 1.5, 0.7).translate(0, 0.75, 0);
+const crestGeo = new THREE.BoxGeometry(1, 0.14, 0.8).translate(0, 1.55, -0.05);
+const cupFootGeo = new THREE.CylinderGeometry(0.06, 0.16, 0.06, 7).translate(0, 0.03, 0);
+const cupStemGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.24, 6).translate(0, 0.18, 0);
+const cupBowlGeo = new THREE.CylinderGeometry(0.22, 0.07, 0.16, 8, 1, true).translate(0, 0.36, 0);
+const draughtGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.03, 10);
+const beamGeo = new THREE.CylinderGeometry(0.12, 0.2, 2.6, 8, 1, true);
 const laneGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
 
 export class Hazards {
@@ -94,6 +131,12 @@ export class Hazards {
   private seedRingMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.95, depthWrite: false, fog: false });
   private seedDiscMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.4, depthWrite: false, fog: false });
   private knifePool: THREE.Mesh[] = [];
+  readonly waves: Wave[] = [];
+  private wavePool: THREE.Group[] = [];
+  private waveMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, opacity: 0.45, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  private crestMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false });
+  readonly cups: Cup[] = [];
+  private cupPool: { good: THREE.Group[]; bad: THREE.Group[] } = { good: [], bad: [] };
   private knifeMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, fog: false });
 
   constructor(private scene: THREE.Scene) {}
@@ -282,6 +325,133 @@ export class Hazards {
     if (g) g.visible = false;
   }
 
+  /**
+   * Send a wave from `origin` along `yaw`, `width` across, with a gap `gapWidth` wide centred `gapAt` metres right
+   * of its middle; it rolls `dist` metres at `speed`.
+   */
+  wave(origin: THREE.Vector3, yaw: number, width: number, gapAt: number, gapWidth: number, speed: number, dist: number, damage: number, knockback: number) {
+    let g = this.wavePool.pop();
+    if (!g) {
+      g = new THREE.Group();
+      for (let i = 0; i < 2; i++) {
+        const body = new THREE.Mesh(waveGeo, this.waveMat);
+        const crest = new THREE.Mesh(crestGeo, this.crestMat);
+        const side = new THREE.Group();
+        side.add(body, crest);
+        g.add(side);
+      }
+      g.renderOrder = 5;
+      this.scene.add(g);
+    }
+    g.visible = true;
+    g.rotation.set(0, yaw, 0);
+    // Two walls, one each side of the gap.
+    const half = width / 2;
+    const segs: [number, number][] = [
+      [-half, gapAt - gapWidth / 2],
+      [gapAt + gapWidth / 2, half],
+    ];
+    segs.forEach(([a, b], i) => {
+      const side = g!.children[i];
+      const len = Math.max(0, b - a);
+      side.visible = len > 0.05;
+      side.position.set((a + b) / 2, 0, 0);
+      side.scale.set(Math.max(0.01, len), 1, 1);
+    });
+    const fx = -Math.sin(yaw);
+    const fz = -Math.cos(yaw);
+    this.waves.push({ origin: origin.clone(), fx, fz, width, gapAt, gapWidth, speed, dist, s: 0, damage, knockback, done: false, g });
+    g.position.copy(origin);
+  }
+
+  /** Roll the waves on; each strikes the player once if she's in its path outside the gap. */
+  updateWaves(dt: number, w: EnemyWorld) {
+    const p = w.playerPos;
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      const v = this.waves[i];
+      const was = v.s;
+      v.s += v.speed * dt;
+      v.g.position.set(v.origin.x + v.fx * v.s, v.origin.y, v.origin.z + v.fz * v.s);
+      // A swell that rises, then breaks at the end of its run.
+      const k = v.s / v.dist;
+      v.g.scale.set(1, Math.min(1, k * 6) * (1 - Math.max(0, k - 0.85) / 0.15), 1);
+      if (!v.done && w.playerAlive) {
+        const rx = p.x - v.origin.x;
+        const rz = p.z - v.origin.z;
+        const along = rx * v.fx + rz * v.fz;
+        // Right of the heading (yaw 0 = -Z, so right is +X).
+        const lat = rx * -v.fz + rz * v.fx;
+        const crossed = along >= was - 0.5 && along <= v.s + 0.5;
+        const inside = Math.abs(lat) <= v.width / 2 && Math.abs(lat - v.gapAt) > v.gapWidth / 2;
+        if (crossed && inside && Math.abs(p.y - v.origin.y) < 2) {
+          v.done = true;
+          // (a reflection's wave washes over her)
+          if (v.damage > 0) w.hurtPlayer(v.damage, _p.set(p.x - v.fx, p.y, p.z - v.fz), v.knockback);
+        }
+      }
+      if (v.s >= v.dist) {
+        v.g.visible = false;
+        this.wavePool.push(v.g);
+        this.waves.splice(i, 1);
+      }
+    }
+  }
+
+  /** Set down a cup at `at` for `life` seconds: walk over it to drink. */
+  cup(at: THREE.Vector3, good: boolean, amount: number, life: number) {
+    const pool = good ? this.cupPool.good : this.cupPool.bad;
+    let g = pool.pop();
+    if (!g) {
+      g = new THREE.Group();
+      const metal = new THREE.MeshBasicMaterial({ color: MOON_FOES.cup, side: THREE.DoubleSide });
+      const body = new THREE.Group();
+      body.add(new THREE.Mesh(cupFootGeo, metal), new THREE.Mesh(cupStemGeo, metal), new THREE.Mesh(cupBowlGeo, metal));
+      const draught = new THREE.Mesh(draughtGeo, new THREE.MeshBasicMaterial({ color: good ? MOON.accent : MOON_FOES.shadow, fog: false }));
+      draught.position.y = 0.43;
+      g.add(body, draught);
+      g.scale.setScalar(1.6);
+      if (good) {
+        // The tell: the true cup is full of moonlight, and it shines.
+        const beam = new THREE.Mesh(beamGeo, new THREE.MeshBasicMaterial({ color: MOON.accent, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+        beam.position.y = 1.4;
+        g.add(beam);
+      }
+      this.scene.add(g);
+    }
+    g.visible = true;
+    g.position.copy(at);
+    this.cups.push({ at: at.clone(), good, amount, t: life, life, g });
+  }
+
+  /** Cups wait to be drunk, then spill away. */
+  updateCups(dt: number, w: EnemyWorld) {
+    for (let i = this.cups.length - 1; i >= 0; i--) {
+      const c = this.cups[i];
+      c.t -= dt;
+      c.g.rotation.y += dt * 0.6;
+      const p = w.playerPos;
+      // (it can't be drunk the moment it's set down: she has to choose to)
+      const drunk = c.t < c.life - 0.5 && w.playerAlive && Math.hypot(p.x - c.at.x, p.z - c.at.z) < 0.9 && Math.abs(p.y - c.at.y) < 1.4;
+      if (drunk) {
+        if (c.good) {
+          w.healPlayer?.(c.amount);
+          w.sound('drink', c.at);
+        } else {
+          w.hurtPlayer(c.amount, c.at, 0);
+          w.sound('poison', c.at);
+        }
+      }
+      if (drunk || c.t <= 0) this.retireCup(i);
+    }
+  }
+
+  private retireCup(i: number) {
+    const c = this.cups[i];
+    c.g.visible = false;
+    (c.good ? this.cupPool.good : this.cupPool.bad).push(c.g);
+    this.cups.splice(i, 1);
+  }
+
   /** Advance globs; returns the impacts that landed this frame. */
   update(dt: number): GlobImpact[] {
     this.time += dt;
@@ -328,5 +498,11 @@ export class Hazards {
       this.knifePool.push(k.mesh);
     }
     this.knives.length = 0;
+    for (const v of this.waves) {
+      v.g.visible = false;
+      this.wavePool.push(v.g);
+    }
+    this.waves.length = 0;
+    while (this.cups.length) this.retireCup(this.cups.length - 1);
   }
 }

@@ -32,7 +32,10 @@ four thin ones.
 > (`src/enemies/tower-foes.ts`: Firebrand, Faller, Builder, Page of Wands, the cat), the Wands court and the Crowned
 > Tower (`court-wands.ts`, its top-floor arena via `boss.ts`), the safe fall, and the Star in the hub. **V2-13**
 > adds the Moon's marsh (`MOON_DIMENSION`, `MOON` palette, water) behind the eagle's gate and its rule, illusion:
-> reflections among the enemies (`Foe.illusion`: no shadow, no footsteps, harmless, one hit dispels) and false paths. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> reflections among the enemies (`Foe.illusion`: no shadow, no footsteps, harmless, one hit dispels) and false paths.
+> **V2-14** adds its own (`src/enemies/moon-foes.ts`: Dog and Wolf, the Crayfish, Phantoms, the Page of Cups), the
+> Cups court and the Shadow (`court-cups.ts`, its island arena via `boss.ts`), and the ending: the blindfold comes off
+> and the Sun (`Menus.showSun`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -72,7 +75,8 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol` and `--sword` are v2; `--enemies` and
+  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol` and `--sword` are v2, and `--moonfoes` runs just the Moon's
+  enemies, court, Shadow and ending; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
@@ -136,8 +140,9 @@ src/
                    (devil.ts), the Pentacles court
                    (court-pentacles.ts) and the Devil (devil-boss.ts: DevilBoss extends CourtCard); the Tower's
                    commons (tower-foes.ts: TowerFoe, Faller), the Wands court and the Crowned Tower
-                   (court-wands.ts). Shared: hazards (slam rings, thrown blades, globs, charge lanes) and the
-                   manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
+                   (court-wands.ts); the Moon's commons (moon-foes.ts: MoonFoe, Lurker), the Cups court and the Shadow
+                   (court-cups.ts: CupsCard, ShadowBoss). Shared: hazards (slam rings, thrown blades, globs, charge
+                   lanes, waves, cups) and the manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
                    mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
                    gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), the boss arena

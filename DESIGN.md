@@ -318,8 +318,30 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     water and holds nothing up, so you sink and come up on the last stone (a fall). Its cache is a reflection too:
     "Nothing was ever there."
   - **The eagle's gate** opens once the Tower is cleared.
-  - **Placeholders:** the rooms hold archetypes from the first three dimensions and the Swords court until V2-14,
-    and level 3 leads home.
+  - **Placeholders (until V2-14):** the rooms held archetypes from the first three dimensions and the Swords court,
+    and level 3 led home.
+- **As built in V2-14 (Proposed until played): its own, the court, the Shadow and the ending.**
+  - **Dog and Wolf** come as a pair. Either may stop and howl (a long wind-up), and the other is maddened for a few
+    seconds (faster, quicker to strike). They're built on the humanoid rig crouched on all fours, not the v1 rig.
+  - **Crayfish** (signature) wait unseen under the water. Come near and ripples fill where you stand; it surges up
+    there. Armoured in front, soft tail behind.
+  - **Phantoms** are always reflections. **The Page of Cups** pours fish from its cup (a channel a stagger stops).
+  - **Knight of Cups:** charges, and sets a cup down a few steps short of you. Moonlight shining out of it heals; a
+    dark draught poisons. Each cup is a coin flip; the tell is always true.
+  - **Queen of Cups:** blade volleys, and two copies of herself (reflections). She trades places with one. Only she
+    has a shadow, footsteps and the health bar.
+  - **King of Cups:** tidal waves down the room, the full width but one gap (drawn first; the follow-up mirrors it),
+    a trident slam, and wolves at each phase.
+  - **The Shadow:** her silhouette near black. It uses her moves:
+    - the pistol's quick three shots and the rifle's single heavy lane
+    - the three-swing combo and the charged ring
+    - it rolls aside when she fires
+
+    At 60% and 30% the Moon is eclipsed a step and it splits into two reflections. Its arena is an island in the
+    marsh between the two towers.
+  - **The ending:** the Moon frees the **blindfold**: band, knot and tails come off her. Then **the Sun**: the card,
+    drawn in code, and one line. "Return to the World" goes back to the hub with every gate open. There's no New
+    Game+.
 
 ## Trial grounds (Decided: exists; concepts Proposed)
 
@@ -378,7 +400,8 @@ level's exit until it falls.
   - Justice frees a **parry** (answer in kind). **Decided.**
   - The Devil frees a **chain-break dash**. *(Built in V2-10 on X, Proposed until confirmed.)*
   - The Tower frees a **safe fall or plunge**. *(Built in V2-12 as the safe fall, Proposed until confirmed.)*
-  - The Moon frees the **blindfold**, which is the ending.
+  - The Moon frees the **blindfold**, which is the ending. *(Built in V2-14: the blindfold comes off and the Sun
+    follows. It gives no move.)*
 - **Proposed look:** a stocky hooded figure in a rust-red robe (the card's red, desaturated so it never reads as
   kill-red). The off-white blindfold is pushed up onto her forehead, carrying cloth tails that trail behind her.
   See `STYLE.md`.
@@ -514,7 +537,8 @@ dimension cleared. Relatedness comes from characters noticing your progress, not
 ## Open questions
 
 1. **The other unbinding moves.** The Devil's is built as the chain-break dash (V2-10, Proposed until you confirm it).
-   The Tower's is built as the safe fall (V2-12, Proposed). The Moon's (the blindfold) is still open.
+   The Tower's is built as the safe fall (V2-12, Proposed). The Moon's is built as the blindfold coming off, which
+   is the ending and gives no move (V2-14, Proposed).
 2. **Is the arcana boss arena its own short space or the end of level 3?** (Proposed: its own space.)
 3. **Story delivery.** The proposal is card-title intros plus short NPC lines and no cutscenes. Is that enough?
 4. **Death rule.** Proposed: v1's drop-and-recover. Does that fit, or should death send you to the hub?

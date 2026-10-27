@@ -31,7 +31,7 @@ import { ParryState } from './weapons/parry';
 import { Binding } from './player/binding';
 import { buildBossArena, type BossWorld } from './world/boss';
 import { buildHub, GATES } from './world/hub';
-import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, STAR_LINES, STAR_SHOP, UNBINDING_LINES, UNBINDINGS } from './world/hub-data';
+import { DIMENSION_ORDER, MAGICIAN_LINES, PRIESTESS_LINES, SHOP, STAR_LINES, STAR_SHOP, SUN_LINE, UNBINDING_LINES, UNBINDINGS } from './world/hub-data';
 import { PACT_TERMS } from './enemies/devil-boss';
 import { buildCourtyard } from './world/courtyard';
 import { DIMENSIONS, type DimensionDef } from './world/dimensions';
@@ -62,7 +62,7 @@ const _aimHit: RayHit = {
 const _o = new THREE.Vector3();
 const _o2 = new THREE.Vector3();
 /** Dimensions whose arcana's arena is built. */
-const ARENAS = ['justice', 'devil', 'tower'];
+const ARENAS = ['justice', 'devil', 'tower', 'moon'];
 
 export class Game {
   readonly renderer: Renderer;
@@ -201,6 +201,7 @@ export class Game {
     this.menus.onResume = () => this.resume();
     this.menus.onQuit = () => this.quitToMenu();
     this.menus.onRise = () => this.rise();
+    this.menus.onSunClose = () => this.closeSun();
     this.input.onLockChange = (locked) => {
       if (!locked && this.mode === 'playing' && !this.panel.open && !this.vitals.dead) this.pause();
     };
@@ -267,7 +268,7 @@ export class Game {
       this.area = WORLD;
     } else if (this.layout === 'level' && this.levelIndex === 3 && this.hasArena) {
       // The dimension's end: the arcana's arena (Justice under the scales, the Devil in the pit below his pedestal).
-      const kind = this.dimension === 'devil' || this.dimension === 'tower' ? this.dimension : 'justice';
+      const kind = this.dimension === 'devil' || this.dimension === 'tower' || this.dimension === 'moon' ? this.dimension : 'justice';
       const bw = buildBossArena(this.physics, makeRng(this.zoneSeed).fork(`${kind}-arena`), kind);
       bw.exitOpen = () => !this.enemies.enemies.some((e) => e.bar && !e.slain);
       this.world = bw;
@@ -365,7 +366,13 @@ export class Game {
       noises: this.noises,
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
       bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
-      summon: (id, pos, yaw) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`)),
+      summon: (id, pos, yaw, illusion) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion),
+      healPlayer: (amount) => {
+        if (this.vitals.dead) return;
+        this.vitals.health = Math.min(this.vitals.maxHealth, this.vitals.health + amount);
+        this.fx.sparksAt(this.chest, new THREE.Vector3(0, 1, 0), MOON.accent, 12, 2.5);
+        this.hud.toast('Moonlight. It was the true cup.', 2.5);
+      },
       hazards: this.hazards,
       hurtPlayer: (amount, from, knockback, source) => this.hurtPlayer(amount, from, knockback, source),
       bindPlayer: (time, damage, knockback, from) => this.bindPlayer(time, damage, knockback, from),
@@ -494,6 +501,25 @@ export class Game {
     this.buildLevel();
     const line = UNBINDING_LINES[id];
     if (line) this.hud.toast(first ? line.first : line.again, 6);
+    // The Moon frees the blindfold, and that is the ending: the Sun.
+    if (id === 'moon') this.showSun();
+  }
+
+  /** The ending: the card's image and one line, then back to the World. */
+  showSun() {
+    this.mode = 'shop';
+    this.shopOpenedAt = performance.now();
+    this.input.exitLock();
+    this.hud.show(false);
+    this.synth.sfx('sunrise');
+    this.menus.showSun(true, SUN_LINE);
+  }
+
+  private closeSun() {
+    this.menus.showSun(false);
+    this.mode = 'playing';
+    this.hud.show(true);
+    this.input.requestLock();
   }
 
   /** Can a gate's road be walked? Its dimension must be built, and its arena or its levels still ahead. */
@@ -544,6 +570,8 @@ export class Game {
     this.vitals.healMul = e.healMul;
     this.vitals.healCharges = this.vitals.maxCharges;
     tuning.swordRifle.repairStage = e.repairStage;
+    // The Moon's unbinding: the blindfold is off for good.
+    this.player.biped.setBlindfold(!this.save.unbound.includes('blindfold'));
   }
 
   /** Which hub menu is open: the Magician's table, or the Star's pool (after the Tower). */
@@ -571,7 +599,7 @@ export class Game {
   /** A hub character's next line for where the player is in the story. */
   private speak(who: 'priestess') {
     const c = this.save.cleared;
-    const state = c.includes('tower') ? 'tower' : c.includes('devil') ? 'devil' : c.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
+    const state = c.includes('moon') ? 'moon' : c.includes('tower') ? 'tower' : c.includes('devil') ? 'devil' : c.includes('justice') ? 'cleared' : (this.save.progress.justice ?? 0) > 0 || this.save.pentacles > 0 ? 'walking' : 'fresh';
     return this.speakLine(who, PRIESTESS_LINES, state);
   }
 
@@ -889,6 +917,14 @@ export class Game {
   }
 
   private onEnemyKilled(e: Hostile) {
+    // A reflection: dispelled, with a shimmer, for nothing.
+    if (e instanceof Foe && e.illusion) {
+      this.sfxAt('shimmer', e.center);
+      this.fx.sparksAt(e.center, new THREE.Vector3(0, 1, 0), MOON.accent, 14, 3);
+      this.stats.dispelled++;
+      if (this.stats.dispelled === 1) this.hud.toast('A reflection. It cast no shadow, and it made no sound.', 3.5);
+      return;
+    }
     const reward = e.reward;
     this.vitals.currency += reward;
     // The King of his suit gives up its relic (the SwordRifle's next repair needs it).
@@ -902,14 +938,6 @@ export class Game {
     }
     // The Crowned Tower falls: the storm passes, and its top floor holds again (the way on is across it).
     if (e.name === 'The Crowned Tower') this.bossWorld?.decks?.reset();
-    // A reflection: dispelled, with a shimmer, for nothing.
-    if (e instanceof Foe && e.illusion) {
-      this.sfxAt('shimmer', e.center);
-      this.fx.sparksAt(e.center, new THREE.Vector3(0, 1, 0), MOON.accent, 14, 3);
-      this.stats.dispelled++;
-      if (this.stats.dispelled === 1) this.hud.toast('A reflection. It cast no shadow, and it made no sound.', 3.5);
-      return;
-    }
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
     if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);
@@ -939,7 +967,10 @@ export class Game {
   private onKey(code: string) {
     if (code === 'Backquote') this.panel.toggle();
     // (The E that opened the table doesn't also close it.)
-    if (this.mode === 'shop' && (code === 'Escape' || (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300))) this.shop.close();
+    if (this.mode === 'shop' && (code === 'Escape' || (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300))) {
+      if (this.menus.sunShown) this.closeSun();
+      else this.shop.close();
+    }
     if (this.mode !== 'playing') return;
     const d = tuning.debug;
     if (code === 'KeyC') this.camera.side *= -1;

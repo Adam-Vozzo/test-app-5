@@ -12,7 +12,9 @@ Devil's descending levels: Misers, Imps, chained Thralls, the Page of Pentacles,
 court. At the bottom is the Devil and his pact. He frees the dash. Then the lion's gate opens on the Tower: three climbing
 levels on timber decks that crack, burn and fall under you; Firebrands, Fallers, Builders and the Page of Wands; the
 Wands court; and the Crowned Tower on its collapsing top floor. Then the Star comes to the hub, and the eagle's gate
-opens on the Moon's marsh, where some enemies and paths are reflections (they cast no shadow and make no sound).
+opens on the Moon's marsh, where some enemies and paths are reflections (they cast no shadow and make no sound):
+Dogs and Wolves, Crayfish in the shallows, Phantoms, the Page of Cups, the Cups court, and at the end her own Shadow.
+Beat it and the blindfold comes off, and the Sun rises.
 
 ```
 npm install

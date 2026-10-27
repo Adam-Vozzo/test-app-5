@@ -798,6 +798,233 @@ export const tuning = {
       },
     },
     /**
+     * The Moon's own (V2-14). Dog and Wolf come as a pair: either may stop and howl (a telegraphed wind-up), and the
+     * other is maddened for `rageTime`. The Crayfish lurks unseen until you come within `triggerRadius`, its ripples
+     * spread for `fallTime`, and it surges out. Phantoms are always reflections. The Page of Cups pours fish.
+     */
+    dog: {
+      health: 80,
+      poise: 18,
+      poiseRegen: 28,
+      speed: 3.6,
+      runSpeed: 6.8,
+      accel: 30,
+      turnRate: 8,
+      sightRange: 24,
+      leash: 34,
+      staggerTime: 0.7,
+      separation: 1.4,
+      reward: 5,
+      retreatTime: 0.7,
+      rage: 1.35,
+      rageTime: 6,
+      attacks: {
+        bite: { range: 2.0, windup: 0.36, active: 0.12, recover: 0.5, cooldown: 0.7, damage: 12, knockback: 3, arcDeg: 100, lunge: 1.8, weight: 1 },
+        howl: { kind: 'howl', range: 30, windup: 1.1, active: 0.2, recover: 0.6, cooldown: 7, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 0.7 },
+      },
+    },
+    wolf: {
+      health: 150,
+      poise: 34,
+      poiseRegen: 24,
+      speed: 3.2,
+      runSpeed: 6.2,
+      accel: 26,
+      turnRate: 7,
+      sightRange: 26,
+      leash: 36,
+      staggerTime: 0.8,
+      separation: 1.6,
+      reward: 9,
+      rage: 1.35,
+      rageTime: 6,
+      attacks: {
+        maul: { range: 2.4, windup: 0.5, active: 0.16, recover: 0.7, cooldown: 0.9, damage: 20, knockback: 6, arcDeg: 110, lunge: 2.4, weight: 1, hits: 2, comboWindup: 0.28 },
+        howl: { kind: 'howl', range: 30, windup: 1.1, active: 0.2, recover: 0.6, cooldown: 8, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 0.7 },
+      },
+    },
+    crayfish: {
+      health: 200,
+      poise: 60,
+      poiseRegen: 22,
+      speed: 2.0,
+      runSpeed: 3.6,
+      accel: 16,
+      turnRate: 4,
+      sightRange: 20,
+      leash: 28,
+      /** The armoured front turns blows; its soft tail is the weak spot. */
+      guardConeDeg: 100,
+      staggerTime: 1.0,
+      separation: 2.0,
+      reward: 12,
+      triggerRadius: 6.5,
+      fallTime: 1.1,
+      attacks: {
+        /** Its surge: out of the ripples where you stood (the ring hurts), then pincers. */
+        surge: { range: 2.4, windup: 0.6, active: 0.16, recover: 0.9, cooldown: 1.0, damage: 26, knockback: 9, arcDeg: 100, lunge: 1.2, weight: 1, radius: 2.0 },
+        pinch: { range: 2.3, windup: 0.5, active: 0.14, recover: 0.8, cooldown: 0.9, damage: 18, knockback: 5, arcDeg: 90, lunge: 1.0, weight: 1, hits: 2, comboWindup: 0.26 },
+      },
+    },
+    phantom: {
+      health: 1,
+      poise: 1,
+      poiseRegen: 0,
+      speed: 2.4,
+      runSpeed: 4.6,
+      accel: 20,
+      turnRate: 6,
+      sightRange: 26,
+      leash: 36,
+      staggerTime: 0.5,
+      separation: 1.6,
+      reward: 0,
+      attacks: {
+        reach: { range: 2.4, windup: 0.6, active: 0.14, recover: 0.7, cooldown: 0.9, damage: 18, knockback: 5, arcDeg: 110, lunge: 1.8, weight: 1 },
+      },
+    },
+    pageCups: {
+      health: 120,
+      poise: 22,
+      poiseRegen: 25,
+      speed: 3.0,
+      runSpeed: 5.2,
+      accel: 26,
+      turnRate: 7,
+      sightRange: 30,
+      leash: 36,
+      holdRange: 13,
+      alertRadius: 30,
+      staggerTime: 1.0,
+      separation: 1.6,
+      reward: 18,
+      attacks: {
+        /** Fish poured from its cup (a channel you can stagger); two at a time, again and again. */
+        pour: { kind: 'spawn', range: 30, windup: 1.4, active: 0.1, recover: 0.8, cooldown: 7, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 1, count: 2, spawn: 'fish' },
+        jab: { range: 2.4, windup: 0.4, active: 0.12, recover: 0.6, cooldown: 1.0, damage: 14, knockback: 5, arcDeg: 90, lunge: 1.6, weight: 1 },
+      },
+    },
+    fish: {
+      health: 30,
+      poise: 6,
+      poiseRegen: 30,
+      speed: 4.0,
+      runSpeed: 7.0,
+      accel: 34,
+      turnRate: 10,
+      sightRange: 22,
+      leash: 30,
+      staggerTime: 0.4,
+      separation: 1.0,
+      reward: 1,
+      retreatTime: 0.6,
+      attacks: {
+        nip: { range: 1.4, windup: 0.3, active: 0.1, recover: 0.35, cooldown: 0.5, damage: 6, knockback: 1, arcDeg: 110, lunge: 1.4, weight: 1 },
+      },
+    },
+    /**
+     * The Cups court (V2-14). The Knight sets down a cup that heals or poisons (the tell: the true cup is full of
+     * moonlight, the poisoned one is dark); the Queen makes two copies of herself and takes one's place (only she
+     * casts a shadow); the King sends tidal waves across the room, with a gap to step into.
+     */
+    knightCups: {
+      health: 980,
+      poise: 170,
+      poiseRegen: 30,
+      speed: 3.2,
+      runSpeed: 5.8,
+      accel: 26,
+      turnRate: 5,
+      sightRange: 34,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 130,
+      phases: [0.5],
+      retreatTime: 1.1,
+      attacks: {
+        charge: { kind: 'charge', range: 18, windup: 0.95, active: 0.6, recover: 1.2, cooldown: 2.4, damage: 28, knockback: 9, arcDeg: 360, lunge: 0, weight: 1.2, speed: 19 },
+        /** The offered cup: set down between you; drink (walk over it) for good or ill. */
+        offer: { kind: 'offer', range: 26, minRange: 6, windup: 0.9, active: 0.1, recover: 0.9, cooldown: 9, damage: 30, knockback: 0, arcDeg: 360, lunge: 0, weight: 1 },
+        slash: { range: 2.8, windup: 0.5, active: 0.14, recover: 0.8, cooldown: 0.8, damage: 24, knockback: 5, arcDeg: 130, lunge: 2.4, weight: 1, hits: 2, comboWindup: 0.32 },
+      },
+    },
+    queenCups: {
+      health: 900,
+      poise: 140,
+      poiseRegen: 30,
+      speed: 2.6,
+      runSpeed: 4.6,
+      accel: 22,
+      turnRate: 5,
+      sightRange: 36,
+      leash: 70,
+      staggerTime: 1.0,
+      separation: 2.4,
+      reward: 170,
+      holdRange: 11,
+      phases: [0.66, 0.33],
+      attacks: {
+        volley: { kind: 'volley', range: 26, windup: 1.0, active: 0.1, recover: 1.0, cooldown: 2.4, damage: 18, knockback: 3, arcDeg: 360, lunge: 0, weight: 1, speed: 16, lanes: 7, spacing: 1.7, hits: 2, comboWindup: 0.85 },
+        /** Two copies of her rise; she trades places with one. Only she casts a shadow. */
+        mirror: { kind: 'mirror', range: 30, windup: 1.0, active: 0.1, recover: 0.8, cooldown: 12, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 1.2, count: 2 },
+        riposte: { range: 2.6, windup: 0.4, active: 0.12, recover: 0.7, cooldown: 1.5, damage: 20, knockback: 6, arcDeg: 140, lunge: 1.4, weight: 1 },
+      },
+    },
+    kingCups: {
+      health: 1500,
+      poise: 240,
+      poiseRegen: 30,
+      speed: 2.0,
+      runSpeed: 3.2,
+      accel: 16,
+      turnRate: 3.4,
+      sightRange: 40,
+      leash: 70,
+      staggerTime: 1.2,
+      separation: 2.8,
+      reward: 240,
+      phases: [0.66, 0.33],
+      squad: 2,
+      attacks: {
+        /** A tidal wave down the room toward you, the full width but for one gap: step into it, or roll through. */
+        wave: { kind: 'wave', range: 30, windup: 1.3, active: 2.2, recover: 1.0, cooldown: 4.5, damage: 30, knockback: 10, arcDeg: 360, lunge: 0, weight: 1, speed: 12, lanes: 9, spacing: 2.2 },
+        flood: { kind: 'wave', range: 30, windup: 1.1, active: 2.0, recover: 1.2, cooldown: 5, damage: 30, knockback: 10, arcDeg: 360, lunge: 0, weight: 1.3, speed: 14, lanes: 11, spacing: 2.2, hits: 2, comboWindup: 0.9, minPhase: 1 },
+        trident: { range: 3.4, windup: 0.9, active: 0.14, recover: 1.2, cooldown: 1.2, damage: 34, knockback: 8, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },
+      },
+    },
+    /**
+     * The Shadow, the last arcana (V2-14): the Moon's light casts her own shadow, and it fights with her moves. Her
+     * shots (fast, read by the wind-up), her rifle (a long lane, a heavy bolt), her three-swing combo, her charged
+     * strike; it rolls out of your line of fire. At 60% and 30% the Moon shifts and it splits into reflections (only
+     * the real one casts a shadow).
+     */
+    shadow: {
+      health: 2600,
+      poise: 380,
+      poiseRegen: 40,
+      speed: 3.0,
+      runSpeed: 5.4,
+      accel: 24,
+      turnRate: 5,
+      sightRange: 60,
+      leash: 200,
+      staggerTime: 1.2,
+      separation: 2,
+      reward: 800,
+      phases: [0.6, 0.3],
+      /** How often it rolls aside when you aim at it (s), and how far. */
+      dodgeCooldown: 2.2,
+      dodgeSpeed: 9,
+      attacks: {
+        shots: { range: 26, windup: 0.5, active: 0.1, recover: 0.4, cooldown: 1.4, damage: 10, knockback: 2, arcDeg: 360, lunge: 0, weight: 1, speed: 26, hits: 3, comboWindup: 0.22 },
+        rifle: { kind: 'volley', range: 32, windup: 1.1, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, speed: 30, lanes: 1, spacing: 1 },
+        combo: { range: 2.8, windup: 0.45, active: 0.14, recover: 0.8, cooldown: 1.0, damage: 22, knockback: 6, arcDeg: 140, lunge: 2.4, weight: 1.2, hits: 3, comboWindup: 0.3 },
+        charged: { range: 4, windup: 1.0, active: 0.16, recover: 1.2, cooldown: 2.5, damage: 40, knockback: 10, arcDeg: 360, lunge: 1.4, weight: 0.8, radius: 2.8, reach: 1.8 },
+        split: { kind: 'mirror', range: 40, windup: 1.0, active: 0.1, recover: 0.6, cooldown: 1e9, damage: 0, knockback: 0, arcDeg: 360, lunge: 0, weight: 0, count: 2 },
+      },
+    },
+    /**
      * The Devil, the arcana (V2-10). Phase 1: claws, a torch brand with a ground ring, and shackles that close where
      * you stand (bound if you're caught; roll). At half health he stops and offers a pact: double the damage you deal,
      * and double what you take. Phase 2 adds coin rain and a second shackle.

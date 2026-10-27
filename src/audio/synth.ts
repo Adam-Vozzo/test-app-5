@@ -384,6 +384,37 @@ const SFX = {
     b: L({ kind: 'osc', wave: 'triangle', f0: 2200, f1: 3300, dur: 0.45, gain: 0.07, delay: 0.08 }),
     air: L({ kind: 'noise', filter: 'highpass', f0: 5000, f1: 7000, dur: 0.5, gain: 0.12 }),
   },
+  // The Moon's own (V2-14): a howl (the pair's buff), ripples before a crayfish surges, a tidal wave, a pour of
+  // fish, the cup drunk (sweet or sour), and the Sun.
+  howl: {
+    rise: L({ kind: 'osc', wave: 'sawtooth', f0: 330, f1: 620, dur: 0.7, gain: 0.12, attack: 0.15 }),
+    fall: L({ kind: 'osc', wave: 'sawtooth', f0: 620, f1: 440, dur: 0.9, gain: 0.1, delay: 0.6 }),
+    breath: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 700, q: 2, dur: 1.3, gain: 0.12, attack: 0.2 }),
+  },
+  ripple: {
+    a: L({ kind: 'noise', filter: 'bandpass', f0: 500, f1: 900, q: 3, dur: 0.5, gain: 0.3 }),
+    b: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1100, q: 3, dur: 0.5, gain: 0.25, delay: 0.35 }),
+  },
+  wave: {
+    surge: L({ kind: 'noise', filter: 'lowpass', f0: 300, f1: 1400, dur: 1.2, gain: 0.7, attack: 0.3 }),
+    low: L({ kind: 'osc', wave: 'sine', f0: 70, f1: 50, dur: 1.2, gain: 0.3, attack: 0.3 }),
+  },
+  pour: {
+    glug: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 300, q: 5, dur: 0.9, gain: 0.35, attack: 0.1 }),
+  },
+  drink: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 880, dur: 0.4, gain: 0.18 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 880, f1: 1320, dur: 0.5, gain: 0.14, delay: 0.15 }),
+  },
+  poison: {
+    a: L({ kind: 'osc', wave: 'sawtooth', f0: 330, f1: 160, dur: 0.6, gain: 0.16 }),
+    hiss: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 1500, dur: 0.5, gain: 0.25 }),
+  },
+  sunrise: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 392, f1: 392, dur: 2.4, gain: 0.16, attack: 0.6 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 587, f1: 587, dur: 2.2, gain: 0.12, attack: 0.6, delay: 0.4 }),
+    c: L({ kind: 'osc', wave: 'sine', f0: 784, f1: 784, dur: 2.0, gain: 0.1, attack: 0.6, delay: 0.8 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

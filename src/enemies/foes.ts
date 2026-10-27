@@ -30,7 +30,7 @@ export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
   /** Sound that announces the wind-up. */
-  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle' | 'whistle';
+  sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle' | 'whistle' | 'howl' | 'pour' | 'ripple';
 }
 
 export interface FoePlan {
@@ -71,6 +71,8 @@ export interface FoePlan {
   hitAndRun?: boolean;
   /** Runs from you instead of fighting, keeping `holdRange` away inside its leash; cuts only when cornered (the Page of Pentacles). */
   flees?: boolean;
+  /** Always a reflection, wherever it stands (the Moon's Phantoms, after the Seven of Cups). */
+  phantom?: boolean;
   limb: number;
   sleeve: number;
   /** Hitboxes relative to the feet (x right, y up, z back), for a 1.6 m body. */

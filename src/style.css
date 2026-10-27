@@ -125,6 +125,9 @@ html, body {
 .overlay h1 span { color: #c0574a; }
 .overlay.death { background: radial-gradient(ellipse at center, rgba(40, 14, 14, 0.5), rgba(14, 12, 14, 0.92)); }
 .overlay.death h1 { color: #c0574a; font-size: 72px; letter-spacing: 0.08em; }
+.overlay.sun { background: radial-gradient(ellipse at center, rgba(242, 222, 170, 0.55), rgba(40, 34, 24, 0.92)); }
+.overlay.sun .card { filter: drop-shadow(0 8px 0 rgba(14, 16, 20, 0.6)); }
+.overlay.sun p.line { font-size: 20px; color: var(--cream); }
 .overlay p { margin: 0; opacity: 0.85; max-width: 560px; text-align: center; }
 .overlay p.note { font-size: 13px; opacity: 0.65; }
 .overlay button {

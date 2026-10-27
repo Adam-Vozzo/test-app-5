@@ -57,8 +57,10 @@ export interface EnemyWorld {
   noises: readonly Noise[];
   /** A boss stepped into a new phase (the arena may change: Justice's scales come down). */
   bossPhase?(phase: number): void;
-  /** Bring a new enemy into the fight (a King's squad); it arrives alerted. */
-  summon(id: string, pos: THREE.Vector3, yaw: number): Hostile | null;
+  /** Bring a new enemy into the fight (a King's squad); it arrives alerted. `illusion`: as a reflection (the Queen of Cups' copies). */
+  summon(id: string, pos: THREE.Vector3, yaw: number, illusion?: boolean): Hostile | null;
+  /** The Knight of Cups' true cup: restore this much health. */
+  healPlayer?(amount: number): void;
   /** Wake everyone within `radius` of `from` and tell them where the player is. */
   alertNear(from: THREE.Vector3, radius: number, at: THREE.Vector3, caller: Hostile): void;
   hazards: Hazards;

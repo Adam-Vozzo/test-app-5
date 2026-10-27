@@ -142,7 +142,9 @@ export class Foe implements Damageable, Hostile {
     const hz = w.hazards;
     const hazards = new Proxy(hz, {
       get(t, p) {
-        if (p === 'knife' || p === 'lob') return () => {};
+        if (p === 'knife' || p === 'lob' || p === 'cup') return () => {};
+        if (p === 'wave')
+          return (o: THREE.Vector3, yaw: number, width: number, gapAt: number, gapW: number, speed: number, dist: number) => t.wave(o, yaw, width, gapAt, gapW, speed, dist, 0, 0);
         if (p === 'verdict') return (at: THREE.Vector3, r: number, d: number) => t.verdict(at, r, d, 0, 0);
         const v = (t as unknown as Record<string | symbol, unknown>)[p];
         return typeof v === 'function' ? (v as (...a: unknown[]) => unknown).bind(t) : v;
@@ -157,6 +159,7 @@ export class Foe implements Damageable, Hostile {
       dropCoins: () => {},
       ignite: () => {},
       summon: () => null,
+      healPlayer: () => {},
     });
     this.ghostWorld = ghost;
     return ghost;
@@ -236,6 +239,17 @@ export class Foe implements Damageable, Hostile {
     this.rig.reset(this.ground, this.yaw);
     this.computePose();
     this.rig.update(0, this.ground, this.yaw, this.vel, this.pose, false);
+    this.syncHitboxes();
+  }
+
+  /** Move it to `p` (on the ground) at once: the Queen of Cups trading places with a reflection. */
+  placeAt(p: THREE.Vector3) {
+    this.center.set(p.x, p.y + this.radius + this.halfH, p.z);
+    this.body.setTranslation(this.center, true);
+    this.body.setNextKinematicTranslation(this.center);
+    this.ground.copy(p);
+    this.vel.set(0, 0, 0);
+    this.rig.reset(this.ground, this.yaw);
     this.syncHitboxes();
   }
 

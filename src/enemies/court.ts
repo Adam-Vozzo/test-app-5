@@ -230,9 +230,9 @@ export class CourtCard extends Foe {
   /** Called when the phase steps up (after the horn): the arena may change. */
   protected onPhase(_w: EnemyWorld) {}
 
-  /** Court cards hold the big health bar while they fight you. */
+  /** Court cards hold the big health bar while they fight you (their reflections don't). */
   get bar() {
-    return true;
+    return !this.illusion;
   }
 
   respawn() {
@@ -356,7 +356,8 @@ export class CourtCard extends Foe {
       const lanes = a.lanes ?? 7;
       if (tl.phase === 'windup') {
         this.vel.multiplyScalar(Math.exp(-10 * dt));
-        if (tl.hit === 0 && starting) this.gapIdx = 1 + Math.floor(this.rng() * (lanes - 2));
+        // A single lane (the Shadow's rifle) has no gap: step out of it.
+        if (tl.hit === 0 && starting) this.gapIdx = lanes < 3 ? -1 : 1 + Math.floor(this.rng() * (lanes - 2));
         const offs = volleyOffsets(lanes, a.spacing ?? 1.7, this.gapIdx, tl.mirrored);
         offs.forEach((o, i) => {
           _p.set(this.ground.x - fz * o, this.ground.y, this.ground.z + fx * o);

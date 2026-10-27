@@ -4,10 +4,40 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-14: the Moon's own, the Cups court, the Shadow, and the Sun
+The last dimension is complete, and so is the game: the Moon's rooms hold its own enemies, its throne rooms the Cups
+court, and at its end **the Shadow** waits on an island under the Moon. Beat it and the blindfold comes off, and
+**the Sun** follows (the card and one line), then back to the World.
+
+**Try:**
+- **Dog and Wolf:** when one stops and lifts its head (the howl), the other is maddened: faster, quicker. Kill the
+  howler mid-howl, or split them up.
+- **Crayfish:** walk the shallows. Ripples spread under you: get out of the ring before it surges. Then go round to
+  its tail; the front is armoured.
+- **Phantoms** are always reflections. Do they teach the tells, or just waste your shots?
+- **Page of Cups:** when it raises its cup, stagger it before the fish pour.
+- **Knight of Cups:** he sets a cup down near you. **Look before you drink:** moonlight shining out of it heals, a
+  dark one poisons.
+- **Queen of Cups:** two copies rise and she swaps places with one. Find her by her shadow and her footsteps.
+- **King of Cups:** waves come down the room the full width but for one gap; the gap is drawn on the floor first.
+  Step into it, or roll through.
+- **The Shadow:** your own moves turned on you. It shoots when you're far, cuts when you're close, and rolls when
+  you fire. At 60% and 30% the Moon darkens and it splits: find the one with the shadow.
+
+**Unsure about:**
+- **Dog and Wolf** are built crouched on the humanoid rig, not the v1 multi-legged rig the plan named. They may read
+  as hunched people at range.
+- **The cup** is a coin flip each time. The tell is clear up close, but is it worth the walk?
+- **The Shadow's roll** fires on any of your shots every 2.2 s. It may feel like it reads your mind; the cooldown is
+  `tuning.foes.shadow.dodgeCooldown`.
+- **The ending** is deliberately small: one image and one line. Is that enough of a payoff after four dimensions?
+- **How many reflections:** Phantoms are reflections on top of the 20/30/40% share, so the smoke seed's third level
+  had 8 reflections among 13 enemies. That may tip from "doubt" into "ignore everything". `IllusionDef.share` in
+  `dimensions.ts` and the Phantom's place in the rosters are the knobs.
+
 ## V2-13: the Moon's marsh (the space and the rule)
 After the Tower, the eagle's gate opens on **the Moon**: three level marsh levels of near-identical islands over dark
-water, with the Moon low ahead between two towers. Its own enemies and the Shadow are V2-14. Until then it borrows
-archetypes from the first three dimensions and the Swords court.
+water, with the Moon low ahead between two towers. (Its own enemies and the Shadow came in V2-14.)
 
 **Also fixed (affects every dimension):** enemies never actually took steps. Their feet were re-planted under them
 every frame, so they glided. They walk now, and real ones make soft **footsteps** near you and have a **blob

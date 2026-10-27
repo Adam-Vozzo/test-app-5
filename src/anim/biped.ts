@@ -72,21 +72,17 @@ function robeGeo() {
   return merge([robe, place(cowl, 0, 0, 0, 0, Math.PI / 6, 0), belt, place(pouch, B.pouch.x, -B.chestY - 0.01, B.pouch.z)]);
 }
 
-/** Hood with a dark face opening, and the blindfold pushed up onto the brow. Head-local, facing -Z. */
-function hoodGeo() {
+/** Hood with a dark face opening, and the blindfold pushed up onto the brow (gone once the Moon frees it). Head-local, facing -Z. */
+function hoodGeo(blindfold = true) {
   const r = B.headR;
   const hood = paint(prep(new THREE.IcosahedronGeometry(r, 1).scale(1, 1.08, 1.12), true), PLAYER.robe);
   const peak = paint(prep(new THREE.ConeGeometry(r * 0.55, r * 1.1, 5).rotateX(-0.9), true), PLAYER.robe);
   const face = paint(new THREE.CircleGeometry(r * 0.5, 6).rotateY(Math.PI), PLAYER.face);
   const band = paint(prep(new THREE.CylinderGeometry(r * 1.02, r * 1.05, 0.055, 8, 1, true), true), PLAYER.blindfold);
   const knot = paint(new THREE.BoxGeometry(0.07, 0.05, 0.05), PLAYER.blindfold);
-  return merge([
-    hood,
-    place(peak, 0, r * 0.55, r * 0.75),
-    place(face, 0, -0.02, -r * 1.08),
-    place(band, 0, r * 0.38, 0, -0.18, 0, 0),
-    place(knot, 0, r * 0.45, r * 1.0),
-  ]);
+  const parts = [hood, place(peak, 0, r * 0.55, r * 0.75), place(face, 0, -0.02, -r * 1.08)];
+  if (blindfold) parts.push(place(band, 0, r * 0.38, 0, -0.18, 0, 0), place(knot, 0, r * 0.45, r * 1.0));
+  return merge(parts);
 }
 
 export class Biped {
@@ -118,6 +114,8 @@ export class Biped {
   private wasRolling = false;
   private wasGrounded = true;
   private initialized = false;
+  /** She still wears the blindfold (and its tails): the Moon's unbinding takes it off. */
+  private blindfolded = true;
   onFootstep: (p: THREE.Vector3) => void = () => {};
   /** Debug: targets drawn when tuning.debug.showIK. */
   readonly debugHandTargets = [new THREE.Vector3(), new THREE.Vector3()];
@@ -385,7 +383,7 @@ export class Biped {
       limbs.knob(h, 0.052, L);
       limbs.knob(s, 0.075, PLAYER.cowl);
     }
-    this.drawTails(limbs, dt);
+    if (this.blindfolded) this.drawTails(limbs, dt);
 
     if (tuning.debug.showIK) {
       for (const f of this.feet) {
@@ -395,6 +393,19 @@ export class Biped {
       limbs.knob(this.debugHandTargets[0], 0.055, 0x33ccff);
       limbs.knob(this.debugHandTargets[1], 0.055, 0x3366ff);
     }
+  }
+
+  /** Put the blindfold on or take it off (the ending: the Moon frees it). */
+  setBlindfold(on: boolean) {
+    if (on === this.blindfolded) return;
+    this.blindfolded = on;
+    this.head.geometry.dispose();
+    this.head.geometry = hoodGeo(on);
+    this.tailsLaid = false;
+  }
+
+  get wearsBlindfold() {
+    return this.blindfolded;
   }
 
   /** The blindfold's two loose ends stream from the knot at the back of the hood. */

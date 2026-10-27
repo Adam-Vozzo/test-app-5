@@ -463,8 +463,8 @@ export const TOWER_DIMENSION: DimensionDef = {
 /**
  * The Moon × Cups (DESIGN.md → The Moon; V2-13): islands in a fogged marsh joined by boardwalks over dark water, the
  * enormous low Moon and its two towers always ahead. Level (no climb, no descent), and the rooms look alike on
- * purpose. The rule is illusion, but fair (IllusionDef). Its own enemies come in V2-14: until then its rooms are
- * held by archetypes from the first three dimensions, and its throne rooms by the Swords court.
+ * purpose. The rule is illusion, but fair (IllusionDef). Its own (V2-14): the Dog and the Wolf, the Crayfish in the
+ * shallows, Phantoms (always reflections), the Page of Cups, and the Cups court in its throne rooms.
  */
 export const MOON_DIMENSION: DimensionDef = {
   id: 'moon',
@@ -476,34 +476,37 @@ export const MOON_DIMENSION: DimensionDef = {
       beat: 'introduce',
       miniboss: 'knight',
       minibossName: 'Knight of Cups',
+      court: 'knightCups',
       combats: [2, 2],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff'], guard: ['bailiff'], ranged: ['imp'], patrol: ['imp'], signature: ['blindfold'] },
+      roster: { grunt: ['dog'], guard: ['wolf'], ranged: ['phantom'], patrol: ['dog'], signature: ['crayfish'] },
     },
     {
       beat: 'develop',
       miniboss: 'queen',
       minibossName: 'Queen of Cups',
+      court: 'queenCups',
       combats: [2, 3],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
       allowAdjacentCombats: false,
-      roster: { grunt: ['bailiff', 'imp'], guard: ['bailiff'], ranged: ['page'], patrol: ['imp'], signature: ['blindfold'] },
+      roster: { grunt: ['dog', 'phantom'], guard: ['wolf'], ranged: ['pageCups', 'phantom'], patrol: ['dog'], signature: ['crayfish'] },
     },
     {
       beat: 'twist',
       miniboss: 'king',
       minibossName: 'King of Cups',
+      court: 'kingCups',
       combats: [3, 3],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
       allowAdjacentCombats: true,
-      roster: { grunt: ['bailiff', 'imp', 'blindfold'], guard: ['bailiff', 'gavel'], ranged: ['page'], patrol: ['imp', 'bailiff'], signature: ['blindfold'] },
+      roster: { grunt: ['dog', 'wolf', 'phantom'], guard: ['wolf'], ranged: ['pageCups'], patrol: ['dog', 'wolf'], signature: ['crayfish'] },
     },
   ],
   setPieces: [
@@ -550,7 +553,8 @@ export const MOON_DIMENSION: DimensionDef = {
   heroProps: [2, 4],
   seat: { name: 'the Moon', way: 'on between the towers' },
   props: { strewn: 'reed', hero: 'pillar' },
-  rangedFoes: ['page'],
+  // The Page of Cups pours from range (held to the fair-distance rule).
+  rangedFoes: ['pageCups'],
   illusion: { share: [0.2, 0.3, 0.4], falseBranches: 1 },
   water: true,
 };
