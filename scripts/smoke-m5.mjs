@@ -13,10 +13,10 @@ export async function zonesScenario({ g, wait, shot }) {
     await g((t) => window.__game.start(t), theme);
     await wait(1500);
     await shot(`50-${theme}-spawn`);
-    await g(() => { window.__tuning.post.enabled = true; });
+    await g(() => { window.__tuning.pixel.enabled = false; });
     await wait(700);
-    await shot(`50-${theme}-spawn-post`);
-    await g(() => { window.__tuning.post.enabled = false; });
+    await shot(`50-${theme}-spawn-no-pixel`);
+    await g(() => { window.__tuning.pixel.enabled = true; });
     await g(() => { window.__tuning.debug.overview = true; window.__tuning.debug.showGraph = true; });
     await wait(900);
     await shot(`51-${theme}-overview`);
@@ -40,10 +40,10 @@ export async function zonesScenario({ g, wait, shot }) {
 
   // Pollen cache: walk onto it.
   await g(() => { window.__tuning.debug.godMode = true; const gm = window.__game; const c = gm.zone.cache.at; gm.player.controller.teleport(c.clone().setY(c.y + 0.1).setX(c.x + 1), 0); });
-  const cached = await until(() => window.__game.vitals.pollen >= 40, 6000);
+  const cached = await until(() => window.__game.vitals.currency >= 40, 6000);
   await wait(600);
   await shot('52-pollen-cache');
-  console.log('  cache pollen', await g(() => window.__game.vitals.pollen));
+  console.log('  cache pollen', await g(() => window.__game.vitals.currency));
   if (!cached) throw new Error('pollen cache did not pay out');
 
   // Slay the brute, kill a normal enemy, rest: the normal one returns, the brute does not.

@@ -17,7 +17,15 @@ async function boot() {
   window.__game = game;
   window.__tuning = tuning;
   const mode = new URLSearchParams(location.search).get('mode');
-  if (mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
+  // `level` and `justice` are v2 scenes (`&level=1..3` picks the level). The v1 bug-scale scenes stay reachable here
+  // only, until v2 scenes replace them.
+  const level = Number(new URLSearchParams(location.search).get('level'));
+  // 1–3 are the generated levels; 4 is Justice's arena.
+  if (level >= 1 && level <= 4) game.levelIndex = level - 1;
+  // `&dim=devil` walks another dimension's road (default Justice).
+  const dim = new URLSearchParams(location.search).get('dim');
+  if (dim) game.dimension = dim;
+  if (mode === 'hub' || mode === 'level' || mode === 'justice' || mode === 'arena' || mode === 'range' || mode === 'garden' || mode === 'kitchen') game.start(mode);
 }
 
 boot().catch((e) => {

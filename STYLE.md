@@ -32,8 +32,8 @@ Notes from studying the store screenshots, plus a Remnant 2 screenshot the user 
 9. **Small, stocky, readable figures.** A hooded or helmeted head, a box or capsule body and stick limbs. The face is
    a dark hole or a single dot. Figures are read by their gear silhouette (sword, spear, shield, lantern).
 10. **Painterly sky, posterised ground and low resolution.** Grey Scout has smeared, banded clouds and a diagonal rain
-    hatch over the whole frame. Brume renders at low resolution with crisp pixels. We already have both tools: the
-    painterly pass and pixel mode.
+    hatch over the whole frame. Brume renders at low resolution with crisp pixels. We have pixel mode; a painterly
+    or hatch pass is still to find (see *Shading and post*).
 
 ## v2 rules
 
@@ -57,12 +57,13 @@ milestone; until it lands, the code still uses v1's beetle units.
 | Combat clearing | 18–40 m across | see `LEVELS.md → Combat spaces` |
 | Doorway / arch | 2.5–4 m tall | arches frame vistas, so err tall |
 | Hero props | 8–30 m | planted swords, statues, chained pillars |
-| Landmark | 60–300 m | the dimension's symbol, visible through fog |
+| Landmark | 60–450 m | the dimension's symbol, visible through fog; generated levels stand Justice's 175 m scales ≥ 360 m from the spawn, so the beam rides above the height fog |
 
 ### Atmospheric perspective (the core look)
-- **Fog colour = the horizon/sky colour of the area**, and it is light. The exp² density puts the far edge of a
-  combat space at ~35–50% fog and the landmark at ~70–85%, so it stays a readable silhouette but never a detailed
-  one.
+- **Fog colour = the horizon/sky colour of the area**, and it is light. The play space stays clear and the distance
+  walls off quickly. On flat ground (the user's tuning: density 0.0075, power 1.4) it's ~17% at 40 m, ~58% at 120 m and
+  ~91% at 250 m. Height mix 1 thins it for anything tall, so a landmark's upper parts read at ~70–85% fog: a
+  silhouette, never a detailed one.
 - **Three value planes per shot:**
   - **foreground frame**: darkest, near the camera (walls, trunks, arches)
   - **play space**: mid values, where the toon bands live
@@ -78,21 +79,88 @@ against screenshots, the same way v1's palettes were.
 | Area | Surfaces | Fog / sky | Accent motif |
 |---|---|---|---|
 | **Hub** (The World) | twilight lavender `#8C86A3`, wreath sage `#7E9078`, stone `#C9C2B8`, shadow `#3E3A4D` | pale lilac `#D9D3E0` | warm lantern amber `#F0B266` |
+
+*As built in V2-7 (`WORLD` in `src/render/palette.ts`):* warm stone `#E7E0D2` / `#B4A996` / `#6A6157`, laurel `#7F9466`,
+a pale warm fog `#ECE6E2` under a lilac sky `#BDB7CF`. The accent motif is the wreath's ribbons in deep blue `#4F6B92`:
+the first pick (a dusty violet) failed the palette test against the SwordRifle's charge violet.
 | **Justice** (Swords, air) | chalk `#E4E1D8`, pale steel `#9FB0BC`, slate `#5C6873`, shadow `#2F3640` | cold white-blue `#E3E9EE` | tarnished brass `#B39A5E` (the scales) |
 | **The Devil** (Pentacles, earth) | umber `#5A4636`, ochre `#A3824F`, oxide green `#5F7A64`, shadow `#231C18` | smoky amber haze `#B59A7A` | ember `#C0573A` (the pedestal glow) |
 | **The Tower** (Wands, fire) | ash `#9A9490`, charcoal `#3B3836`, scorched wood `#6B5244`, shadow `#1E1B1C` | storm grey-violet `#8E8A9C` | fire orange `#E07A3A` |
 | **The Moon** (Cups, water) | indigo `#3E4466`, marsh teal `#4F7470`, reed `#8D9A7A`, shadow `#1B1E2E` | moon-fog `#C9CEC8` | pale moonlight `#E9E4C4` |
 
+*As built in V2-8 (`DEVIL` in `src/render/palette.ts`, Proposed until played):* dusty sandstone flags `#CDB99A`, umber
+stone `#8F7660`, umber rock `#5A4636`, shadow `#231C18` and dusty spoil `#857559` on the mine floors. Three changes from the table
+above:
+- **Fog:** the smoky amber haze `#B59A7A` failed the telegraph-contrast test (magenta needs a pale or a very dark fog),
+  so the fog is a pale smoky amber `#F0E2CB` under a dusty sky `#C9AB8A`.
+- **Accent:** the ember `#C0573A` sits about 11° of hue from kill red at a similar brightness, so the accent is
+  **old gilt** `#9B7232` (the hoards and the pedestal's band), dark enough never to read as crit gold. The pedestal's
+  brazier burns in the lantern's warm amber instead, the light that leads down. Its flame is a glow, so it opts out of
+  the fog and reads as a warm point from every vista.
+- **Growth:** the oxide green `#5F7A64` read as lawn on the mine floors, so the earth there is dusty spoil.
+
+The palette test now checks every accent against kill red as well as crit gold.
+
+*As built in V2-11 (`TOWER`, Proposed until played):* ash-pale stone `#C9C3BC`, timber `#8A6D58`, charred timber
+`#4A3C36`, shadow `#1E1B1C` and ash drifts `#8C857E`. The fog is a pale storm lilac `#E6E3EC` (the table's
+`#8E8A9C` was too dark for telegraph contrast) under a grey-violet sky. The accent is **fire** `#E0853A`, nudged
+toward amber from the table's `#E07A3A`, which sat within 20° of kill red. Deck states:
+- **sound:** timber
+- **rotten:** charred, sagging, with a wider gap
+- **cracking:** pulsing telegraph magenta
+- **burning:** flickering between the two fire oranges
+- **fallen:** gone
+
+Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
+
+*As built in V2-13 (`MOON`, Proposed until played):*
+- **Surfaces:** pale silt `#B9C2BD`, marsh teal `#4F7470`, indigo `#3E4466`, shadow `#1B1E2E` and reeds `#8D9A7A`.
+- **Fog and sky:** a pale moon-fog `#E2E6E0` (the table's `#C9CEC8` was too dark for telegraph contrast) over dark
+  water.
+- **Accent:** **moonlight** `#C8D4E8`, a pale blue-white. The table's warm `#E9E4C4` had crit gold's hue at crit
+  gold's brightness. It's used on the unfogged Moon disc and a reflection's dispel shimmer.
+- **Blob shadows:** every real v2 enemy now has a soft round blob shadow under it (one instanced draw) as well as its
+  cast shadow, so "it casts a shadow" reads at range and at pixel scale. The Moon's reflections have neither.
+
+*The Moon's figures (V2-14, `MOON_FOES`, Proposed until played):* wet indigo, slate and bone, ≥ 4:1 against the pale
+moon-fog, never a signal colour or the moonlight (tested; the Phantom's and the Queen's veil were desaturated away
+from the charge violet).
+- **Dog and Wolf:** crouched on all fours, the dog's ears pricked, the wolf darker with its ears laid back.
+- **Crayfish:** a low, plated shell with pincers and a fanned tail.
+- **Phantom:** a slate-grey shroud with a pointed hood and reaching arms (the Seven of Cups' veiled figure).
+- **Page of Cups:** dark blue, holding out a pale cup with a fish looking out of it.
+- **Cups court:** wears the suit as a **pale cup crest**. The King carries a trident.
+- **The Shadow:** her silhouette, near black, with her red gone: the hood, the blindfold's two tails, the
+  SwordRifle and the pistol.
+- **The Knight's cup:** the true draught is **moonlight** (the motif), shining up in a soft beam; the poisoned one is
+  dark.
+- **The King's wave:** a translucent telegraph-magenta wall with a solid crest; the gap is drawn on the floor in
+  lanes first, like the Queen of Swords' volley.
+- **The Sun (the ending):** the card drawn in code as an SVG over a warm overlay: the sun with straight and wavy
+  rays, sunflowers on the wall, the child on a pale horse.
+
+*The Tower's figures (V2-12, `TOWER_FOES`):* soot, char and wine-dark cloth, ≥ 4:1 against the storm fog.
+- **Firebrand:** hooded, carrying a torch with a dull ember-brown head (the accent's fire burns only on the decks and
+  the crown).
+- **Faller:** pale-grey robes flung up.
+- **Builder:** an aproned figure with a hammer.
+- **Page of Wands:** wine-dark, holding a staff in leaf.
+- **Black cat:** small and black.
+- **Wands court:** wears the suit as a **pale wand in leaf**.
+- **The Crowned Tower:** stone coursed like masonry, a dark window-slit heart, the crown's battlements knocked askew,
+  and fire (the motif) in the break.
+
 Rules:
 - **Accent colours must stay clear of the signal colours** (below) in hue and saturation. The Tower's fire orange and
-  the Devil's ember get the existing `tests/palette.test.ts` contrast checks against telegraph magenta and kill red.
-- Accents are used on **one motif** per area (the scales, the pedestal glow, fire, moonlight). Never on general props.
+  the Devil's gilt get the `tests/palette.test.ts` checks against telegraph magenta, crit gold and kill red.
+- Accents are used on **one motif** per area (the scales, the Devil's gilt, fire, moonlight). Never on general props.
 
 ### Characters (Proposed)
 - **The Eight of Swords:**
-  - **Rust-red robe** `#9E3B32`: the card's red, desaturated so it never reads as kill-red `#FF3B30`.
+  - **Rust-red robe** `#923A33`: the card's red, desaturated and dark enough (≥ 2:1 contrast) that it never reads
+    as kill-red `#FF3B30`. V2-1's palette test darkened it from the first pick, `#9E3B32`.
   - **Off-white blindfold** `#E8E0D0`, pushed up, with **cloth tails** that trail behind her as cheap secondary motion
-    (a procedural verlet ribbon).
+    (a procedural verlet ribbon). The Moon's unbinding (V2-14) takes it off: band, knot and tails.
   - **Dark stick limbs** `#1E1A1C`.
 
   She is the warmest mid-value shape in any cool scene and the darkest shape in any pale one. That's v1's "one bright
@@ -104,15 +172,55 @@ Rules:
   wand torch, a cup helm), so the suit reads before the face.
 - **Common enemies** are stocky like the player but darker and more hunched. Each archetype has a distinct silhouette
   at 30 m.
+  - *As built (V2-4, `FOES` in `src/render/palette.ts`):* the Bailiff is slate armour behind a dark tower shield with a
+    pale sword crest; the Gavel is a 2.15 m stooped mass with a hammer; the Blindfold is a slate-blue robe with a pale
+    band across the eyes and two long blades; the Page is small, blue, with a cape snapped back. Bodies are ≥ 4:1
+    against the Justice fog; pale cloth is cool chalk-grey, so it never reads as crit gold or weak-spot cyan (tested).
+  - *Court cards (V2-5, `COURT`):* 2.05–2.4 m, each crowned or crested with a large pale sword: the Knight in steel-blue
+    with a long cape, the Queen in a floor-length slate gown with a pale veil, the King broad in a dark robe and
+    squared mantle with a greatsword. Crowns are steel, never brass (brass belongs to the scales).
+  - Ground telegraphs (lanes, rings, verdicts) sit 12 cm up so paving never hides them.
+  - *The Devil's commons (V2-9, `DEVIL_FOES`):* soot, rust-brown and dark olive, ≥ 4:1 against the Devil's pale amber
+    fog. Their coin and brass are dull and dark, never the area's gilt (tested).
+    - **Miser:** broad, in a fur collar, hugging a banded strongbox heaped with dull coin, with a coin bag on its
+      back (the weak spot, in cyan).
+    - **Imp:** 1.15 m, soot-red, with horns and a curled tail, crouched low with claws out.
+    - **Page of Pentacles:** small, in dark olive, holding a purse up like the card's pentacle.
+    - **Thralls:** pale-grey, ragged and horned like the card's figures, collared in iron, the chain slung
+      collar to collar between a pair.
+  - *The binding's telegraph:* the chain between a pair **glows magenta** through the wind-up. Caught, a magenta
+    coil circles her and tightens until the blow lands or she rolls.
+  - *The Pentacles court (V2-10, `COURT_PENTACLES`):* earth-dark armour and robes, each wearing the suit as a large
+    **bone-pale disc with a five-pointed star** cut in dark lines (bone, never crit gold or the area's gilt).
+    - **Knight:** a broad, plated figure holding the pentacle before its chest.
+    - **Queen:** dark olive, with the pentacle cradled in her off hand.
+    - **King:** in umber, with a fruited hem, the pentacle crest above his crown and a pentacle sceptre.
+  - *The Devil (V2-10):* 6.5 m of dark umber hide, soot bat-wings and great horns. His right hand is raised and an
+    iron torch is held low, as on the card.
+  - *Seeds are gilt, not magenta:* the Queen's seeds are coin to step on, not danger to leave, so their rings use the
+    Devil's gilt. Telegraph magenta stays reserved for "get out". Shackle zones, which do bind, stay magenta.
+  - *Hoard tells (the temptation must be learnable):* each hoard is a gilt heap with a faint gilt glow and one tell.
+    - **bell:** a bell hangs on a crooked post over the heap.
+    - **weight:** chains are looped over it and staked into the floor.
+    - **ambush:** a broken ring of tilted floor slabs surrounds it.
+  - *Hub arcana (V2-7):* the Magician (≈ 3.2 m, brown robe, wand raised behind his table of four tools) and the High
+    Priestess (seated, deep blue, between a dark and a pale pillar before a veil). The four gate creatures are pale
+    and upright when awake, dark and slumped asleep.
+  - *Justice (V2-6):* 6 m, slate gown, pale mantle and stole, steel crown with three square points, a greatsword
+    raised upright, and small brass scales in her left hand. The brass on her scales and on the arena's descending
+    pans is the accent motif: the scales are the motif, wherever they appear.
 
-### Shading and post (carried over from v1)
+### Shading and post
 - Toon-ramp Lambert, generated 4-step gradient, vertex colours. No textures, specular, PBR or normal maps.
 - **Stripes become facets.** v1's wobbly organic stripes give way to flat-shaded facets and per-face value jitter,
   which reads as blocky rather than soft.
-- **Pixel mode** (`debug.pixelMode`) is the Brume look. Proposed: evaluate it **on by default** in the first v2
-  playable build, at `pixelScale` 2–3 with a one-block outline.
-- **Painterly pass** (`post.enabled`) is the Grey Scout look for skies and distance. Optional; real-hardware cost is
-  still unmeasured.
+- **Pixel mode** (`tuning.pixel`, `src/render/pixel.ts`) is the Brume look and the only post step. It's on by
+  default (P toggles it): `scale` 2, a light outline (`outline` 0.3, `edgeThreshold` 0.3, `edgeWidth` 1 block), from
+  the user's tuning.
+- **Outlines fade with distance** (`pixel.outlineFadeStart` → `outlineFadeEnd`, 30 → 140 m). Ink lines belong to the
+  play space. Outlining fogged hills turned the distance into shards, against the "silhouettes only" value plane.
+- **No painterly pass for now (Decided).** v1's Kuwahara/posterise pass didn't suit v2 and was removed. Other post
+  techniques get explored later (`PLAN.md → Later`).
 - A **rain/hatch overlay** (Grey Scout's diagonal streaks) is a cheap screen-space option for the Moon dimension.
 
 ### Reserved signal colours (unchanged from v1, must pop in **every** area palette)

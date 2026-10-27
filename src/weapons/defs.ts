@@ -1,5 +1,7 @@
 // Weapons are data. Every number here is exposed in the tuning panel.
-import { PROPS } from '../render/palette';
+// v2 weapons are in metres. The v1 bug weapons below are kept as reference data in v1 beetle units
+// (the staple driver is the starting point for the SwordRifle's rifle mode in V2-2); they are not carried.
+import { GEAR, PROPS } from '../render/palette';
 
 /** One synthesized audio layer. `osc` = pitched sweep, `noise` = filtered noise burst. */
 export interface SoundLayer {
@@ -46,6 +48,8 @@ export interface WeaponDef {
   auto: boolean;
   magSize: number;
   reserve: number;
+  /** Never runs out of reserve ammo (the auto-pistol is the always-there fallback). Still reloads. */
+  infiniteReserve: boolean;
   /** 'mag': whole magazine in reloadTime. 'single': one round per reloadTime, interruptible by firing. */
   reloadMode: ReloadMode;
   reloadTime: number;
@@ -56,6 +60,8 @@ export interface WeaponDef {
   hitscan: boolean;
   projectileSpeed: number;
   projectileGravity: number;
+  /** Drawn size of the projectile (non-hitscan weapons). */
+  projectileScale: number;
   // ---- spread (degrees)
   hipSpread: number;
   adsSpread: number;
@@ -145,6 +151,7 @@ export const REPEATER: WeaponDef = {
   auto: true,
   magSize: 32,
   reserve: 192,
+  infiniteReserve: false,
   reloadMode: 'mag',
   reloadTime: 1.9,
   cycle: 'none',
@@ -152,6 +159,7 @@ export const REPEATER: WeaponDef = {
   hitscan: true,
   projectileSpeed: 0,
   projectileGravity: 0,
+  projectileScale: 1,
   hipSpread: 1.6,
   adsSpread: 0.35,
   moveSpreadMul: 1.4,
@@ -375,4 +383,145 @@ export const STAPLER: WeaponDef = {
 };
 
 
-export const WEAPONS: WeaponDef[] = [REPEATER, SPITTER, STAPLER];
+/** v1's carried weapons (reference only; see LOADOUT). */
+export const V1_WEAPONS: WeaponDef[] = [REPEATER, SPITTER, STAPLER];
+
+/**
+ * Auto-pistol (DESIGN.md → Weapons): the default fallback with infinite reserve ammo. Reliable, low damage, always
+ * there. Built from the rubber-band repeater's hitscan path and juice, converted to metres, with its own crack.
+ */
+export const AUTO_PISTOL: WeaponDef = {
+  ...REPEATER,
+  id: 'pistol',
+  name: 'Auto-pistol',
+  slot: 1,
+  damage: 12,
+  critMultiplier: 2,
+  falloffStart: 28.8,
+  falloffEnd: 72,
+  falloffMinMul: 0.55,
+  knockback: 0.56,
+  range: 256,
+  rpm: 650,
+  magSize: 28,
+  reserve: 0,
+  infiniteReserve: true,
+  reloadTime: 1.5,
+  // Visible rounds with a little drop (the user's tuning pass 2), drawn small.
+  hitscan: false,
+  projectileSpeed: 75,
+  projectileGravity: 2.5,
+  projectileScale: 0.45,
+  hipSpread: 1.8,
+  adsSpread: 0.4,
+  recoilVertical: 0.5,
+  recoilHorizontal: 0.22,
+  weaponKickBack: 0.07,
+  weaponKickPitch: 9,
+  weaponKickRoll: 3,
+  tracerColor: GEAR.tracer,
+  tracerSpeed: 384,
+  tracerLength: 3.2,
+  tracerWidth: 0.05,
+  flashScale: 0.45,
+  flashLight: 2.5,
+  impactSpeed: 6.4,
+  casingSpeed: 3.5,
+  layers: {
+    click: L({ kind: 'noise', filter: 'highpass', f0: 6000, f1: 6000, dur: 0.012, gain: 0.5 }),
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 2600, f1: 900, q: 1.1, dur: 0.05, gain: 0.7 }),
+    thump: L({ kind: 'osc', wave: 'sine', f0: 190, f1: 52, dur: 0.08, gain: 0.65 }),
+    tail: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 300, dur: 0.22, gain: 0.16, delay: 0.008 }),
+  },
+  cycleLayers: {},
+};
+
+/**
+ * SwordRifle, rifle mode (DESIGN.md → Weapons): heavy, built from v1's staple driver converted to metres. Charges
+ * are its magazine (`magSize` = max charges) and it never reloads (no reserve): sword hits refill it.
+ */
+export const SWORD_RIFLE: WeaponDef = {
+  ...STAPLER,
+  id: 'swordRifle',
+  name: 'SwordRifle',
+  slot: 2,
+  damage: 80,
+  falloffStart: 96,
+  falloffEnd: 224,
+  knockback: 1.76,
+  selfKnockback: 1.28,
+  range: 320,
+  magSize: 6,
+  reserve: 0,
+  infiniteReserve: false,
+  projectileSpeed: 152,
+  projectileGravity: 4.8,
+  projectileScale: 2,
+  weaponKickBack: 0.176,
+  tracerColor: 0x6104c8,
+  tracerSpeed: 152,
+  tracerLength: 3.5,
+  tracerWidth: 0.064,
+  flashScale: 0.48,
+  impactSpeed: 8,
+  layers: {
+    snap: L({ kind: 'noise', filter: 'highpass', f0: 5200, f1: 5200, dur: 0.012, gain: 0.6 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1700, f1: 1500, dur: 0.16, gain: 0.08, delay: 0.003 }),
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 2400, f1: 700, q: 1.3, dur: 0.07, gain: 0.8 }),
+    thump: L({ kind: 'osc', wave: 'sine', f0: 170, f1: 40, dur: 0.18, gain: 0.85 }),
+    tail: L({ kind: 'noise', filter: 'lowpass', f0: 1600, f1: 240, dur: 0.5, gain: 0.18, delay: 0.01 }),
+  },
+};
+
+/** SwordRifle, sword mode: three-swing light combo plus a charged strike (src/weapons/swing.ts). Degrees, metres. */
+export const SWORD_MELEE = {
+  swing1: { windup: 0.14, active: 0.15, recover: 0.2, damage: 45, lunge: 0.5, stagger: 12, knockback: 2, yawFromDeg: -105, yawToDeg: 95, pitchFromDeg: 6, pitchToDeg: -4, rollDeg: -80 },
+  swing2: { windup: 0.1, active: 0.12, recover: 0.2, damage: 50, lunge: 0.5, stagger: 12, knockback: 2, yawFromDeg: 100, yawToDeg: -100, pitchFromDeg: 6, pitchToDeg: -2, rollDeg: 80 },
+  swing3: { windup: 0.25, active: 0.14, recover: 0.2, damage: 60, lunge: 0.6, stagger: 25, knockback: 3.5, yawFromDeg: 8, yawToDeg: 0, pitchFromDeg: 115, pitchToDeg: -45, rollDeg: 0 },
+  charged: { windup: 0.08, active: 0.16, recover: 0.3, damage: 110, lunge: 2.2, stagger: 60, knockback: 6, yawFromDeg: 0, yawToDeg: 0, pitchFromDeg: 150, pitchToDeg: -60, rollDeg: 0 },
+  /** Seconds into recovery during which a press still chains the next swing. */
+  comboWindow: 0.28,
+  /** Fraction of recovery after which a queued swing starts. */
+  cancelInto: 0.35,
+  /** Hold RMB this long to ready the charged strike. */
+  chargeHold: 0.45,
+  /** Charges the charged strike spends. */
+  chargedCost: 2,
+  /** Charges a landed blade hit restores, and the most one swing can restore. */
+  chargePerHit: 1,
+  chargeCapPerSwing: 1,
+  critMultiplier: 1.5,
+  /** Movement while swinging or charging. */
+  moveMul: 0.3,
+  hitstop: 0.06,
+  hitstopCharged: 0.11,
+  trauma: 0.18,
+  traumaCharged: 0.45,
+  /** A blow the guard blocks: the blade rebounds and the recovery stretches by this much. */
+  reboundTime: 0.35,
+  reboundTrauma: 0.3,
+  /** Guard (idle) and charge-hold blade angles. The guard angles the blade out to her right so it stays in view. */
+  guardYawDeg: -30,
+  guardPitchDeg: 30,
+  chargeYawDeg: 15,
+  chargePitchDeg: 140,
+  /** Hands: distance in front of the chest and height relative to it. */
+  reach: 0.8,
+  handY: 0.05,
+};
+export type SwordMeleeDef = typeof SWORD_MELEE;
+
+/**
+ * Repair stages (DESIGN.md: one per suit relic, applied by the Magician in V2-7). Stage 0 is the rusted state she
+ * starts with: lower damage in both modes, a slower mode switch, a duller sound and dim, cracked charge cells.
+ */
+export const REPAIR_STAGES = [
+  { name: 'rusted', damageMul: 0.65, switchMul: 1.5, toneMul: 0.72, cellGlow: 0.35 },
+  { name: 'blade restored', damageMul: 0.75, switchMul: 1.35, toneMul: 0.8, cellGlow: 0.5 },
+  { name: 'barrel restored', damageMul: 0.85, switchMul: 1.2, toneMul: 0.88, cellGlow: 0.65 },
+  { name: 'stock restored', damageMul: 0.93, switchMul: 1.1, toneMul: 0.95, cellGlow: 0.82 },
+  { name: 'edge restored', damageMul: 1, switchMul: 1, toneMul: 1, cellGlow: 1 },
+] as const;
+
+/** What the player carries, in slot order. */
+export const LOADOUT: WeaponDef[] = [AUTO_PISTOL, SWORD_RIFLE];

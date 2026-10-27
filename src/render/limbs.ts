@@ -15,14 +15,15 @@ export class LimbRenderer {
   private nSeg = 0;
   private nKnob = 0;
 
-  constructor(scene: THREE.Scene, max = 1024) {
+  /** `shadows` false: limbs that cast no shadow (the Moon's reflections). */
+  constructor(scene: THREE.Scene, max = 1024, shadows = true) {
     const cyl = prep(new THREE.CylinderGeometry(1, 1, 1, 6, 1, false).translate(0, 0.5, 0));
     const sph = prep(new THREE.IcosahedronGeometry(1, 1));
     const mat = toonMat();
     this.segments = new THREE.InstancedMesh(cyl, mat, max);
     this.knobs = new THREE.InstancedMesh(sph, mat, max);
     for (const m of [this.segments, this.knobs]) {
-      m.castShadow = true;
+      m.castShadow = shadows;
       m.receiveShadow = true;
       m.frustumCulled = false;
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

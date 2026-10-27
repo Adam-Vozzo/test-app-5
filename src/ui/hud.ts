@@ -16,6 +16,8 @@ export class Hud {
   private slots: HTMLDivElement;
   private slotsKey = '';
   private ammoKey = '';
+  private chargesEl: HTMLDivElement;
+  private chargesKey = '';
   private stats: HTMLDivElement;
   private range: HTMLDivElement;
   private toastEl: HTMLDivElement;
@@ -48,6 +50,7 @@ export class Hud {
     this.root.innerHTML = `
       <div class="xhair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="dot"></i></div>
       <div class="hitmark"><i></i><i></i><i></i><i></i></div>
+      <div class="charges" style="display:none"></div>
       <div class="slots"></div>
       <div class="ammo"></div>
       <div class="stats"></div>
@@ -70,6 +73,8 @@ export class Hud {
     this.hitmark = this.root.querySelector('.hitmark')!;
     this.hitTicks = [...this.hitmark.querySelectorAll('i')] as HTMLElement[];
     this.ammo = this.root.querySelector('.ammo')!;
+    this.chargesEl = this.root.querySelector('.charges')!;
+    this.chargesEl.style.setProperty('--charge', hex(SIGNAL.charge));
     this.slots = this.root.querySelector('.slots')!;
     this.stats = this.root.querySelector('.stats')!;
     this.range = this.root.querySelector('.range')!;
@@ -123,15 +128,27 @@ export class Hud {
     this.slots.innerHTML = names.map((n, i) => `<span class="${i === current ? 'on' : ''}"><b>${i + 1}</b> ${n}</span>`).join('');
   }
 
-  setAmmo(name: string, mag: number, magSize: number, reserve: number, reloading: number) {
-    const key = `${name}|${mag}|${reserve}|${Math.round(reloading * 100)}`;
+  /** `charges` = the SwordRifle: the count is its charge pool (mag / max), not ammo with a reserve. */
+  setAmmo(name: string, mag: number, magSize: number, reserve: number, reloading: number, charges = false) {
+    const key = `${name}|${mag}|${reserve}|${Math.round(reloading * 100)}|${charges}`;
     if (key === this.ammoKey) return;
     this.ammoKey = key;
     const low = mag <= Math.ceil(magSize * 0.2);
+    const color = charges ? (mag > 0 ? hex(SIGNAL.charge) : '#fff') : low ? hex(SIGNAL.kill) : '#fff';
+    const tail = charges ? `<span class="res"> / ${magSize} charges</span>` : `<span class="res"> / ${reserve === Infinity ? '∞' : reserve}</span>`;
     this.ammo.innerHTML =
       `<div class="wname">${name}</div>` +
-      `<div class="mag" style="color:${low ? hex(SIGNAL.kill) : '#fff'}">${mag}<span class="res"> / ${reserve === Infinity ? '∞' : reserve}</span></div>` +
+      `<div class="mag" style="color:${color}">${mag}${tail}</div>` +
       (reloading > 0 ? `<div class="reload">reloading ${Math.round(reloading * 100)}%</div>` : '');
+  }
+
+  /** SwordRifle charge pips under the crosshair, mirroring the cells on the weapon. Hidden for other weapons. */
+  setCharges(n: number, max: number, visible: boolean) {
+    const key = visible ? `${n}/${max}` : '';
+    if (key === this.chargesKey) return;
+    this.chargesKey = key;
+    this.chargesEl.style.display = visible ? '' : 'none';
+    if (visible) this.chargesEl.innerHTML = Array.from({ length: max }, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
   }
 
   setStats(text: string) {
@@ -144,8 +161,8 @@ export class Hud {
     if (text) this.range.textContent = text;
   }
 
-  /** Health / stamina / heal charges / pollen. */
-  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, pollen: number) {
+  /** Health / stamina / heal charges / carried currency (with its glyph). */
+  setVitals(hp: number, maxHp: number, st: number, maxSt: number, exhausted: boolean, heals: number, maxHeals: number, currency: number, glyph = '✿', burden = 0) {
     const h = Math.max(0, hp / maxHp);
     this.hp.style.width = `${h * 100}%`;
     this.hpLagValue = Math.max(h, this.hpLagValue);
@@ -157,9 +174,11 @@ export class Hud {
       this.healsKey = hk;
       this.heals.innerHTML = Array.from({ length: maxHeals }, (_, i) => `<span class="${i < heals ? 'on' : ''}"></span>`).join('') + '<em>Q</em>';
     }
-    if (pollen !== this.pollenKey) {
-      this.pollenKey = pollen;
-      this.pollenEl.textContent = `✿ ${pollen}`;
+    const key = currency * 64 + glyph.charCodeAt(0) * 8 + burden;
+    if (key !== this.pollenKey) {
+      this.pollenKey = key;
+      // The Devil's weight shows beside the purse: what you carry is what slows you.
+      this.pollenEl.textContent = burden > 0 ? `${glyph} ${currency}  ⛓ heavy ×${burden}` : `${glyph} ${currency}`;
     }
   }
 

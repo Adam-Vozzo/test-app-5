@@ -1,13 +1,16 @@
-// Target dummy: a pill-bug on a cork post. Weak-spot head, hit flash, flinch spring, fall-over death, respawn.
+// Target dummy: a canvas training dummy on a post, in metres. Weak-spot head band, hit flash, flinch spring,
+// fall-over death, respawn. A guard dummy carries a shield and blocks blows from its front (the Bailiff stand-in):
+// flank it.
 import * as THREE from 'three';
 import { clamp, Spring } from '../core/math';
 import { Physics, RAPIER, type DamageInfo, type Damageable } from '../physics/world';
-import { merge, meshOf, paint, place, stripe, toonMat } from '../render/geo';
-import { CHARACTER, PROPS, SIGNAL } from '../render/palette';
+import { merge, meshOf, paint, place, prep, toonMat } from '../render/geo';
+import { GEAR, SIGNAL } from '../render/palette';
 import { tuning } from '../tuning';
+import { inGuardCone } from '../weapons/swing';
 
-const BODY_Y = 0.85;
-const HEAD_Y = 1.42;
+const BODY_Y = 1.2;
+const HEAD_Y = 1.72;
 const _v = new THREE.Vector3();
 
 export class Dummy implements Damageable {
@@ -40,21 +43,42 @@ export class Dummy implements Damageable {
     private physics: Physics,
     pos: THREE.Vector3,
     readonly slide: boolean,
+    /** Guard dummies: the yaw it faces (0 = -Z). null = no shield. */
+    readonly guardYaw: number | null = null,
   ) {
     this.base = pos.clone();
     this.health = tuning.dummy.health;
     this.poise = tuning.dummy.poise;
     this.mat = toonMat({ emissive: 0x000000 });
-    const post = paint(new THREE.CylinderGeometry(0.1, 0.13, BODY_Y, 8).translate(0, BODY_Y / 2, 0), PROPS.cork);
-    const foot = paint(new THREE.CylinderGeometry(0.32, 0.38, 0.12, 10).translate(0, 0.06, 0), PROPS.corkDark);
-    const body = stripe(new THREE.SphereGeometry(0.42, 14, 14).scale(1, 1.15, 0.9), CHARACTER.enemyShellA, CHARACTER.enemyShellB, 0.09);
-    const belly = paint(new THREE.SphereGeometry(0.3, 10, 8).scale(1, 1.2, 0.5), CHARACTER.enemyBelly);
-    const head = paint(new THREE.SphereGeometry(0.2, 12, 10), CHARACTER.enemyShellB);
-    const target = paint(new THREE.TorusGeometry(0.24, 0.035, 4, 16), PROPS.paper);
-    const geo = merge([post, foot, place(body, 0, BODY_Y, 0), place(belly, 0, BODY_Y, -0.24), place(head, 0, HEAD_Y, 0), place(target, 0, BODY_Y, -0.36)]);
+    const facet = (g: THREE.BufferGeometry, c: number) => paint(prep(g, true), c);
+    const post = facet(new THREE.CylinderGeometry(0.07, 0.09, BODY_Y, 6).translate(0, BODY_Y / 2, 0), GEAR.post);
+    const foot = facet(new THREE.CylinderGeometry(0.34, 0.4, 0.12, 6).translate(0, 0.06, 0), GEAR.post);
+    const body = facet(new THREE.CylinderGeometry(0.22, 0.26, 0.62, 6), GEAR.canvas);
+    const band = facet(new THREE.CylinderGeometry(0.265, 0.265, 0.07, 6), GEAR.straw);
+    const arms = facet(new THREE.BoxGeometry(0.95, 0.07, 0.07), GEAR.post);
+    const head = facet(new THREE.IcosahedronGeometry(0.16, 1), GEAR.canvas);
+    const target = facet(new THREE.TorusGeometry(0.15, 0.025, 4, 12), GEAR.canvasShade);
+    const geo = merge([
+      post,
+      foot,
+      place(body, 0, BODY_Y, 0),
+      place(band, 0, BODY_Y - 0.2, 0),
+      place(arms, 0, BODY_Y + 0.2, 0),
+      place(head, 0, HEAD_Y, 0),
+      place(target, 0, BODY_Y + 0.02, -0.235),
+    ]);
     this.pivot.add(meshOf(geo, this.mat));
+    if (guardYaw !== null) {
+      // A tall shield held at the front: the side you can't hurt it from.
+      const shield = merge([
+        place(facet(new THREE.BoxGeometry(0.62, 0.95, 0.06), GEAR.metal), 0, BODY_Y - 0.05, -0.36),
+        place(facet(new THREE.BoxGeometry(0.08, 0.95, 0.07), GEAR.metalDark), 0, BODY_Y - 0.05, -0.395),
+      ]);
+      this.pivot.add(meshOf(shield, this.mat));
+      this.group.rotation.y = guardYaw;
+    }
     // Weak spot: glowing cyan eye-band on the head (unlit so it reads in any light).
-    const weak = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.04, 6, 18), new THREE.MeshBasicMaterial({ color: SIGNAL.weakSpot }));
+    const weak = new THREE.Mesh(new THREE.TorusGeometry(0.165, 0.035, 4, 12), new THREE.MeshBasicMaterial({ color: SIGNAL.weakSpot }));
     weak.position.set(0, HEAD_Y + 0.02, 0);
     weak.rotation.x = Math.PI / 2;
     this.pivot.add(weak);
@@ -75,10 +99,15 @@ export class Dummy implements Damageable {
     this.group.position.copy(pos);
     scene.add(this.group);
 
-    this.bodyCol = physics.addHitbox(RAPIER.ColliderDesc.ball(0.44), { part: 'body', owner: this });
-    this.headCol = physics.addHitbox(RAPIER.ColliderDesc.ball(0.22), { part: 'weak', owner: this });
-    if (!slide) physics.addStatic(RAPIER.ColliderDesc.cylinder(BODY_Y / 2, 0.14).setTranslation(pos.x, BODY_Y / 2, pos.z));
+    this.bodyCol = physics.addHitbox(RAPIER.ColliderDesc.ball(0.32), { part: 'body', owner: this });
+    this.headCol = physics.addHitbox(RAPIER.ColliderDesc.ball(0.18), { part: 'weak', owner: this });
+    if (!slide) physics.addStatic(RAPIER.ColliderDesc.cylinder(BODY_Y / 2, 0.12).setTranslation(pos.x, pos.y + BODY_Y / 2, pos.z));
     this.syncColliders();
+  }
+
+  blocks(dir: THREE.Vector3): boolean {
+    if (this.guardYaw === null || !this.alive) return false;
+    return inGuardCone(-Math.sin(this.guardYaw), -Math.cos(this.guardYaw), dir.x, dir.z, tuning.dummy.guardConeDeg);
   }
 
   takeDamage(info: DamageInfo): boolean {

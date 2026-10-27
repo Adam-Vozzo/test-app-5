@@ -37,7 +37,7 @@ export async function enemiesScenario({ g, hold, release, wait, shot }) {
         hp: Math.round(gm.vitals.health),
         stamina: Math.round(gm.vitals.stamina),
         heals: gm.vitals.healCharges,
-        pollen: gm.vitals.pollen,
+        pollen: gm.vitals.currency,
         dead: gm.vitals.dead,
         enemies: gm.enemies.enemies.filter((e) => e.home.x < 60).map((e) => `${e.kind}:${e.state}:${Math.round(e.health)}`),
       };
@@ -73,7 +73,8 @@ export async function enemiesScenario({ g, hold, release, wait, shot }) {
   if (dodged) throw new Error('i-frames did not prevent damage');
 
   // ---- Kill the skitterer (crit the head) and check the pollen reward.
-  await g(() => { window.__game.enemies.enemies.forEach((e) => { if (e.kind === 'skitterer') e.cfg.speed = 0; }); });
+  // This checks the reward, not DPS: hold the skitterer still and low on health so any weapon finishes it.
+  await g(() => { window.__game.enemies.enemies.forEach((e) => { if (e.kind === 'skitterer') { e.cfg.speed = 0; e.health = Math.min(e.health, 20); } }); });
   for (let i = 0; i < 20; i++) {
     const done = await g(() => !window.__game.enemies.enemies[0].alive);
     if (done) break;
@@ -124,8 +125,11 @@ export async function enemiesScenario({ g, hold, release, wait, shot }) {
   console.log('  risen', JSON.stringify(risen), 'drop at', dropAt.map((x) => +x.toFixed(1)));
   if (risen.dead || risen.hp !== 100 || risen.heals !== 3) throw new Error('rise did not restore the player');
   if (risen.pollen !== 0) throw new Error(`pollen should be on the ground after death, not carried: ${risen.pollen}`);
+  // Walk away first (the drop only arms once you've left it), then back onto it.
+  await g((p) => { const gm = window.__game; gm.player.controller.teleport(new gm.player.pos.constructor(p[0] + 6, 0.05, p[2]), 0); }, dropAt);
+  await wait(300);
   await g((p) => { const gm = window.__game; gm.player.controller.teleport(new gm.player.pos.constructor(p[0], 0.05, p[2]), 0); }, dropAt);
-  const got = await until(() => window.__game.vitals.pollen > 0, 5000);
+  const got = await until(() => window.__game.vitals.currency > 0, 5000);
   console.log('  pollen recovered', got, (await st()).pollen);
   if (!got) throw new Error('could not recover dropped pollen');
 }

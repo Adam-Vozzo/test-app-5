@@ -1,14 +1,17 @@
-// Procedural biped beetle: planted feet with arcing steps, hip bob/lean, two-bone IK arms and legs,
-// head + antennae that look at the aim point. No keyframes.
+// Procedural biped: the Eight of Swords. Planted feet with arcing steps, hip bob/lean, two-bone IK arms and legs,
+// a hooded head that looks at the aim point, and blindfold tails on verlet ribbons. No keyframes.
+// Every length comes from BODY (src/anim/body.ts) or tuning, in metres.
 import * as THREE from 'three';
-import { clamp, damp, DEG, finite, safeDiv, Spring3 } from '../core/math';
+import { clamp, damp, DEG, finite, safeDiv } from '../core/math';
 import { Physics } from '../physics/world';
-import { merge, meshOf, paint, place, stripe, toonMat } from '../render/geo';
+import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
 import { LimbRenderer } from '../render/limbs';
-import { CHARACTER } from '../render/palette';
+import { PLAYER } from '../render/palette';
 import { tuning } from '../tuning';
+import { BODY } from './body';
 import { BIPED_GROUPS, selectSteps, stepArc, stepEase, type LegGaitState } from './gait';
 import { solveTwoBone } from './ik';
+import { Ribbon } from './ribbon';
 
 export interface BipedInput {
   root: THREE.Vector3;
@@ -20,7 +23,7 @@ export interface BipedInput {
   rollT: number;
   aimPoint: THREE.Vector3;
   sprinting: boolean;
-  /** On its back, legs in the air. */
+  /** Fallen onto her back. */
   dead?: boolean;
 }
 
@@ -35,12 +38,8 @@ interface Foot {
   side: number;
 }
 
-const THIGH = 0.23;
-const SHIN = 0.24;
-const UPPER_ARM = 0.2;
-const FOREARM = 0.21;
-const ANT1 = 0.13;
-const ANT2 = 0.14;
+const B = BODY;
+const TAIL_POINTS = 6;
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -51,10 +50,40 @@ const _up = new THREE.Vector3(0, 1, 0);
 const _pole = new THREE.Vector3();
 const _knee = new THREE.Vector3();
 const _end = new THREE.Vector3();
+const _a = new THREE.Vector3();
+const _b = new THREE.Vector3();
+const _anchor = [0, 0, 0];
+const _rest = [0, 0, 0];
 const _gait: LegGaitState[] = [
   { error: 0, stepping: false },
   { error: 0, stepping: false },
 ];
+
+/** Robe: a six-sided cone from the shoulders to just below the knee, darker at the hem. Chest-local. */
+function robeGeo() {
+  const top = B.shoulderY - B.chestY + 0.02;
+  const hem = -B.chestY - 0.32;
+  const h = top - hem;
+  const cone = prep(new THREE.CylinderGeometry(0.17, 0.3, h, 6, 3).translate(0, hem + h / 2, 0), true);
+  const robe = paintBy(cone, (p, out) => out.setHex(p.y < hem + 0.07 ? PLAYER.robeShade : PLAYER.robe));
+  const cowl = paint(prep(new THREE.CylinderGeometry(0.15, 0.25, 0.13, 6).translate(0, top - 0.05, 0), true), PLAYER.cowl);
+  const belt = paint(prep(new THREE.CylinderGeometry(0.235, 0.24, 0.045, 6).translate(0, -B.chestY + 0.04, 0), true), PLAYER.belt);
+  const pouch = paint(new THREE.BoxGeometry(0.08, 0.1, 0.06), PLAYER.belt);
+  return merge([robe, place(cowl, 0, 0, 0, 0, Math.PI / 6, 0), belt, place(pouch, B.pouch.x, -B.chestY - 0.01, B.pouch.z)]);
+}
+
+/** Hood with a dark face opening, and the blindfold pushed up onto the brow (gone once the Moon frees it). Head-local, facing -Z. */
+function hoodGeo(blindfold = true) {
+  const r = B.headR;
+  const hood = paint(prep(new THREE.IcosahedronGeometry(r, 1).scale(1, 1.08, 1.12), true), PLAYER.robe);
+  const peak = paint(prep(new THREE.ConeGeometry(r * 0.55, r * 1.1, 5).rotateX(-0.9), true), PLAYER.robe);
+  const face = paint(new THREE.CircleGeometry(r * 0.5, 6).rotateY(Math.PI), PLAYER.face);
+  const band = paint(prep(new THREE.CylinderGeometry(r * 1.02, r * 1.05, 0.055, 8, 1, true), true), PLAYER.blindfold);
+  const knot = paint(new THREE.BoxGeometry(0.07, 0.05, 0.05), PLAYER.blindfold);
+  const parts = [hood, place(peak, 0, r * 0.55, r * 0.75), place(face, 0, -0.02, -r * 1.08)];
+  if (blindfold) parts.push(place(band, 0, r * 0.38, 0, -0.18, 0, 0), place(knot, 0, r * 0.45, r * 1.0));
+  return merge(parts);
+}
 
 export class Biped {
   readonly group = new THREE.Group();
@@ -79,12 +108,14 @@ export class Biped {
   private bob = 0;
   private headYaw = 0;
   private headPitch = 0;
-  private antTips = [new Spring3(120, 8), new Spring3(120, 8)];
-  private antPrev = [new THREE.Vector3(), new THREE.Vector3()];
-  private antPrevVel = [new THREE.Vector3(), new THREE.Vector3()];
+  /** Blindfold tails, left and right of the knot. */
+  private tails: Ribbon[] = [];
+  private tailsLaid = false;
   private wasRolling = false;
   private wasGrounded = true;
   private initialized = false;
+  /** She still wears the blindfold (and its tails): the Moon's unbinding takes it off. */
+  private blindfolded = true;
   onFootstep: (p: THREE.Vector3) => void = () => {};
   /** Debug: targets drawn when tuning.debug.showIK. */
   readonly debugHandTargets = [new THREE.Vector3(), new THREE.Vector3()];
@@ -94,27 +125,8 @@ export class Biped {
     private physics: Physics,
   ) {
     const mat = toonMat();
-    // Egg-shaped striped shell with a dark elytra seam down the back.
-    const shell = stripe(new THREE.SphereGeometry(1, 18, 24).scale(0.18, 0.24, 0.16), CHARACTER.torsoA, CHARACTER.torsoB, 0.075, {
-      wobble: 0.04,
-      freq: 2,
-    });
-    const seam = paint(new THREE.BoxGeometry(0.016, 0.36, 0.02), CHARACTER.limb);
-    const collar = paint(new THREE.CylinderGeometry(0.07, 0.1, 0.06, 10), CHARACTER.limb);
-    this.torso = meshOf(merge([shell, place(seam, 0, 0.0, 0.155, -0.1, 0, 0), place(collar, 0, 0.23, 0)]), mat);
-    const skull = paint(new THREE.SphereGeometry(0.15, 14, 10), CHARACTER.head);
-    const eyeL = paint(new THREE.SphereGeometry(0.035, 8, 6), CHARACTER.eye);
-    const mand = paint(new THREE.ConeGeometry(0.022, 0.07, 5), CHARACTER.limb);
-    this.head = meshOf(
-      merge([
-        skull,
-        place(eyeL, -0.07, 0.03, -0.12),
-        place(eyeL.clone(), 0.07, 0.03, -0.12),
-        place(mand, -0.04, -0.08, -0.12, -1.9, 0, 0.3),
-        place(mand.clone(), 0.04, -0.08, -0.12, -1.9, 0, -0.3),
-      ]),
-      mat,
-    );
+    this.torso = meshOf(robeGeo(), mat);
+    this.head = meshOf(hoodGeo(), mat);
     this.group.add(this.torso, this.head);
     scene.add(this.group);
     this.feet = [-1, 1].map((side) => ({
@@ -127,6 +139,13 @@ export class Biped {
       t: 0,
       side,
     }));
+    this.makeTails();
+  }
+
+  private makeTails() {
+    const len = Math.max(0.1, tuning.cloth.tailLength);
+    this.tails = [0, 1].map(() => new Ribbon(TAIL_POINTS, len / (TAIL_POINTS - 1)));
+    this.tailsLaid = false;
   }
 
   /** Planted foot positions (debug + tests). */
@@ -135,8 +154,12 @@ export class Biped {
   }
 
   private groundAt(x: number, z: number, fromY: number, fallbackY: number) {
-    const g = this.physics.groundY(x, z, fromY + 0.9, 2.2);
+    const g = this.physics.groundY(x, z, fromY + 1.4, 3.5);
     return g ? g.y : fallbackY;
+  }
+
+  private local(x: number, y: number, z: number, out: THREE.Vector3) {
+    return out.set(x, y, z).applyQuaternion(this.bodyQuat).add(this.hips);
   }
 
   /** Phase 1: body, feet and head. Call before placing the weapon. */
@@ -162,15 +185,17 @@ export class Biped {
     }
 
     // ---- feet
+    const walk = Math.max(0.1, tuning.player.walkSpeed);
     const hspeed = Math.hypot(inp.vel.x, inp.vel.z);
-    const stepDur = Math.max(0.02, THREE.MathUtils.lerp(b.stepDuration, b.stepDurationSprint, clamp((hspeed - tuning.player.walkSpeed) / 2.5, 0, 1)));
+    const sprintBlend = clamp((hspeed - walk) / (walk * 0.83), 0, 1);
+    const stepDur = Math.max(0.02, THREE.MathUtils.lerp(b.stepDuration, b.stepDurationSprint, sprintBlend));
     if (inp.rolling) {
       for (const f of this.feet) f.stepping = false;
     } else if (!inp.grounded) {
       for (const f of this.feet) {
         f.stepping = false;
-        f.pos.copy(inp.root).addScaledVector(this.right, f.side * b.stanceWidth * 0.8).addScaledVector(this.forward, 0.05);
-        f.pos.y += 0.06;
+        f.pos.copy(inp.root).addScaledVector(this.right, f.side * b.stanceWidth * 0.8).addScaledVector(this.forward, 0.08);
+        f.pos.y += 0.1;
         f.planted.copy(f.pos);
       }
     } else {
@@ -184,7 +209,7 @@ export class Biped {
         }
         this.onFootstep(inp.root);
       }
-      const still = hspeed < 0.15;
+      const still = hspeed < 0.24;
       for (let i = 0; i < 2; i++) {
         const f = this.feet[i];
         f.desired
@@ -214,7 +239,7 @@ export class Biped {
           f.t += dt / stepDur;
           const k = stepEase(f.t);
           f.pos.lerpVectors(f.from, f.to, k);
-          f.pos.y += stepArc(f.t, b.stepHeight * clamp(0.5 + hspeed / 6, 0.5, 1.2));
+          f.pos.y += stepArc(f.t, b.stepHeight * clamp(0.5 + hspeed / (walk * 2), 0.5, 1.2));
           if (f.t >= 1) {
             f.stepping = false;
             f.planted.copy(f.to);
@@ -232,10 +257,10 @@ export class Biped {
     // ---- hips: bob with step lift, drop toward the lower foot on uneven ground
     let lift = 0;
     for (const f of this.feet) if (f.stepping) lift = Math.max(lift, Math.sin(Math.PI * clamp(f.t, 0, 1)));
-    const moving = clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1.4);
+    const moving = clamp(safeDiv(hspeed, walk), 0, 1.4);
     this.bob = finite(damp(this.bob, (lift - 0.5) * b.bobAmount * moving, 25, dt));
     const lowFoot = Math.min(this.feet[0].pos.y, this.feet[1].pos.y);
-    const drop = inp.grounded && !inp.rolling ? clamp(lowFoot - inp.root.y, -0.25, 0) : 0;
+    const drop = inp.grounded && !inp.rolling ? clamp(lowFoot - inp.root.y, -0.4, 0) : 0;
 
     // ---- lean into velocity and acceleration (body-local)
     const fwdVel = inp.vel.dot(this.forward);
@@ -248,40 +273,35 @@ export class Biped {
     this.leanPitch = finite(damp(this.leanPitch, inp.rolling ? 0 : wantPitch, 10, dt));
     this.leanRoll = finite(damp(this.leanRoll, inp.rolling ? 0 : wantRoll, 10, dt));
 
-    // Tumble for the dodge roll: curl into a ball and flip forward.
+    // Dodge roll: tuck and tumble forward.
     const tumble = inp.rolling ? -Math.PI * 2 * tuning.roll.tumbleTurns * stepEase(inp.rollT) : 0;
     _e.set(this.leanPitch + tumble, 0, this.leanRoll, 'YXZ');
     _q.setFromEuler(_e);
     this.bodyQuat.copy(_qYaw).multiply(_q);
 
-    if (inp.rolling) {
-      this.hips.copy(inp.root).addScaledVector(_up, 0.3);
-    } else {
-      this.hips.copy(inp.root).addScaledVector(_up, b.hipHeight + this.bob + drop);
-    }
-    const local = (x: number, y: number, z: number, out: THREE.Vector3) =>
-      out.set(x, y, z).applyQuaternion(this.bodyQuat).add(this.hips);
+    if (inp.rolling) this.hips.copy(inp.root).addScaledVector(_up, B.rollHip);
+    else this.hips.copy(inp.root).addScaledVector(_up, b.hipHeight + this.bob + drop);
 
-    // Rolling: centre the curled body on the hips.
-    const torsoY = inp.rolling ? 0.02 : 0.2;
-    local(0, torsoY, 0, this.chest);
+    // Rolling: tuck the chest down toward the hips.
+    const tuck = inp.rolling ? 0.35 : 1;
+    this.local(0, B.chestY * tuck, 0, this.chest);
     this.torso.position.copy(this.chest);
     this.torso.quaternion.copy(this.bodyQuat);
-    local(0.15, torsoY + 0.13, -0.02, this.shoulderR);
-    local(-0.15, torsoY + 0.13, -0.02, this.shoulderL);
+    this.local(B.shoulderX, B.shoulderY * tuck, -0.02, this.shoulderR);
+    this.local(-B.shoulderX, B.shoulderY * tuck, -0.02, this.shoulderL);
 
     if (inp.rolling) {
-      for (const f of this.feet) local(f.side * 0.08, -0.14, -0.1, f.pos);
+      for (const f of this.feet) this.local(f.side * 0.12, -0.25, -0.15, f.pos);
     }
 
     // ---- head looks at the aim point (clamped relative to the body)
-    const neck = local(0, torsoY + 0.32, -0.02, _v);
-    this.head.position.copy(neck).addScaledVector(_up, inp.rolling ? 0 : 0.06);
+    this.local(0, B.neckY * tuck, -0.02, this.head.position);
     if (inp.rolling) {
       this.head.quaternion.copy(this.bodyQuat);
       this.headYaw = 0;
       this.headPitch = 0;
     } else {
+      this.head.position.addScaledVector(_up, B.headUp);
       _v2.subVectors(inp.aimPoint, this.head.position);
       const dYaw = Math.atan2(-_v2.x, -_v2.z) - inp.yaw;
       const relYaw = Math.atan2(Math.sin(dYaw), Math.cos(dYaw));
@@ -295,110 +315,122 @@ export class Biped {
 
   private deadT = 0;
 
-  /** Flipped onto its back with legs flailing, then slowing (the cute death). */
+  /** Falls back onto the ground and lies still. */
   private updateDead(inp: BipedInput, dt: number) {
     this.deadT += dt;
-    const flipK = stepEase(Math.min(1, this.deadT / 0.4));
-    const flail = Math.max(0.15, 1 - this.deadT * 0.35);
-    _e.set((Math.PI / 2) * flipK, 0, Math.sin(this.deadT * 7) * 0.08 * flail, 'YXZ');
+    const fall = stepEase(Math.min(1, this.deadT / 0.55));
+    // A small bounce as she lands.
+    const settle = this.deadT > 0.55 ? Math.sin(Math.min(1, (this.deadT - 0.55) / 0.25) * Math.PI) * 0.03 : 0;
+    _e.set((Math.PI / 2) * fall, 0, 0.12 * fall, 'YXZ');
     _q.setFromEuler(_e);
     this.bodyQuat.copy(this.yawQuat).multiply(_q);
-    this.hips.copy(inp.root).addScaledVector(_up, 0.4 - 0.22 * flipK + Math.sin(Math.PI * Math.min(1, this.deadT / 0.4)) * 0.25);
-    const local = (x: number, y: number, z: number, out: THREE.Vector3) => out.set(x, y, z).applyQuaternion(this.bodyQuat).add(this.hips);
-    local(0, 0.2, 0, this.chest);
+    this.hips.copy(inp.root).addScaledVector(_up, THREE.MathUtils.lerp(B.hip, 0.17, fall) + settle);
+    this.local(0, B.chestY, 0, this.chest);
     this.torso.position.copy(this.chest);
     this.torso.quaternion.copy(this.bodyQuat);
-    local(0.15, 0.33, -0.02, this.shoulderR);
-    local(-0.15, 0.33, -0.02, this.shoulderL);
+    this.local(B.shoulderX, B.shoulderY, -0.02, this.shoulderR);
+    this.local(-B.shoulderX, B.shoulderY, -0.02, this.shoulderL);
     for (const f of this.feet) {
-      const w = Math.sin(this.deadT * 11 + f.side * 1.7) * 0.09 * flail;
-      local(f.side * 0.12, -0.28, -0.14 + w, f.pos);
+      // Legs straighten out along the ground; one knee stays a little raised.
+      this.local(f.side * 0.16, -B.thigh - B.shin + 0.05, f.side < 0 ? -0.18 : -0.05, f.pos);
       f.planted.copy(f.pos);
       f.stepping = false;
     }
-    local(0, 0.52, -0.02, this.head.position);
+    this.local(0, B.neckY + B.headUp, -0.02, this.head.position);
     this.head.quaternion.copy(this.bodyQuat);
     this.wasRolling = true; // replant cleanly when revived
   }
 
-  /** Arm targets while flailing on its back. */
+  /** Arm targets while lying dead: flung out to the sides. */
   deadHands(outR: THREE.Vector3, outL: THREE.Vector3) {
-    const flail = Math.max(0.15, 1 - this.deadT * 0.35);
-    const a = Math.sin(this.deadT * 9) * 0.1 * flail;
-    outR.set(0.25, 0.25 + a, -0.2).applyQuaternion(this.bodyQuat).add(this.hips);
-    outL.set(-0.25, 0.25 - a, -0.2).applyQuaternion(this.bodyQuat).add(this.hips);
+    this.local(0.5, B.shoulderY - 0.05, -0.05, outR);
+    this.local(-0.45, B.shoulderY + 0.1, -0.05, outL);
   }
 
   /** Phase 2: arm IK to the given hand targets. */
   solveArms(rightTarget: THREE.Vector3, leftTarget: THREE.Vector3) {
     this.debugHandTargets[0].copy(rightTarget);
     this.debugHandTargets[1].copy(leftTarget);
-    _pole.copy(this.shoulderR).addScaledVector(this.right, 0.35).addScaledVector(_up, -0.35).addScaledVector(this.forward, -0.15);
-    solveTwoBone(this.shoulderR, rightTarget, _pole, UPPER_ARM, FOREARM, this.elbowR, this.handR);
-    _pole.copy(this.shoulderL).addScaledVector(this.right, -0.35).addScaledVector(_up, -0.35).addScaledVector(this.forward, -0.15);
-    solveTwoBone(this.shoulderL, leftTarget, _pole, UPPER_ARM, FOREARM, this.elbowL, this.handL);
+    _pole.copy(this.shoulderR).addScaledVector(this.right, 0.5).addScaledVector(_up, -0.5).addScaledVector(this.forward, -0.2);
+    solveTwoBone(this.shoulderR, rightTarget, _pole, B.upperArm, B.forearm, this.elbowR, this.handR);
+    _pole.copy(this.shoulderL).addScaledVector(this.right, -0.5).addScaledVector(_up, -0.5).addScaledVector(this.forward, -0.2);
+    solveTwoBone(this.shoulderL, leftTarget, _pole, B.upperArm, B.forearm, this.elbowL, this.handL);
   }
 
-  /** Phase 3: legs, antennae, and push every limb into the instanced renderer. */
+  /** Phase 3: legs, arms, blindfold tails, all pushed into the instanced limb renderer. */
   draw(limbs: LimbRenderer, dt: number) {
-    const L = CHARACTER.limb;
-    const b = tuning.biped;
-    // Legs
+    const L = PLAYER.limb;
+    // Legs: dark sticks below the robe, heavy boots.
     for (const f of this.feet) {
-      const hip = _v.set(f.side * 0.08, -0.02, 0).applyQuaternion(this.bodyQuat).add(this.hips);
-      _pole.copy(hip).addScaledVector(this.forward, 0.5).addScaledVector(this.right, f.side * 0.18);
-      _v2.copy(f.pos).addScaledVector(_up, 0.03);
-      solveTwoBone(hip, _v2, _pole, THIGH, SHIN, _knee, _end);
-      limbs.seg(hip, _knee, 0.034, L);
-      limbs.seg(_knee, _end, 0.028, L);
-      limbs.knob(_knee, 0.04, L);
+      const hip = this.local(f.side * B.hipX, -0.03, 0, _v);
+      _pole.copy(hip).addScaledVector(this.forward, 0.8).addScaledVector(this.right, f.side * 0.25);
+      _v2.copy(f.pos).addScaledVector(_up, 0.05);
+      solveTwoBone(hip, _v2, _pole, B.thigh, B.shin, _knee, _end);
+      limbs.seg(hip, _knee, 0.06, L);
+      limbs.seg(_knee, _end, 0.05, L);
+      limbs.knob(_knee, 0.06, L);
       _q.copy(this.yawQuat);
-      limbs.knob(_end, 0.05, L, 1, 0.55, 1.5, _q);
+      limbs.knob(_end.addScaledVector(this.forward, 0.03), 0.07, L, 1, 0.6, 1.6, _q);
     }
-    // Arms
-    limbs.seg(this.shoulderR, this.elbowR, 0.03, L);
-    limbs.seg(this.elbowR, this.handR, 0.026, L);
-    limbs.knob(this.elbowR, 0.036, L);
-    limbs.knob(this.handR, 0.042, L);
-    limbs.seg(this.shoulderL, this.elbowL, 0.03, L);
-    limbs.seg(this.elbowL, this.handL, 0.026, L);
-    limbs.knob(this.elbowL, 0.036, L);
-    limbs.knob(this.handL, 0.042, L);
-    limbs.knob(this.shoulderR, 0.04, L);
-    limbs.knob(this.shoulderL, 0.04, L);
-
-    // Antennae: base on the head, springy tips that lag head motion.
-    for (let i = 0; i < 2; i++) {
-      const side = i === 0 ? -1 : 1;
-      const spring = this.antTips[i];
-      spring.set(b.antennaSpring, b.antennaDamping);
-      const base = _v.set(side * 0.055, 0.12, -0.05).applyQuaternion(this.head.quaternion).add(this.head.position);
-      const restDir = _v2.set(side * 0.45, 1, 0.25).normalize().applyQuaternion(this.head.quaternion);
-      const restTip = base.clone().addScaledVector(restDir, ANT1 + ANT2);
-      if (dt > 0) {
-        const vel = restTip.clone().sub(this.antPrev[i]).divideScalar(dt);
-        const acc = vel.clone().sub(this.antPrevVel[i]);
-        // Inertia: tip lags behind the head's acceleration.
-        spring.impulse(-acc.x * 0.6, -acc.y * 0.6, -acc.z * 0.6);
-        spring.step(dt);
-        this.antPrevVel[i].copy(vel);
-      }
-      this.antPrev[i].copy(restTip);
-      const off = _end.set(spring.x.x, spring.y.x, spring.z.x).clampLength(0, 0.12);
-      const tip = restTip.add(off);
-      const mid = base.clone().lerp(tip, 0.45).addScaledVector(restDir, 0.03).addScaledVector(this.head.getWorldDirection(_knee), 0.03);
-      limbs.seg(base, mid, 0.012, L);
-      limbs.seg(mid, tip, 0.01, L);
-      limbs.knob(tip, 0.022, L);
+    // Arms: robe sleeves to the elbow, dark forearms and hands.
+    for (const [s, e, h] of [
+      [this.shoulderR, this.elbowR, this.handR],
+      [this.shoulderL, this.elbowL, this.handL],
+    ]) {
+      limbs.seg(s, e, 0.065, PLAYER.robe);
+      limbs.knob(e, 0.062, PLAYER.robeShade);
+      limbs.seg(e, h, 0.04, L);
+      limbs.knob(h, 0.052, L);
+      limbs.knob(s, 0.075, PLAYER.cowl);
     }
+    if (this.blindfolded) this.drawTails(limbs, dt);
 
     if (tuning.debug.showIK) {
       for (const f of this.feet) {
-        limbs.knob(f.planted, 0.05, 0x33ff66);
-        limbs.knob(f.desired, 0.04, 0xffee33);
+        limbs.knob(f.planted, 0.08, 0x33ff66);
+        limbs.knob(f.desired, 0.06, 0xffee33);
       }
-      limbs.knob(this.debugHandTargets[0], 0.035, 0x33ccff);
-      limbs.knob(this.debugHandTargets[1], 0.035, 0x3366ff);
+      limbs.knob(this.debugHandTargets[0], 0.055, 0x33ccff);
+      limbs.knob(this.debugHandTargets[1], 0.055, 0x3366ff);
     }
+  }
+
+  /** Put the blindfold on or take it off (the ending: the Moon frees it). */
+  setBlindfold(on: boolean) {
+    if (on === this.blindfolded) return;
+    this.blindfolded = on;
+    this.head.geometry.dispose();
+    this.head.geometry = hoodGeo(on);
+    this.tailsLaid = false;
+  }
+
+  get wearsBlindfold() {
+    return this.blindfolded;
+  }
+
+  /** The blindfold's two loose ends stream from the knot at the back of the hood. */
+  private drawTails(limbs: LimbRenderer, dt: number) {
+    const c = tuning.cloth;
+    if (Math.abs(this.tails[0].length - c.tailLength) > 1e-3) this.makeTails();
+    const back = c.restBackDeg * DEG;
+    const params = { gravity: c.gravity, drag: c.drag, stiffness: c.stiffness };
+    for (let i = 0; i < 2; i++) {
+      const side = i === 0 ? -1 : 1;
+      const anchor = _a.set(side * 0.03, B.headR * 0.45, B.headR * 1.02).applyQuaternion(this.head.quaternion).add(this.head.position);
+      // At rest the tails hang down and back from the knot, splayed a little.
+      const rest = _b.set(side * 0.18, -Math.cos(back), Math.sin(back)).normalize().applyQuaternion(this.yawQuat);
+      anchor.toArray(_anchor);
+      rest.toArray(_rest);
+      const tail = this.tails[i];
+      if (!this.tailsLaid) tail.reset(_anchor, _rest);
+      else tail.step(dt, _anchor, _rest, params);
+      const p = tail.pos;
+      for (let k = 1; k < tail.count; k++) {
+        _v.fromArray(p, (k - 1) * 3);
+        _v2.fromArray(p, k * 3);
+        limbs.seg(_v, _v2, 0.022 - k * 0.002, PLAYER.blindfold);
+      }
+    }
+    this.tailsLaid = true;
   }
 }

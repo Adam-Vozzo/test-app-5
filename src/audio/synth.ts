@@ -94,8 +94,8 @@ export class Synth {
     for (const k in layers) this.layer(layers[k], t0, pitch, gain, pan);
   }
 
-  shot(w: WeaponDef) {
-    const pitch = 1 + (this.rand() * 2 - 1) * w.pitchJitter;
+  shot(w: WeaponDef, pitchMul = 1) {
+    const pitch = pitchMul * (1 + (this.rand() * 2 - 1) * w.pitchJitter);
     this.playLayers(w.layers, pitch, w.volume);
   }
 
@@ -254,6 +254,167 @@ const SFX = {
     b: L({ kind: 'osc', wave: 'sine', f0: 1568, f1: 1568, dur: 0.18, gain: 0.22, delay: 0.08 }),
   },
   exhausted: { pant: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 1.5, dur: 0.25, gain: 0.25 }) },
+  // SwordRifle: blade swings, guards, charge economy and the rifle ⇄ sword transform.
+  swing: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 2600, q: 1.4, dur: 0.16, gain: 0.45 }),
+    air: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 5000, dur: 0.1, gain: 0.15, delay: 0.03 }),
+  },
+  swingHeavy: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 400, f1: 1800, q: 1.1, dur: 0.26, gain: 0.6 }),
+    hum: L({ kind: 'osc', wave: 'sawtooth', f0: 110, f1: 70, dur: 0.25, gain: 0.12 }),
+  },
+  bladeHit: {
+    chop: L({ kind: 'noise', filter: 'bandpass', f0: 1100, f1: 500, q: 1.2, dur: 0.09, gain: 0.8 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 150, f1: 55, dur: 0.12, gain: 0.7 }),
+  },
+  block: {
+    clang: L({ kind: 'osc', wave: 'square', f0: 1900, f1: 1750, dur: 0.22, gain: 0.09 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 2850, f1: 2800, dur: 0.35, gain: 0.08, delay: 0.004 }),
+    hit: L({ kind: 'noise', filter: 'highpass', f0: 2500, f1: 2500, dur: 0.04, gain: 0.6 }),
+  },
+  chargeGain: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 880, f1: 1320, dur: 0.12, gain: 0.22 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 1760, f1: 1760, dur: 0.18, gain: 0.08, delay: 0.06 }),
+  },
+  chargeReady: {
+    hum: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 440, dur: 0.3, gain: 0.25 }),
+    shine: L({ kind: 'osc', wave: 'triangle', f0: 1320, f1: 1980, dur: 0.25, gain: 0.08, delay: 0.1 }),
+  },
+  chargeEmpty: { fizz: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 300, q: 2, dur: 0.15, gain: 0.3 }) },
+  modeSwitch: {
+    clack1: L({ kind: 'noise', filter: 'bandpass', f0: 2200, f1: 1800, q: 3, dur: 0.03, gain: 0.6 }),
+    slide: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1400, q: 1.5, dur: 0.12, gain: 0.25, delay: 0.04 }),
+    clack2: L({ kind: 'noise', filter: 'bandpass', f0: 1600, f1: 1300, q: 3, dur: 0.04, gain: 0.7, delay: 0.17 }),
+  },
+  // Justice's enemies (V2-4): each wind-up is identifiable by ear before it lands.
+  // Bailiff thrust = rising steel scrape, Gavel = deep growl and rattling chain, Blindfold = two quick shings,
+  // Page = rising whistle.
+  windupThrust: {
+    scrape: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 2600, q: 3, dur: 0.5, gain: 0.45 }),
+    tick: L({ kind: 'osc', wave: 'square', f0: 1800, f1: 1800, dur: 0.03, gain: 0.08, delay: 0.45 }),
+  },
+  windupSlam: {
+    growl: L({ kind: 'osc', wave: 'sawtooth', f0: 62, f1: 44, dur: 1.1, gain: 0.2, attack: 0.1 }),
+    chain: L({ kind: 'noise', filter: 'highpass', f0: 3500, f1: 2500, dur: 0.9, gain: 0.16, attack: 0.2 }),
+  },
+  windupSlash: {
+    shing1: L({ kind: 'osc', wave: 'triangle', f0: 2400, f1: 3100, dur: 0.12, gain: 0.14 }),
+    shing2: L({ kind: 'osc', wave: 'triangle', f0: 2600, f1: 3400, dur: 0.12, gain: 0.14, delay: 0.18 }),
+    hiss: L({ kind: 'noise', filter: 'highpass', f0: 4000, f1: 6000, dur: 0.3, gain: 0.15 }),
+  },
+  windupThrow: { whistle: L({ kind: 'osc', wave: 'sine', f0: 900, f1: 1900, dur: 0.6, gain: 0.18 }) },
+  ambushTell: {
+    draw: L({ kind: 'noise', filter: 'highpass', f0: 2800, f1: 4200, dur: 0.45, gain: 0.35 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1760, f1: 1700, dur: 0.6, gain: 0.12, delay: 0.1 }),
+  },
+  whistle: {
+    up: L({ kind: 'osc', wave: 'sine', f0: 1500, f1: 2300, dur: 0.22, gain: 0.3 }),
+    down: L({ kind: 'osc', wave: 'sine', f0: 2300, f1: 1500, dur: 0.3, gain: 0.28, delay: 0.25 }),
+  },
+  // Court cards: the King's verdict is a judge's gavel (two knocks), and a horn marks each phase.
+  verdict: {
+    knock1: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 120, dur: 0.12, gain: 0.7 }),
+    knock2: L({ kind: 'osc', wave: 'sine', f0: 220, f1: 120, dur: 0.12, gain: 0.8, delay: 0.32 }),
+    wood: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 2, dur: 0.08, gain: 0.5, delay: 0.32 }),
+  },
+  courtHorn: {
+    low: L({ kind: 'osc', wave: 'sawtooth', f0: 98, f1: 98, dur: 1.1, gain: 0.16, attack: 0.15 }),
+    fifth: L({ kind: 'osc', wave: 'sawtooth', f0: 147, f1: 147, dur: 0.9, gain: 0.1, attack: 0.2, delay: 0.15 }),
+  },
+  slamImpact: {
+    crash: L({ kind: 'noise', filter: 'lowpass', f0: 1600, f1: 120, dur: 0.6, gain: 0.9 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 75, f1: 30, dur: 0.5, gain: 0.9 }),
+  },
+  // The Devil's enemies and rule (V2-9): chains rattle before they bind, imps chitter, coins jingle, and a hoard
+  // with a bell on it rings when it's touched.
+  chainRattle: {
+    rattle: L({ kind: 'noise', filter: 'bandpass', f0: 3200, f1: 2200, q: 4, dur: 0.8, gain: 0.32, attack: 0.05 }),
+    clink: L({ kind: 'osc', wave: 'square', f0: 2600, f1: 2500, dur: 0.05, gain: 0.07, delay: 0.3 }),
+    clink2: L({ kind: 'osc', wave: 'square', f0: 2900, f1: 2800, dur: 0.05, gain: 0.07, delay: 0.55 }),
+  },
+  chainSnap: {
+    snap: L({ kind: 'noise', filter: 'highpass', f0: 2500, f1: 1800, dur: 0.12, gain: 0.8 }),
+    clank: L({ kind: 'osc', wave: 'square', f0: 420, f1: 300, dur: 0.18, gain: 0.18 }),
+  },
+  chainBreak: {
+    crack: L({ kind: 'noise', filter: 'bandpass', f0: 1800, f1: 800, q: 2, dur: 0.25, gain: 0.8 }),
+    ring: L({ kind: 'osc', wave: 'triangle', f0: 1400, f1: 900, dur: 0.4, gain: 0.14 }),
+  },
+  bound: {
+    cinch: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1800, q: 3, dur: 0.35, gain: 0.6 }),
+    low: L({ kind: 'osc', wave: 'sawtooth', f0: 110, f1: 82, dur: 0.6, gain: 0.14 }),
+  },
+  impChitter: {
+    a: L({ kind: 'osc', wave: 'square', f0: 1300, f1: 1700, dur: 0.06, gain: 0.08 }),
+    b: L({ kind: 'osc', wave: 'square', f0: 1500, f1: 1900, dur: 0.06, gain: 0.08, delay: 0.09 }),
+    c: L({ kind: 'osc', wave: 'square', f0: 1700, f1: 2300, dur: 0.08, gain: 0.08, delay: 0.18 }),
+  },
+  coinJingle: {
+    a: L({ kind: 'osc', wave: 'triangle', f0: 3100, f1: 3000, dur: 0.08, gain: 0.08 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 3600, f1: 3500, dur: 0.08, gain: 0.07, delay: 0.07 }),
+    c: L({ kind: 'osc', wave: 'triangle', f0: 2800, f1: 2700, dur: 0.1, gain: 0.07, delay: 0.15 }),
+  },
+  hoardBell: {
+    strike: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 655, dur: 1.6, gain: 0.3 }),
+    over: L({ kind: 'osc', wave: 'sine', f0: 1650, f1: 1640, dur: 1.1, gain: 0.1 }),
+    over2: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 655, dur: 1.4, gain: 0.22, delay: 0.5 }),
+  },
+  // The Tower (V2-11): a deck creaks before it goes, falling timber, fire catching, and thunder after a strike.
+  creak: {
+    groan: L({ kind: 'osc', wave: 'sawtooth', f0: 140, f1: 95, dur: 0.6, gain: 0.12, attack: 0.05 }),
+    split: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 4, dur: 0.25, gain: 0.35, delay: 0.25 }),
+  },
+  timberFall: {
+    crack: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 200, dur: 0.5, gain: 0.7 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.4, gain: 0.5, delay: 0.1 }),
+  },
+  fireCatch: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 400, f1: 1600, q: 1, dur: 0.5, gain: 0.4, attack: 0.08 }),
+  },
+  thunder: {
+    crack: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 800, dur: 0.15, gain: 0.9 }),
+    roll: L({ kind: 'noise', filter: 'lowpass', f0: 500, f1: 80, dur: 1.6, gain: 0.8, delay: 0.05 }),
+  },
+  // The Moon (V2-13): real things have footsteps (soft, low); a reflection dispels with a glassy shimmer.
+  foeStep: {
+    thud: L({ kind: 'noise', filter: 'lowpass', f0: 420, f1: 160, dur: 0.08, gain: 0.32 }),
+  },
+  shimmer: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 1760, f1: 2640, dur: 0.5, gain: 0.12 }),
+    b: L({ kind: 'osc', wave: 'triangle', f0: 2200, f1: 3300, dur: 0.45, gain: 0.07, delay: 0.08 }),
+    air: L({ kind: 'noise', filter: 'highpass', f0: 5000, f1: 7000, dur: 0.5, gain: 0.12 }),
+  },
+  // The Moon's own (V2-14): a howl (the pair's buff), ripples before a crayfish surges, a tidal wave, a pour of
+  // fish, the cup drunk (sweet or sour), and the Sun.
+  howl: {
+    rise: L({ kind: 'osc', wave: 'sawtooth', f0: 330, f1: 620, dur: 0.7, gain: 0.12, attack: 0.15 }),
+    fall: L({ kind: 'osc', wave: 'sawtooth', f0: 620, f1: 440, dur: 0.9, gain: 0.1, delay: 0.6 }),
+    breath: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 700, q: 2, dur: 1.3, gain: 0.12, attack: 0.2 }),
+  },
+  ripple: {
+    a: L({ kind: 'noise', filter: 'bandpass', f0: 500, f1: 900, q: 3, dur: 0.5, gain: 0.3 }),
+    b: L({ kind: 'noise', filter: 'bandpass', f0: 600, f1: 1100, q: 3, dur: 0.5, gain: 0.25, delay: 0.35 }),
+  },
+  wave: {
+    surge: L({ kind: 'noise', filter: 'lowpass', f0: 300, f1: 1400, dur: 1.2, gain: 0.7, attack: 0.3 }),
+    low: L({ kind: 'osc', wave: 'sine', f0: 70, f1: 50, dur: 1.2, gain: 0.3, attack: 0.3 }),
+  },
+  pour: {
+    glug: L({ kind: 'noise', filter: 'bandpass', f0: 700, f1: 300, q: 5, dur: 0.9, gain: 0.35, attack: 0.1 }),
+  },
+  drink: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 880, dur: 0.4, gain: 0.18 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 880, f1: 1320, dur: 0.5, gain: 0.14, delay: 0.15 }),
+  },
+  poison: {
+    a: L({ kind: 'osc', wave: 'sawtooth', f0: 330, f1: 160, dur: 0.6, gain: 0.16 }),
+    hiss: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 1500, dur: 0.5, gain: 0.25 }),
+  },
+  sunrise: {
+    a: L({ kind: 'osc', wave: 'sine', f0: 392, f1: 392, dur: 2.4, gain: 0.16, attack: 0.6 }),
+    b: L({ kind: 'osc', wave: 'sine', f0: 587, f1: 587, dur: 2.2, gain: 0.12, attack: 0.6, delay: 0.4 }),
+    c: L({ kind: 'osc', wave: 'sine', f0: 784, f1: 784, dur: 2.0, gain: 0.1, attack: 0.6, delay: 0.8 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

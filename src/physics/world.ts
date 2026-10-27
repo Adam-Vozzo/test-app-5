@@ -24,6 +24,8 @@ export const GROUPS = {
   qWorld: groups(G.QUERY, G.WORLD),
   qShot: groups(G.QUERY, G.WORLD | G.HITBOX),
   qCamera: groups(G.QUERY, G.WORLD),
+  /** Blade sweeps: targets only (a sword passes through walls rather than snagging on them). */
+  qHitbox: groups(G.QUERY, G.HITBOX),
   qMove: groups(G.WORLD | G.PLAYER, G.WORLD | G.ENEMY_BODY),
 };
 
@@ -48,6 +50,8 @@ export interface Damageable {
   armorMul?: number;
   /** Returns true if this damage killed it. */
   takeDamage(info: DamageInfo): boolean;
+  /** Guards: true if a blow travelling along `dir` (attacker → target) is blocked (no damage). */
+  blocks?(dir: THREE.Vector3): boolean;
 }
 
 export interface RayHit {

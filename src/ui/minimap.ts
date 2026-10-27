@@ -1,5 +1,21 @@
-// Debug overlay: draws the zone graph (clearings by role, paths), the player and enemies. Toggle with M.
+// Debug overlay: draws the zone graph (clearings by role, paths) or a generated level's mission graph (rooms by
+// node kind, connectors, the shortcut), the player and enemies. Toggle with M.
 import type { ZoneLayout } from '../world/gen';
+import type { LevelWorld } from '../world/level';
+
+/** Node kinds (LEVELS.md → Mission graph). Signal colours mark only the miniboss and the dummies. */
+const KIND_COLOR: Record<string, string> = {
+  start: '#ffffff',
+  combat: '#d9b35c',
+  traverse: '#9aa4ad',
+  vista: '#7fc8f0',
+  lantern: '#f0b266',
+  branch: '#9cc79a',
+  setpiece: '#c49ae8',
+  gate: '#e8806a',
+  miniboss: '#ff2e9a',
+  exit: '#ffffff',
+};
 
 const ROLE_COLOR: Record<string, string> = { start: '#ffffff', encounter: '#d9b35c', boss: '#ff2e9a', cache: '#ffe14d' };
 
@@ -23,6 +39,59 @@ export class Minimap {
     });
     document.body.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d')!;
+  }
+
+  drawLevel(lv: LevelWorld, visible: boolean, player: { x: number; z: number }, dummies: { x: number; z: number; alive: boolean }[]) {
+    this.canvas.style.display = visible ? '' : 'none';
+    if (!visible) return;
+    const L = lv.generated;
+    const g = this.ctx;
+    const { minX, maxX, minZ, maxZ } = L.bounds;
+    const size = 220;
+    const pad = 12;
+    const scale = (size - pad * 2) / Math.max(maxX - minX, maxZ - minZ);
+    // Centre the shorter axis.
+    const ox = pad + (size - pad * 2 - (maxX - minX) * scale) / 2;
+    const oz = pad + (size - pad * 2 - (maxZ - minZ) * scale) / 2;
+    const X = (x: number) => ox + (x - minX) * scale;
+    const Z = (z: number) => oz + (z - minZ) * scale;
+    g.clearRect(0, 0, size, size);
+    g.lineCap = 'butt';
+    L.space.connectors.forEach((c, i) => {
+      const shortcut = i === L.space.shortcut;
+      g.strokeStyle = shortcut ? (lv.shortcutOpen() ? 'rgba(254,238,197,0.8)' : '#e8806a') : 'rgba(254,238,197,0.7)';
+      g.setLineDash(shortcut && !lv.shortcutOpen() ? [3, 2] : []);
+      g.lineWidth = Math.max(1.5, c.width * scale);
+      g.beginPath();
+      g.moveTo(X(c.ax), Z(c.az));
+      g.lineTo(X(c.bx), Z(c.bz));
+      g.stroke();
+    });
+    g.setLineDash([]);
+    for (const r of L.space.rooms) {
+      const nd = L.graph.nodes[r.node];
+      g.fillStyle = 'rgba(254,238,197,0.25)';
+      g.fillRect(X(r.x - r.sx / 2), Z(r.z - r.sz / 2), r.sx * scale, r.sz * scale);
+      g.strokeStyle = KIND_COLOR[nd.kind];
+      g.lineWidth = 2;
+      g.strokeRect(X(r.x - r.sx / 2), Z(r.z - r.sz / 2), r.sx * scale, r.sz * scale);
+      g.fillStyle = '#fff';
+      g.font = 'bold 9px monospace';
+      g.textAlign = 'center';
+      g.fillText(nd.index >= 0 ? String(nd.index) : 'b', X(r.x), Z(r.z) + 3);
+    }
+    g.fillStyle = '#f0b266';
+    for (const l of L.dressing.lanterns) g.fillRect(X(l.x) - 2, Z(l.z) - 2, 4, 4);
+    g.fillStyle = '#ff2e9a';
+    for (const d of dummies) if (d.alive) g.fillRect(X(d.x) - 1.5, Z(d.z) - 1.5, 3, 3);
+    g.fillStyle = '#ff6a3d';
+    g.beginPath();
+    g.arc(X(player.x), Z(player.z), 4, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#fff';
+    g.font = '10px monospace';
+    g.textAlign = 'left';
+    g.fillText(`seed ${L.seed} · L${L.level + 1} · ${L.script.setPiece.id}`, 6, size - 6);
   }
 
   draw(L: ZoneLayout | null, visible: boolean, player: { x: number; z: number }, enemies: { x: number; z: number; alive: boolean }[]) {

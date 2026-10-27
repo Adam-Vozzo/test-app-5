@@ -17,8 +17,27 @@ The current slice exists to answer:
 Anything that doesn't serve that question is out of scope for now. Depth over breadth: one excellent dimension beats
 four thin ones.
 
-> **Code status:** until V2-1 lands, `src/` is still the v1 bug-scale prototype (beetle units, garden/kitchen zones,
-> bug weapons and enemies). Comments that mention bugs, pollen or beetles describe v1 content.
+> **Code status (V2-7, the slice):** the player, camera, weapons (with the parry), look, the hub (`src/world/hub.ts`,
+> save in `src/core/save.ts`), the Justice training courtyard, the generated Justice levels (`src/world/gen-*.ts`,
+> `level.ts`), Justice's enemies (`src/enemies/foe*.ts`, `humanoid.ts`), the Swords court cards (`court.ts`), and
+> Justice and her arena (`justice.ts`, `src/world/boss.ts`) are v2, in
+> metres. **V2-8** (the second dimension, in progress per `PLAN.md`) adds the Devil's descending levels
+> (`DEVIL_DIMENSION` in `src/world/dimensions.ts`, `DEVIL` palette) behind the bull's gate; **V2-9** adds its enemies
+> (`src/enemies/devil.ts`: Miser, Imp, Page of Pentacles as data; the chained Thralls) and its rule (the binding,
+> `src/player/binding.ts`; tempting hoards placed by `gen-dress.ts`); **V2-10** adds the Pentacles court
+> (`court-pentacles.ts`), the Devil and his pact (`devil-boss.ts`, his arena via `boss.ts`), coin on the floor
+> (`src/world/coins.ts`) and his unbinding, the dash (X). **V2-11** adds the Tower's climbing levels behind the
+> lion's gate (`TOWER_DIMENSION`, `TOWER` palette) and its rule, collapse: timber decks (`src/world/scaffold.ts`
+> pure, `decks.ts` runtime), lightning, fire and falls (`Game.collapse`). **V2-12** adds its own
+> (`src/enemies/tower-foes.ts`: Firebrand, Faller, Builder, Page of Wands, the cat), the Wands court and the Crowned
+> Tower (`court-wands.ts`, its top-floor arena via `boss.ts`), the safe fall, and the Star in the hub. **V2-13**
+> adds the Moon's marsh (`MOON_DIMENSION`, `MOON` palette, water) behind the eagle's gate and its rule, illusion:
+> reflections among the enemies (`Foe.illusion`: no shadow, no footsteps, harmless, one hit dispels) and false paths.
+> **V2-14** adds its own (`src/enemies/moon-foes.ts`: Dog and Wolf, the Crayfish, Phantoms, the Page of Cups), the
+> Cups court and the Shadow (`court-cups.ts`, its island arena via `boss.ts`), and the ending: the blindfold comes off
+> and the Sun (`Menus.showSun`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
+> through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
 ## Pillars (check every decision against these)
 
@@ -55,15 +74,17 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm run build`: typecheck and production build (relative `base`, so it deploys to GitHub Pages)
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
-  Writes screenshots to `screenshots/`. Add scenarios with `npm run smoke -- --range --enemies --zones`
-  (v1 scenarios: weapons/range, combat loop, zones; v2 milestones replace them as their scenes arrive).
+  Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
+  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol` and `--sword` are v2, and `--moonfoes` runs just the Moon's
+  enemies, court, Shadow and ending; `--enemies` and
+  `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
 
 ## Conventions
 
-- **Units**: v2 uses **1 world unit = 1 metre** (player ≈ 1.6 m); until V2-1 lands, the code still uses v1's
-  1 unit ≈ beetle height. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where
-  noted).
+- **Units**: **1 world unit = 1 metre**; the player is 1.6 m (`src/anim/body.ts` holds her proportions; lengths in the
+  rig, weapon placement and reloads come from `BODY`, never literals). `tuning.foes` (v2 enemies) is in metres;
+  `tuning.enemies` is the v1 bugs, still in beetle units. Y is up. Time is in seconds, angles in radians (the tuning panel shows degrees where noted).
 - **Seeded RNG everywhere**: never call `Math.random()` in game code. Use `rng()` from `src/core/rng.ts`, seeded
   from `?seed=` (shown in the debug overlay). FX jitter uses a separate stream so gameplay generation stays
   deterministic regardless of what effects ran.
@@ -79,7 +100,11 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - **Geometry** is built from primitives with vertex colours and merged per prop type (`src/render/geo.ts`). Repeated
   props use `InstancedMesh`. One shadow-casting light. Keep draw calls low and check the debug overlay.
 - **Pools, not allocations**, in hot paths: tracers, impacts, decals, casings and audio voices. Reuse scratch vectors.
-- **Changing light count recompiles shaders.** The muzzle point light always exists; toggle its intensity.
+- **Changing light count recompiles shaders.** The muzzle point light always exists; toggle its intensity. Warm
+  lights in levels (lanterns) are unlit emissive meshes plus an additive ground glow, never extra lights.
+- **Fog** is a shader-chunk override (`src/render/atmosphere.ts`): soft-exponent distance fog with height falloff,
+  driven by `tuning.look` through one shared uniform object. Don't create materials that opt out of fog unless
+  they're FX or the sky.
 - **Colours**: area and signal colours live in `src/render/palette.ts`. Signal colours (telegraph magenta, weak-spot
   cyan, crit gold, kill red, UI white) are never used on props, characters or accent motifs. Each area has one
   accent motif colour, used only on that motif.
@@ -97,19 +122,32 @@ src/
   main.ts          bootstrap, menus, game loop
   game.ts          modes + per-frame system order
   tuning.ts        all feel numbers (weapons reference src/weapons/defs.ts)
-  core/            rng, math/springs, input, time (slow-mo, hitstop)
+  core/            rng, math/springs, input, time (slow-mo, hitstop), save (pure progress logic + localStorage)
   physics/         Rapier world wrapper, collision groups
-  render/          renderer, palette, geometry helpers, toon materials, optional painterly post pass
-  anim/            pure IK + gait logic, biped rig
-  player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement
-  weapons/         weapon defs, firing, recoil
+  render/          renderer, palette, geometry helpers, toon materials, atmosphere (fog + sky), pixel mode
+                   (low-res blocks + distance-faded depth outline)
+  anim/            pure IK + gait logic, BODY proportions, verlet ribbon (blindfold tails), biped rig
+  player/          controller, camera, vitals (health/stamina/heal), player rig + weapon placement, the Devil's
+                   binding (binding.ts: pure timing; a roll breaks it)
+  weapons/         weapon defs, firing, recoil, projectiles; SwordRifle (swing.ts: pure melee timing/pose/charges;
+                   swordrifle.ts: modes, blade sweep, charge cells); the parry (parry.ts: pure timing)
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
-  ui/              HUD, crosshair, hit markers, menus, tuning panel (presets, Copy JSON)
-  enemies/         multi-legged IK rig, body plans, AI state machine, hazards (globs, charge lanes), manager
-                   (v2: humanoid enemies on the biped rig, court-rank behaviours)
-  world/           arenas, dummy range, props, pollen drop, zone generator (v2: dimension data, mission graph,
-                   room/connector kits, validation, hub)
+  ui/              HUD, crosshair, hit markers, menus, the Magician's shop, tuning panel (presets, Copy JSON)
+  enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
+                   Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
+                   boss (justice.ts: JusticeBoss extends CourtCard); the Devil's archetypes and the Thrall pair
+                   (devil.ts), the Pentacles court
+                   (court-pentacles.ts) and the Devil (devil-boss.ts: DevilBoss extends CourtCard); the Tower's
+                   commons (tower-foes.ts: TowerFoe, Faller), the Wands court and the Crowned Tower
+                   (court-wands.ts); the Moon's commons (moon-foes.ts: MoonFoe, Lurker), the Cups court and the Shadow
+                   (court-cups.ts: CupsCard, ShadowBoss). Shared: hazards (slam rings, thrown blades, globs, charge
+                   lanes, waves, cups) and the manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
+  world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
+                   mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
+                   gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), the boss arena
+                   (boss.ts), the hub (hub.ts + hub-data.ts: shop items, lines), faceted prop kit,
+                   Justice courtyard, training dummies. v1: arenas, props, pollen drop, zone generator.
 tests/             vitest unit tests
 scripts/           smoke test (Playwright)
 archive/v1/        frozen v1 planning docs

@@ -5,7 +5,7 @@ import { GROUPS, type RayHit } from '../physics/world';
 import type { WeaponDef } from './defs';
 import type { GunContext } from './gun';
 import { resolveHit, ShotFeedback } from './hit';
-import { stapleGeo } from './model';
+import { boltGeo } from './model';
 import { toonMat } from '../render/geo';
 
 interface Projectile {
@@ -16,19 +16,20 @@ interface Projectile {
   skip: Set<number>;
   life: number;
   fb: ShotFeedback;
+  /** Damage multiplier from the firing gun (the SwordRifle's repair stage). */
+  damageMul: number;
   /** Stuck in a wall: stays visible briefly. */
   stuck: number;
   travelled: number;
 }
 
 const MAX = 48;
-/** Staples are drawn oversized so they read at range. */
-const STAPLE_SCALE = 1.8;
 const _dir = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _s = new THREE.Vector3(1, 1, 1);
 const _fwd = new THREE.Vector3(0, 0, -1);
+const _col = new THREE.Color();
 const _hit: RayHit = { point: new THREE.Vector3(), normal: new THREE.Vector3(), distance: 0, collider: null as never, target: null };
 
 export class Projectiles {
@@ -40,14 +41,17 @@ export class Projectiles {
   constructor(scene: THREE.Scene) {
     this.trail = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5),
-      new THREE.MeshBasicMaterial({ color: 0xe8f0ff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7, depthWrite: false, fog: false }),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.7, depthWrite: false, fog: false }),
       MAX,
     );
+    // Each weapon's trail takes its def's tracerColor (per instance).
+    this.trail.setColorAt(0, new THREE.Color(1, 1, 1));
+    this.trail.instanceColor!.setUsage(THREE.DynamicDrawUsage);
     this.trail.count = 0;
     this.trail.frustumCulled = false;
     this.trail.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     scene.add(this.trail);
-    this.mesh = new THREE.InstancedMesh(stapleGeo(), toonMat(), MAX);
+    this.mesh = new THREE.InstancedMesh(boltGeo(), toonMat(), MAX);
     this.mesh.count = 0;
     this.mesh.castShadow = true;
     this.mesh.frustumCulled = false;
@@ -55,7 +59,7 @@ export class Projectiles {
     scene.add(this.mesh);
   }
 
-  launch(def: WeaponDef, from: THREE.Vector3, dir: THREE.Vector3, fb: ShotFeedback) {
+  launch(def: WeaponDef, from: THREE.Vector3, dir: THREE.Vector3, fb: ShotFeedback, damageMul = 1) {
     if (this.list.length >= MAX) this.list.shift();
     this.list.push({
       pos: from.clone(),
@@ -65,6 +69,7 @@ export class Projectiles {
       skip: new Set(),
       life: def.range / Math.max(1, def.projectileSpeed) + 0.5,
       fb,
+      damageMul,
       stuck: 0,
       travelled: 0,
     });
@@ -98,7 +103,7 @@ export class Projectiles {
           remaining = 0;
           break;
         }
-        const struckTarget = resolveHit(ctx, p.def, hit, _dir, p.fb);
+        const struckTarget = resolveHit(ctx, p.def, hit, _dir, p.fb, p.damageMul);
         p.fb.flush(ctx);
         remaining -= hit.distance;
         p.pos.copy(hit.point);
@@ -108,7 +113,7 @@ export class Projectiles {
           continue;
         }
         if (!struckTarget && !hit.target) {
-          // Embed in the world for a moment: a staple stuck in the dirt.
+          // Embed in the world for a moment: a bolt stuck in the stone.
           p.pos.addScaledVector(_dir, 0.03);
           p.stuck = 1.5;
         } else {
@@ -122,11 +127,12 @@ export class Projectiles {
     for (const p of this.list) {
       if (p.life <= 0 && p.stuck <= 0) continue;
       _q.setFromUnitVectors(_fwd, _dir.copy(p.vel).normalize());
-      _m.compose(p.pos, _q, _s.setScalar(STAPLE_SCALE));
+      _m.compose(p.pos, _q, _s.setScalar(p.def.projectileScale));
       this.mesh.setMatrixAt(n++, _m);
       if (p.stuck <= 0) {
         const len = Math.min(p.def.tracerLength, p.travelled);
         _m.compose(p.pos, _q, _s.set(p.def.tracerWidth, p.def.tracerWidth, len));
+        this.trail.setColorAt(tn, _col.setHex(p.def.tracerColor));
         this.trail.setMatrixAt(tn++, _m);
       }
     }
@@ -134,6 +140,7 @@ export class Projectiles {
     this.mesh.instanceMatrix.needsUpdate = true;
     this.trail.count = tn;
     this.trail.instanceMatrix.needsUpdate = true;
+    if (this.trail.instanceColor) this.trail.instanceColor.needsUpdate = true;
   }
 
   clear() {

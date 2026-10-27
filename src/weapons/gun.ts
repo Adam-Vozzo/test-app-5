@@ -2,6 +2,7 @@
 // hitscan or projectile, recoil pattern + kick springs, self-knockback, pump/bolt cycling by the off hand,
 // and committed reloads (whole magazine, or one round at a time).
 import * as THREE from 'three';
+import { BODY } from '../anim/body';
 import { clamp, damp, DEG, safeDiv, smoothstep, Spring3 } from '../core/math';
 import { makeRng } from '../core/rng';
 import type { Synth } from '../audio/synth';
@@ -40,6 +41,8 @@ export interface GunContext {
   projectiles: Projectiles;
   onHit: (e: HitEvent) => void;
   onShot: (shotId: number) => void;
+  /** A guard turned a blow (shield sparks). */
+  onBlocked?: () => void;
 }
 
 const _origin = new THREE.Vector3();
@@ -84,6 +87,14 @@ export class Gun {
   spread = 0;
   /** What the crosshair shows: aim spread + pellet cone. */
   displaySpread = 0;
+  /** Damage and shot-sound pitch multipliers (the SwordRifle's repair stage sets them). */
+  damageMul = 1;
+  toneMul = 1;
+  /** Extra rounds bought from the Magician. */
+  magBonus = 0;
+  get magSize() {
+    return this.def.magSize + this.magBonus;
+  }
   readonly pose: WeaponPose;
 
   constructor(
@@ -91,8 +102,8 @@ export class Gun {
     readonly model: WeaponModel,
     infiniteReserve: boolean,
   ) {
-    this.mag = def.magSize;
-    this.reserve = infiniteReserve ? Infinity : def.reserve;
+    this.mag = def.magSize + this.magBonus;
+    this.reserve = infiniteReserve || def.infiniteReserve ? Infinity : def.reserve;
     this.hammerAngle = model.hammerCocked;
     this.pumpRestZ = model.pump?.position.z ?? 0;
     this.pose = {
@@ -106,7 +117,7 @@ export class Gun {
   }
 
   refill() {
-    this.mag = this.def.magSize;
+    this.mag = this.magSize;
     if (this.reserve !== Infinity) this.reserve = this.def.reserve;
     this.cancelReload(false);
   }
@@ -114,12 +125,12 @@ export class Gun {
   /** Progress shown in the HUD (0..1). */
   get reloadProgress() {
     if (!this.reloading) return 0;
-    if (this.def.reloadMode === 'single') return clamp((this.mag + this.reloadT) / this.def.magSize, 0, 1);
+    if (this.def.reloadMode === 'single') return clamp((this.mag + this.reloadT) / this.magSize, 0, 1);
     return this.reloadT;
   }
 
   startReload(ctx: GunContext) {
-    if (this.reloading || this.mag >= this.def.magSize || this.reserve <= 0 || ctx.player.controller.committed) return;
+    if (this.reloading || this.mag >= this.magSize || this.reserve <= 0 || ctx.player.controller.committed) return;
     this.reloading = true;
     this.reloadT = 0;
     this.roundsThisReload = 0;
@@ -196,7 +207,7 @@ export class Gun {
     const c = p.controller;
     const hspeed = Math.hypot(c.vel.x, c.vel.z);
     let s = THREE.MathUtils.lerp(d.hipSpread, d.adsSpread, ctx.camera.adsAmount);
-    if (hspeed > 0.6) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
+    if (hspeed > 1) s *= THREE.MathUtils.lerp(1, d.moveSpreadMul, clamp(safeDiv(hspeed, tuning.player.walkSpeed), 0, 1));
     if (!c.grounded) s *= d.airSpreadMul;
     this.spread = s + this.bloom;
     this.displaySpread = this.spread + this.pelletCone(ctx);
@@ -225,14 +236,14 @@ export class Gun {
         ctx.synth.reload('in');
         this.pose.kickPos.z.impulse(-0.5);
         this.reloadEvents.clear();
-        if (this.mag >= d.magSize || this.reserve <= 0) this.cancelReload(false);
+        if (this.mag >= this.magSize || this.reserve <= 0) this.cancelReload(false);
         else this.reloadT -= 1;
       }
       return;
     }
     this.magFoley(ctx);
     if (this.reloadT >= 1) {
-      const take = Math.min(d.magSize - this.mag, this.reserve);
+      const take = Math.min(this.magSize - this.mag, this.reserve);
       this.mag += take;
       if (this.reserve !== Infinity) this.reserve -= take;
       this.cancelReload(false);
@@ -266,7 +277,7 @@ export class Gun {
         const h = physics.raycast(_origin, _dir, d.range, GROUPS.qShot, exclude, hitA);
         const target = h ? h.point : _end.copy(_origin).addScaledVector(_dir, d.range);
         _tmp.subVectors(target, _mz).normalize();
-        ctx.projectiles.launch(d, _mz, _tmp, fb);
+        ctx.projectiles.launch(d, _mz, _tmp, fb, this.damageMul);
         continue;
       }
 
@@ -295,7 +306,7 @@ export class Gun {
           break;
         }
         lastPoint = hit.point.clone();
-        const struck = resolveHit(ctx, d, hit, _dir, fb);
+        const struck = resolveHit(ctx, d, hit, _dir, fb, this.damageMul);
         if (struck && pierceLeft-- > 0) {
           skip.add(hit.collider.handle);
           from = hit.point.clone();
@@ -311,7 +322,7 @@ export class Gun {
     // ---- feedback
     fx.muzzleFlash(_mz, d.flashScale, d.flashFrames, d.flashLight, d.flashColor);
     if (d.cycle !== 'pump' && d.casingSpeed > 0) this.ejectCasing(ctx, PROPS.wood);
-    synth.shot(d);
+    synth.shot(d, this.toneMul);
     this.applyRecoil(ctx);
     this.bloom = Math.min(d.bloomMax, this.bloom + d.bloomPerShot);
     this.shotIndex++;
@@ -457,8 +468,9 @@ export class Gun {
   }
 
   private pouchPoint(biped: Biped, out: THREE.Vector3) {
-    out.copy(biped.hips).addScaledVector(biped.right, -0.16).addScaledVector(biped.forward, 0.02);
-    out.y += 0.02;
+    const p = BODY.pouch;
+    out.copy(biped.hips).addScaledVector(biped.right, p.x).addScaledVector(biped.forward, -p.z);
+    out.y += p.y;
     return out;
   }
 

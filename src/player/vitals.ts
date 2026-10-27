@@ -1,5 +1,5 @@
 // Souls-like player rules as plain logic: health, stamina (gates roll + sprint, regen after a delay),
-// committed heal with limited charges, hurt stun, death, pollen. No Three/DOM, so it is unit-tested.
+// committed heal with limited charges, hurt stun, death, currency. No Three/DOM, so it is unit-tested.
 import { tuning } from '../tuning';
 
 export interface DamageResult {
@@ -12,7 +12,12 @@ export class Vitals {
   health = tuning.vitals.maxHealth;
   stamina = tuning.vitals.maxStamina;
   healCharges = tuning.vitals.healCharges;
-  pollen = 0;
+  /** Extra flasks bought from the Magician. */
+  bonusCharges = 0;
+  /** Heals restore this much more (the Star's pour). */
+  healMul = 1;
+  /** Carried currency (pentacles in v2 scenes, pollen in the v1 ones). */
+  currency = 0;
   healing = false;
   /** Heal progress 0..1. */
   healT = 0;
@@ -24,6 +29,10 @@ export class Vitals {
 
   get maxHealth() {
     return tuning.vitals.maxHealth;
+  }
+
+  get maxCharges() {
+    return tuning.vitals.healCharges + this.bonusCharges;
   }
 
   /** Busy = can't shoot, reload, roll or swap. */
@@ -71,7 +80,7 @@ export class Vitals {
       this.healT += dt / Math.max(0.05, v.healTime);
       if (!this.healApplied && this.healT >= v.healApplyAt) {
         this.healApplied = true;
-        this.health = Math.min(this.maxHealth, this.health + v.healAmount);
+        this.health = Math.min(this.maxHealth, this.health + v.healAmount * this.healMul);
         event = 'healed';
       }
       if (this.healT >= 1) this.healing = false;
@@ -94,7 +103,7 @@ export class Vitals {
   restore() {
     this.health = this.maxHealth;
     this.stamina = tuning.vitals.maxStamina;
-    this.healCharges = tuning.vitals.healCharges;
+    this.healCharges = this.maxCharges;
     this.healing = false;
     this.hurtStun = 0;
     this.dead = false;

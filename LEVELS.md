@@ -77,7 +77,7 @@ A dimension's three levels and boss follow **introduce → develop → twist →
 | Twist | Level 3 | turns on the player, or the space changes (Tower: the floor goes; Moon: the path lies) | King (command) |
 | Master | Boss arena | the arcana uses the rule against you; everything learned is tested | Major arcana |
 
-This table is data (`src/world/dimensions.ts`, to come). The generator reads the beat to pick kits, encounter
+This table is data (`src/world/dimensions.ts`). The generator reads the beat to pick kits, encounter
 density and set-pieces. It never decides pacing on its own.
 
 ## Generation pipeline
@@ -87,8 +87,8 @@ seed ─▶ 1 Level script ─▶ 2 Mission graph ─▶ 3 Space ─▶ 4 Dressi
                                                                                                   └▶ fail: reseed
 ```
 Each step is a pure function (no Three/DOM) in `src/world/gen*`, so it's unit-testable. Each step forks the RNG by
-name (`rng.fork('graph')`, `rng.fork('dress')`…), so changing dressing never moves a wall. Today's
-`src/world/gen.ts` (a chain of clearings plus one side branch) is the seed of steps 2–3.
+name (`rng.fork('graph')`, `rng.fork('dress')`…), so changing dressing never moves a wall. (v1's `src/world/gen.ts`
+still generates the bug-scale zones; v2's generator is `gen-level.ts` and its layers, below.)
 
 ### 1. Level script
 Chosen from the dimension script and seed:
@@ -118,7 +118,7 @@ A small graph grammar builds the sequence of *experiences* before any geometry e
 | `traverse` | movement and tension without a fight: a narrow pass, a climb, a bridge |
 | `vista` | release; a framed view of the landmark and the next space |
 | `lantern` | checkpoint (the Hermit's lantern); rest, refill, respawn point |
-| `branch` | an optional dead-end with a reward (risk branch in the Devil); 1–2 per level |
+| `branch` | an optional dead-end with a reward (risk branch in the Devil); 1–2 per level. *As built in V2-9:* a Devil branch holds a bigger hoard (twice the pentacles) instead of the cache, always with the ambush cost |
 | `setpiece` | the level's identity node |
 | `gate` | the shortcut's far side; opens back towards an earlier lantern |
 | `miniboss` | the court-card arena; always preceded by a lantern |
@@ -134,6 +134,30 @@ The grammar starts from `start → … → lantern → miniboss → exit`, then 
 Constraints: 6–10 nodes on the critical path; no two `combat` nodes adjacent unless the beat is *twist*; the
 `setpiece` sits in the middle third; at least two `vista` nodes.
 
+### Temptation (the Devil's dressing, V2-9)
+The dressing layer also places **hoards** wherever a dimension has a `temptation` table (`dimensions.ts`). Each hoard
+sits in a fight or a set-piece room: on the far side, off the way through, clear of the sockets and cover.
+- **Counts per level:** 2 / 2–3 / 3–4.
+- **Costs introduced one at a time:** level 1 only rings (bell), level 2 adds the weight, and level 3 adds the ambush.
+- **Validation:** checks the count, that each hoard is inside its room, that each cost is one its level teaches, and
+  that every branch has its hoard.
+
+### Collapse (the Tower's dressing, V2-11)
+Rooms whose kit is `scaffold` get a grid of timber decks (`CollapseDef.tile`, 3 m) in place of a stone floor.
+- **Rotten share by level:** 10% / 16% / 24%.
+- **Always sound:** the door landings, the decks under cover, and enough of a way that every door stays joined by
+  sound decks (`connected`, re-rolled with less rot if not).
+- **Validation:** checks that every scaffold room has its decks and that the rot doesn't cut its doors apart. The rot
+  can close ways behind you as decks fall, but never the way on before you've stepped on anything.
+
+### Illusion (the Moon's dressing, V2-13)
+With an `illusion` table (`dimensions.ts`):
+- **Reflections:** the encounter layer marks a share of each room's sockets as reflections (20% / 30% / 40% by
+  level), never all of a room's enemies and never the court card.
+- **False paths:** the dressing layer makes `falseBranches` branch connectors false paths and marks their caches as
+  reflections.
+- **Validation:** checks that false paths are only branches (never the way on) and that no room is all reflections.
+
 ### 3. Space (embedding the graph)
 Each node becomes a **room kit** and each edge a **connector kit**. Kits are parametric generators that return
 footprint, walkable area, colliders, exits, cover positions and spawn sockets:
@@ -144,9 +168,14 @@ footprint, walkable area, colliders, exits, cover positions and spawn sockets:
   narrow passes) go before `vista` and `combat` nodes to build the frame-then-reveal rhythm.
 - **Layout:**
   - Justice: rooms are placed along the main heading with a mirror axis.
-  - The Devil: a descending spiral, each room lower than the last.
-  - The Tower: a vertical stack, with the heading rotating around the tower.
-  - The Moon: a meandering path between pools, with deliberate near-duplicate rooms.
+  - The Devil: a descending spiral, each room lower than the last. *As built in V2-8:* the same right-angled grid as
+    Justice (not a spiral yet), with each critical room one `descent` step (3 m) below the last. The shortcut loop
+    keeps the mid lantern's level, so its shortcut stays flat. A spiral that turns each step is a later option, once
+    the descent has been played.
+  - The Tower: a vertical stack, with the heading rotating around the tower. *As built in V2-11:* the grid again
+    (not yet rotating), with a negative `descent` (−3 m per room), so each room is a step **up**.
+  - The Moon: a meandering path between pools, with deliberate near-duplicate rooms. *As built in V2-13:* the grid
+    again (no meander yet), level, as islands over dark water with near-duplicate earth rooms.
 - **The landmark** sits beyond the `exit` node, far out in the fog, and every `vista` node is oriented toward it.
 - **Boundaries** are dense wall props (v1's approach) plus the dark foreground frame, never invisible walls.
 
@@ -183,7 +212,54 @@ A generated level is rejected and regenerated from `seed + attempt` if any check
 - **Combat sizes** fit the template; every enemy spawn has a path to the player.
 - **Fair angles:** no spawn behind the entrance unless the template is *Ambush* with an audible tell.
 - **Budget:** critical-path length, room count and prop/draw-call estimates within *Budgets*.
-- **Determinism:** the same seed gives the same layout (already tested in `tests/gen.test.ts`).
+- **Determinism:** the same seed gives the same layout (`tests/gen-level.test.ts`).
+
+## As built in V2-3 (Justice)
+The pipeline above, for one dimension. Files: `src/world/dimensions.ts` (data), `gen-graph.ts`, `gen-space.ts`,
+`gen-dress.ts`, `gen-validate.ts`, `gen-level.ts` (pure), and `level.ts` (the builder).
+
+- **The critical path** always has this shape:
+  `start → P… → lantern → loop… → gate → Q… → lantern → miniboss → exit`.
+  - The middle slots (P, the 2–3 loop rooms, Q) hold the set-piece, the vistas, the combats and any traverse. They
+    are permuted until the order meets the constraints: set-piece in the middle third, gate in the second half, no
+    back-to-back fights unless the beat is the twist, and no two vistas side by side. While possible, there's also a
+    lantern after a fight, and the introduce level opens without a fight.
+  - **Counting:** a set-piece with a fight counts as one of the level's combats, and a set-piece that is a view (the
+    colonnade, the wind bridge) counts as one of its vistas. A **guarded gate** (the gate room holds the fight) counts
+    as a combat. That keeps the critical path at 9–10 nodes with 2–3 combats. There are 3 lanterns (start, mid,
+    pre-miniboss).
+  - Each beat must include one template: the introduce level the **signature**, develop a **nest**, twist an
+    **ambush**.
+- **Space:**
+  - Justice lays out on a right-angled grid along one axis that runs north toward the scales. Rooms are axis-aligned
+    stone platforms over a fog-filled drop, joined by causeways (or stairs where floors differ; the steepest is 0.36).
+  - **The loop:** the mid lantern exits sideways, the loop rooms run north and turn back, and the gate lands on the
+    axis just north of the lantern. The shortcut is the axis itself, barred by a portcullis that lifts only from the
+    gate's side. From the spawn you look straight down the barred axis at the scales.
+  - **Branches** leave a free edge of a combat room (never into the loop) and end in a lit cache.
+  - **Compression:** an arch frames the far end of every connector into a vista, a fight, the gate or the miniboss.
+    Half of the long ones are walled passes.
+- **Kits** are data: size ranges, edge style (wall / parapet / colonnade), floor height, cover clusters, a raised tier
+  (the nest, ≤ 4 m with ramps at both ends), a divider (the twin courts), planted swords (the sword field), grass.
+  Cover is mirrored about each room's axis.
+- **Order:** cover belongs to the kit (space), encounter sockets come next, and decorative dressing (swords, grass, hero
+  props) comes last so it can keep off the sockets.
+- **Sockets by template:** arena (mirrored spread over the far half), guarded (a guard holding the way out, support
+  behind it), nest (ranged on the tier wings, one fighter below), ambush (behind cover, facing the entrance), patrol
+  (a line crossing the room), signature (one, alone, in a quiet court), miniboss (one, on the axis).
+- **Validation as built:** graph shape and constraints, reachability, the shortcut's direction; room and connector
+  overlaps, slopes, shortcut length (8–70 m); sockets inside their room, ≥ 6 m in front of the entry unless ambush, ≥
+  15 m from every lantern, ≤ 4 m up; combat rooms 18–44 m; an unoccluded sight line from the spawn and every vista to
+  the scales (beam, pans or pillar) past walls, columns, arch piers and lintels, slabs and hero swords; a props
+  budget.
+  - **Since V2-4:** each beat has a **roster** (data) that fills socket roles with enemies. The introduce level has only
+    Bailiffs and the signature Blindfold; develop adds the Gavel and the Page; the twist mixes them all. The
+    **ranged-distance rule** is enforced: the generator puts a fighter on any ranged socket closer to its room's way
+    in than (throw wind-up × blade speed) + one roll (14.65 m with today's tuning), and validation checks it.
+  - **Still open:** "every spawn has a path to the player" holds because every room is connected and enemies steer
+    by feelers inside their room. There's no navmesh; a leash walks enemies home if a chase drifts.
+- **Numbers:** across 1,500 seeds (500 per level), 93% of levels pass on the first attempt and all pass within 3;
+  generation takes ≤ 20 ms. Levels draw 43–62 calls in the smoke run.
 
 ## Trial rooms
 The trial grounds (`DESIGN.md → Trial grounds`) reuse this pipeline at its smallest. A trial is a level script with
@@ -212,6 +288,22 @@ Each arcana boss gets its own short space rather than a full level:
 3. The arena. Arenas are mostly authored-by-rules: a fixed shape per boss with seeded dressing.
 
 The landmark the player has walked towards for three levels *is* the arena, or the boss.
+
+**As built for Justice (V2-6, `src/world/boss.ts`):** a lantern platform; a 57 m walled pass under three dark arches
+that frames the scales; then an octagonal arena (28 m radius) with tall columns, a ring-patterned floor centred on
+her, and the great scales standing just beyond. In phase 2 two brass pans (the accent motif) lower out of the fog on
+chains and settle as low platforms either side of the axis. The way on is a veiled gate north, open once she falls.
+
+**As built for the Devil (V2-10, the same builder with `kind: 'devil'`):** the same shape in the Devil's palette. The
+arena is the pit at the foot of his pedestal: the columns are **chained to each other** with heavy iron swags, and
+the throne-pedestal (the landmark), with its brazier, rises just beyond. Nothing in the arena changes with his phase:
+his change is the pact, and the coin his rain leaves on the floor.
+
+**As built for the Crowned Tower (V2-12, `kind: 'tower'`):** the approach climbs to the Tower's **top floor**, an
+octagon of timber decks (a 3 m grid laid over it, with holes outside the octagon) on a few stilts, under a storm
+ring with lightning in its eye. There are no columns: it's open sky. At each phase the decks beyond a radius (18 m,
+then 9 m) pulse magenta and fall, down to a last platform. When the boss falls the floor holds again, so the way on
+can be walked.
 
 ## Budgets
 | Budget | Target |
