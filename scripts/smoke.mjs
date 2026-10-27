@@ -194,6 +194,10 @@ try {
     await devilFoesScenario({ page, g, hold, release, press, look, wait, shot });
     await devilCourtScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  if (process.argv.includes('--tower')) {
+    const { towerScenario } = await import('./smoke-v2.mjs');
+    await towerScenario({ page, g, hold, release, press, look, wait, shot });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });

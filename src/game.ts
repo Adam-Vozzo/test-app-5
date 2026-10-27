@@ -121,6 +121,15 @@ export class Game {
   /** The Devil's pact: offered at half his health; E accepts, letting it pass refuses. Lasts the fight. */
   pact: 'none' | 'offered' | 'accepted' | 'refused' = 'none';
   private pactT = 0;
+  /** The Tower: seconds until the next lightning mark, the last solid stone she stood on, and fire's damage tick. */
+  private stormT = 6;
+  /** The collapse's own seeded stream (fire spread, lightning timing), reseeded with each level. */
+  private collapseRng = makeRng(1).fork('collapse');
+  private readonly lastSafe = new THREE.Vector3();
+  private burnAcc = 0;
+  /** The bolt that flashes down where lightning strikes. */
+  private readonly bolt = new THREE.Mesh(new THREE.BoxGeometry(0.35, 60, 0.35).translate(0, 30, 0), new THREE.MeshBasicMaterial({ color: 0xf2f0ff, fog: false }));
+  private boltT = 0;
   /** The dash's cooldown (s left), and where she was last frame (for the swept chain check). */
   private dashCd = 0;
   private readonly dashFrom = new THREE.Vector3();
@@ -163,6 +172,8 @@ export class Game {
     this.coil.visible = false;
     this.coil.renderOrder = 6;
     this.renderer.scene.add(this.coil);
+    this.bolt.visible = false;
+    this.renderer.scene.add(this.bolt);
     this.enemies = new EnemyManager(this.renderer.scene, this.hazards);
     this.enemies.onKilled = (e) => this.onEnemyKilled(e);
     this.input = new Input(this.renderer.renderer.domElement);
@@ -299,6 +310,9 @@ export class Game {
     this.coins.clear();
     this.pact = 'none';
     this.dashCd = 0;
+    this.stormT = 6;
+    this.collapseRng = makeRng(this.zoneSeed).fork('collapse');
+    this.lastSafe.copy(this.world.spawn);
     this.player.biped.onFootstep = () => {
       if (!this.player.controller.grounded) return;
       this.synth.footstep();
@@ -385,7 +399,7 @@ export class Game {
   }
 
   private freshStats() {
-    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, chainsBroken: 0, coinsTaken: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
+    return { shots: 0, hits: 0, crits: 0, kills: 0, staggers: 0, blocked: 0, parries: 0, hoards: 0, chainsBroken: 0, coinsTaken: 0, decksCracked: 0, decksBurnt: 0, strikes: 0, falls: 0, last: '', hitLog: [] as { t: number; d: number }[], lastTTK: 0, lastShotHit: 0, shotDamage: 0 };
   }
 
   /** The currency's name and glyph: pentacles in v2 scenes, pollen in the v1 bug scenes. */
@@ -427,7 +441,7 @@ export class Game {
 
   /** Where a road stands: its next level's name, for gates and toasts. */
   private stageName(dim: DimensionDef, n: number) {
-    return n === 3 ? (dim.id === 'justice' ? 'the scales' : 'the pedestal') : `level ${n + 1}`;
+    return n === 3 ? dim.seat.name : `level ${n + 1}`;
   }
 
   /** Walk on: level 1 → 2 → 3 → the arcana's arena → home to the hub. Each step is saved. */
@@ -444,7 +458,7 @@ export class Game {
       this.layout = 'hub';
       this.persist();
       this.buildLevel();
-      this.hud.toast(`${dim.name} waits below, on the pedestal. (Its arena isn't built yet: the road leads home.)`, 5);
+      this.hud.toast(`${dim.name} waits at ${dim.seat.name}. (Its arena isn't built yet: the road leads home.)`, 5);
       return;
     }
     this.levelIndex++;
@@ -674,6 +688,69 @@ export class Game {
     return `${g} +${amount}. Something climbs out of the broken floor.`;
   }
 
+  /**
+   * The Tower's rule, each frame: rotten decks crack under her, fire burns and spreads and drops decks, lightning
+   * marks where she stands and sets the timber alight, and a fall into the drop costs health and puts her back on the
+   * last solid stone.
+   */
+  private collapse(dt: number) {
+    const lv = this.level;
+    const c = this.player.controller;
+    const tw = tuning.tower;
+    this.boltT = Math.max(0, this.boltT - dt);
+    this.bolt.visible = this.boltT > 0;
+    if (!lv) return;
+    const decks = lv.decks;
+    if (decks) {
+      for (const e of decks.update(dt, this.collapseRng)) {
+        if (e.kind === 'fall') this.sfxAt('timberFall', c.pos);
+        else if (e.kind === 'ignite') this.stats.decksBurnt++;
+      }
+      if (c.grounded && decks.step(c.pos)) {
+        this.sfxAt('creak', c.pos);
+        this.stats.decksCracked++;
+      }
+      // Standing in fire hurts (in ticks, so it reads).
+      if (c.grounded && decks.standing(c.pos) === 'burning') {
+        this.burnAcc += tw.burnDps * dt;
+        if (this.burnAcc >= 4) {
+          this.hurtPlayer(this.burnAcc, _o.copy(c.pos).setY(c.pos.y - 1), 0);
+          this.burnAcc = 0;
+        }
+      } else this.burnAcc = 0;
+    }
+    // Remember the last solid stone (decks can fall).
+    if (c.grounded && !decks?.standing(c.pos)) this.lastSafe.copy(c.pos);
+    // Lightning: a mark where she stands, a strike a beat later, and the timber there catches. Never at a lantern.
+    if (this.dimension === 'tower' && lv.generated.dimension === 'tower') {
+      this.stormT -= dt;
+      const atRest = (lv.restPoints ?? []).some((r) => r.pos.distanceTo(c.pos) < 8);
+      if (this.stormT <= 0 && !atRest) {
+        const [lo, hi] = tw.lightning[Math.min(2, this.levelIndex)];
+        this.stormT = lo + this.collapseRng() * (hi - lo);
+        this.hazards.verdict(c.pos.clone(), tw.lightningRadius, tw.lightningDelay, tw.lightningDamage, 6, {
+          onDone: (_caught, at) => {
+            this.bolt.position.copy(at);
+            this.boltT = 0.12;
+            this.sfxAt('thunder', at);
+            this.camera.addTrauma(0.25);
+            this.stats.strikes++;
+            decks?.ignite(at, tw.igniteRadius);
+          },
+        });
+      }
+    }
+    // Fell into the drop.
+    const fallY = Math.min(...lv.generated.space.rooms.map((r) => r.y)) - 12;
+    if (c.pos.y < fallY) {
+      this.stats.falls++;
+      c.teleport(_o.copy(this.lastSafe).setY(this.lastSafe.y + 0.05), c.yaw);
+      this.camera.snap(c.pos, c.yaw);
+      this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
+      this.hud.toast('You fell. Nothing stays standing.', 2);
+    }
+  }
+
   /** The Devil stops at half his health and holds out the pact. E accepts; letting it pass refuses. */
   private offerPact() {
     if (this.pact !== 'none') return;
@@ -747,6 +824,8 @@ export class Game {
     this.burden = 0;
     this.coins.clear();
     this.pact = 'none';
+    this.level?.decks?.reset();
+    this.stormT = 6;
     this.enemies.reset();
     this.world.onReset?.();
     this.projectiles.clear();
@@ -764,6 +843,8 @@ export class Game {
     this.burden = 0;
     this.coins.clear();
     this.pact = 'none';
+    this.level?.decks?.reset();
+    this.stormT = 6;
     this.vitals.restore();
     this.arsenal.refillAll();
     this.enemies.reset();
@@ -1026,6 +1107,7 @@ export class Game {
       }
     }
     this.dashFrom.copy(c.pos);
+    if (simDt > 0 && alive) this.collapse(simDt);
     // The binding holds, then strikes.
     if (simDt > 0 && this.binding.update(simDt) === 'struck') this.hurtPlayer(this.binding.damage, this.bindFrom, this.binding.knockback);
     this.coil.visible = this.binding.active && alive;

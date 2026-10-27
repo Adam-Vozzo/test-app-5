@@ -1319,7 +1319,8 @@ export async function devilCourtScenario({ g, wait, shot }) {
     return { cleared: gm.save.cleared, dash: gm.save.unbound.includes('dash'), lion: lion?.prompt(gm.player.pos) };
   });
   console.log(`  devil fallen: way on ${open}, home ${JSON.stringify(home)}`);
-  if (!open || !home.cleared.includes('devil') || !home.dash || !home.lion?.includes('awake')) throw new Error('the Devil falling should clear the dimension, free the dash and wake the lion');
+  // (The lion's road is built since V2-11: its gate is open to walk through.)
+  if (!open || !home.cleared.includes('devil') || !home.dash || !home.lion?.startsWith("E: through the lion's gate")) throw new Error('the Devil falling should clear the dimension, free the dash and wake the lion');
 
   // 5. The dash: X, fast and short; through a Thrall chain it breaks the chain.
   await g(() => {
@@ -1354,3 +1355,121 @@ export async function devilCourtScenario({ g, wait, shot }) {
   await g(() => { window.__tuning.debug.godMode = false; });
 }
 
+
+/** V2-11: the Tower's climb. Through the lion's gate; decks crack and fall; lightning sets them alight; falls cost. */
+export async function towerScenario({ g, wait, shot }) {
+  const until = async (fn, timeout = 20000, arg) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      if (await g(fn, arg)) return true;
+      await wait(100);
+    }
+    return false;
+  };
+  await g(() => {
+    const gm = window.__game;
+    gm.save = { ...gm.save, seed: 42, cleared: ['justice', 'devil'], unbound: ['parry', 'dash'], progress: { justice: 0, devil: 0 } };
+    window.__tuning.debug.godMode = true;
+    gm.start('hub');
+  });
+  await wait(1200);
+  const gate = await g(() => {
+    const gm = window.__game;
+    const it = gm.world.interactables.find((i) => (i.prompt(gm.player.pos) ?? '').includes('lion'));
+    if (!it) return null;
+    gm.player.controller.teleport({ x: it.pos.x * 0.95, y: 0.05, z: it.pos.z * 0.95 }, 0);
+    return it.prompt(gm.player.pos);
+  });
+  await wait(300);
+  await g(() => window.__game.input.press('KeyE'));
+  await wait(60);
+  await g(() => window.__game.input.release('KeyE'));
+  const entered = await until(() => window.__game.layout === 'level' && window.__game.dimension === 'tower' && !!window.__game.level, 15000);
+  console.log(`  tower: lion's gate "${gate}", entered ${entered}`);
+  if (!gate?.startsWith("E: through the lion") || !entered) throw new Error("the lion's gate should open into the Tower once the Devil is cleared");
+  await wait(1200);
+
+  for (let lv = 0; lv < 3; lv++) {
+    if (lv > 0) {
+      await g(() => window.__game.nextLevel());
+      await wait(1500);
+    }
+    const info = await g(() => {
+      const gm = window.__game;
+      const L = gm.level.generated;
+      const crit = L.graph.critical.map((id) => L.space.rooms.find((r) => r.node === id));
+      return { level: gm.levelIndex + 1, ok: gm.level.report.ok, setPiece: L.script.setPiece.id, climb: +(crit[crit.length - 1].y - crit[0].y).toFixed(1), decks: gm.level.decks?.counts, area: gm.area.name, draws: gm.renderer.renderer.info.render.calls };
+    });
+    console.log('  tower', JSON.stringify(info));
+    if (!info.ok || info.area !== 'The Tower' || info.climb < 8 || !info.decks?.total) throw new Error(`tower level ${lv + 1} should build valid, climbing, on timber decks`);
+    if (info.draws > 150) throw new Error(`tower draws ${info.draws} over the 150 budget`);
+    await shot(`91-tower-l${lv + 1}-spawn`);
+    if (lv === 0) {
+      await g(() => { window.__tuning.debug.overview = true; });
+      await wait(900);
+      await shot('92-tower-overview');
+      await g(() => { window.__tuning.debug.overview = false; });
+      await g(() => window.__game.gotoVista(0));
+      await wait(900);
+      await shot('93-tower-vista');
+
+      // A rotten deck: it cracks under her (magenta), falls, and so does she; she's put back on stone, hurt.
+      const deck = await g(() => {
+        const gm = window.__game;
+        const s = gm.level.generated.dressing.scaffolds.find((x) => x.rotten.length);
+        const i = s.rotten[0];
+        const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
+        const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+        window.__tuning.debug.godMode = false;
+        gm.vitals.restore();
+        gm.enemies.clear();
+        gm.player.controller.teleport({ x, y: s.y + 0.1, z }, 0);
+        gm.camera.snap(gm.player.pos, 0);
+        gm.camera.pitch = -0.5;
+        return { x, z, y: s.y, hp: gm.vitals.health };
+      });
+      const cracked = await until(() => window.__game.stats.decksCracked > 0, 4000);
+      await shot('94-tower-deck-cracking');
+      const fell = await until(() => window.__game.stats.falls > 0, 12000);
+      await wait(300);
+      const after = await g(() => ({ hp: window.__game.vitals.health, y: window.__game.player.pos.y, gone: window.__game.level.decks.counts.gone }));
+      console.log(`  tower deck: cracked ${cracked}, fell ${fell}, health ${deck.hp} → ${after.hp}, back at y ${after.y.toFixed(1)} (decks gone ${after.gone})`);
+      if (!cracked || !fell || after.hp >= deck.hp || after.y < deck.y - 6) throw new Error('a rotten deck should crack and drop her, and the fall should cost health and put her back on stone');
+
+      // Lightning: a mark where she stands, a strike, and the timber there catches and spreads.
+      const sound = await g(() => {
+        const gm = window.__game;
+        window.__tuning.debug.godMode = true;
+        const s = gm.level.generated.dressing.scaffolds[0];
+        let i = Math.floor((s.cols * s.rows) / 2);
+        while (s.rotten.includes(i)) i++;
+        const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
+        const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+        gm.player.controller.teleport({ x, y: s.y + 0.1, z }, 0);
+        gm.camera.snap(gm.player.pos, 0);
+        gm.camera.pitch = -0.35;
+        gm.stormT = 0;
+        return true;
+      });
+      const marked = await until(() => window.__game.hazards.verdicts.length > 0, 3000);
+      await shot('95-tower-lightning-mark');
+      const struck = await until(() => window.__game.stats.strikes > 0, 6000);
+      await wait(1500);
+      const burning = await g(() => window.__game.level.decks.counts.burning);
+      await shot('96-tower-fire');
+      console.log(`  tower lightning: marked ${marked}, struck ${struck}, decks alight ${burning}`);
+      if (!sound || !marked || !struck || burning < 1) throw new Error('lightning should mark, strike and set the decks alight');
+      // A rest brings it all back.
+      await g(() => window.__game.rest());
+      const restored = await g(() => window.__game.level.decks.counts);
+      console.log(`  tower rest: ${JSON.stringify(restored)}`);
+      if (restored.gone !== 0 || restored.burning !== 0) throw new Error('resting should bring every deck back');
+    }
+  }
+  await g(() => window.__game.nextLevel());
+  await until(() => window.__game.layout === 'hub', 15000);
+  const home = await g(() => ({ layout: window.__game.layout, progress: window.__game.save.progress.tower }));
+  console.log(`  tower: home ${JSON.stringify(home)}`);
+  if (home.layout !== 'hub' || home.progress !== 3) throw new Error("after the Tower's third level the road should lead home (its arena comes in V2-12)");
+  await g(() => { window.__tuning.debug.godMode = false; });
+}

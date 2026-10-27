@@ -9,7 +9,8 @@ the angel's gate into Justice's three generated levels (Bailiffs, Gavels, Blindf
 of Swords) to Justice herself, who frees the parry. Progress saves in the browser. There's also a training courtyard.
 The second dimension is built too (V2-8 to V2-10). Once Justice is cleared, the bull's gate leads down through the
 Devil's descending levels: Misers, Imps, chained Thralls, the Page of Pentacles, tempting hoards, and the Pentacles
-court. At the bottom is the Devil and his pact. He frees the dash.
+court. At the bottom is the Devil and his pact. He frees the dash. Then the lion's gate opens on the Tower: three climbing
+levels on timber decks that crack, burn and fall under you (its own enemies and boss come next).
 
 ```
 npm install

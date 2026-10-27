@@ -232,6 +232,27 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - *King of Wands*: lord of the tower; his phases burn the floor away.
 - **Boss: the Crowned Tower.** The fight on the top floor *is* the collapse. Each phase removes ground, ending on a
   last platform under open sky.
+- **As built in V2-11 (Proposed until played): the space and the rule.**
+  - **Levels:** the same right-angled grid, climbing. Each critical room is 3 m above the last, about 18 m per level.
+    The loop stays level.
+  - **Timber and stone:** the fights and the scaffold set-pieces are **timber decks** (3 m square) over the drop. The
+    lanterns, gates, passes and the throne room are stone.
+  - **Rotten decks:** 10% / 16% / 24% of the decks by level. They're charred, sag, and sit loose in a wider gap (the
+    tell). Stepped on, one **cracks (pulsing magenta) and falls after 1 s**. The rot never cuts a room's doors apart
+    before you've stepped on anything.
+  - **Lightning:** every 10–14 s (level 1) down to 6–9 s (level 3), lightning **marks where you stand** (a magenta
+    ring, 1.4 s) and strikes (28 damage). The timber within 2.6 m **catches fire**. Never at a lantern.
+  - **Fire:** a burning deck hurts while you stand on it (14/s) and spreads to its neighbours. After 4.5 s it falls.
+    Fire doesn't jump a gap.
+  - **Falling** into the drop costs 30 and puts you back on the last stone you stood on.
+  - **Resting** brings every deck back.
+  - **Set-pieces:** the burning library floor (rubble cover), the bell that brings lightning, the scaffold climb, and
+    the leap between towers (a long narrow deck).
+  - **Landmark:** the Tower itself, 260 m, pale stone with its crown struck askew, fire in the break and a dark storm
+    ring over it.
+  - **The lion's gate** opens once the Devil is cleared.
+  - **Placeholders:** the rooms hold Swords and Pentacles archetypes and the Swords court until V2-12, and level 3
+    leads home.
 
 ### 4. The Moon × Cups: "Not everything is real"
 - **The card:** a path from a pool between two towers, a dog and a wolf howling, a crayfish crawling out of the water.

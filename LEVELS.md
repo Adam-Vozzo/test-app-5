@@ -142,6 +142,14 @@ sits in a fight or a set-piece room: on the far side, off the way through, clear
 - **Validation:** checks the count, that each hoard is inside its room, that each cost is one its level teaches, and
   that every branch has its hoard.
 
+### Collapse (the Tower's dressing, V2-11)
+Rooms whose kit is `scaffold` get a grid of timber decks (`CollapseDef.tile`, 3 m) in place of a stone floor.
+- **Rotten share by level:** 10% / 16% / 24%.
+- **Always sound:** the door landings, the decks under cover, and enough of a way that every door stays joined by
+  sound decks (`connected`, re-rolled with less rot if not).
+- **Validation:** checks that every scaffold room has its decks and that the rot doesn't cut its doors apart. The rot
+  can close ways behind you as decks fall, but never the way on before you've stepped on anything.
+
 ### 3. Space (embedding the graph)
 Each node becomes a **room kit** and each edge a **connector kit**. Kits are parametric generators that return
 footprint, walkable area, colliders, exits, cover positions and spawn sockets:
@@ -156,7 +164,8 @@ footprint, walkable area, colliders, exits, cover positions and spawn sockets:
     Justice (not a spiral yet), with each critical room one `descent` step (3 m) below the last. The shortcut loop
     keeps the mid lantern's level, so its shortcut stays flat. A spiral that turns each step is a later option, once
     the descent has been played.
-  - The Tower: a vertical stack, with the heading rotating around the tower.
+  - The Tower: a vertical stack, with the heading rotating around the tower. *As built in V2-11:* the grid again
+    (not yet rotating), with a negative `descent` (−3 m per room), so each room is a step **up**.
   - The Moon: a meandering path between pools, with deliberate near-duplicate rooms.
 - **The landmark** sits beyond the `exit` node, far out in the fog, and every `vista` node is oriented toward it.
 - **Boundaries** are dense wall props (v1's approach) plus the dark foreground frame, never invisible walls.

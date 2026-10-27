@@ -310,8 +310,33 @@ export const WORLD: AreaPalette = {
   decal: 0x564e47,
 };
 
+/**
+ * The Tower × Wands (V2-11): a scaffold-city of ash, charcoal and scorched timber climbing into a pale storm. Accent
+ * motif: fire orange (burning decks, the storm's crown), held clear of kill red and crit gold (tested).
+ */
+export const TOWER: AreaPalette = {
+  name: 'The Tower',
+  surfaces: {
+    light: 0xc9c3bc, // ash-pale stone
+    mid: 0x8a6d58, // timber
+    dark: 0x4a3c36, // charred timber
+    shadow: 0x1e1b1c,
+    growth: 0x8c857e, // ash drifts
+  },
+  accent: 0xe0853a, // fire (nudged toward amber: clear of kill red by hue)
+  accentShade: 0xa8552a,
+  fog: 0xe6e3ec,
+  sky: 0xa9a5b8,
+  cloud: 0xd8d5e0,
+  hemiSky: 0xeceaf2,
+  hemiGround: 0x5e5450,
+  sun: 0xfff0e2,
+  dust: 0xcfc8c0,
+  decal: 0x3b3432,
+};
+
 /** Each dimension's area palette, by dimension id (the level builder and the game read it). */
-export const AREAS: Record<string, AreaPalette> = { justice: JUSTICE, devil: DEVIL };
+export const AREAS: Record<string, AreaPalette> = { justice: JUSTICE, devil: DEVIL, tower: TOWER };
 
 /** The area currently loaded (FX read dust/decal colours from it). */
 export let activeBiome: AreaLighting = GARDEN;

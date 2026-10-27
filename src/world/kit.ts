@@ -209,6 +209,41 @@ export function hoardTellGeo(cost: 'bell' | 'weight' | 'ambush', size: number, p
   return merge(parts);
 }
 
+/**
+ * The Tower (the landmark): a tall square shaft of stone, tapering, with dark window slits, its crown struck off and
+ * hanging askew, and a storm ring over the break. Base at y = 0; the lightning glow at `TOWER_GLOW × h` is separate.
+ */
+export const TOWER_GLOW = 1.0;
+export function towerGeo(h: number, stone: number, dark: number, fire: number) {
+  const w = h * 0.1;
+  const parts: THREE.BufferGeometry[] = [];
+  let y = 0;
+  for (const [k, f] of [[1.25, 0.3], [1.05, 0.3], [0.9, 0.27]] as const) {
+    parts.push(place(block(w * k, h * f, w * k, k > 1.1 ? dark : stone, 0.05, k), 0, y, 0));
+    y += h * f;
+  }
+  // Window slits up the face toward the levels (+Z).
+  for (let i = 0; i < 7; i++) parts.push(place(block(w * 0.12, h * 0.04, w * 0.06, dark, 0.02), (i % 2 ? -1 : 1) * w * 0.2, h * (0.15 + i * 0.11), w * 0.5));
+  // The broken crown: a battlement ring, its far half thrown askew.
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const knocked = i >= 3;
+    parts.push(place(block(w * 0.28, h * 0.05, w * 0.18, stone, 0.05, i), Math.cos(a) * w * 0.45 + (knocked ? w * 0.25 : 0), y + (knocked ? h * 0.025 : 0), Math.sin(a) * w * 0.45, knocked ? 0.4 : 0, -a, knocked ? 0.6 : 0));
+  }
+  // Fire in the break (the accent), and the storm's dark ring over it.
+  parts.push(place(facet(new THREE.ConeGeometry(w * 0.32, h * 0.06, 5), fire, 0.08), 0, y, 0));
+  const storm = facet(new THREE.TorusGeometry(w * 1.6, w * 0.45, 4, 10).rotateX(Math.PI / 2), dark, 0.1);
+  parts.push(place(storm, 0, y + h * 0.1, 0));
+  return merge(parts);
+}
+
+/** Broken timber and stone on a scaffold floor (Tower strewn cover): a few beams fallen across a rubble heap. */
+export function rubbleGeo(size: number, timber: number, stone: number, seed = 0) {
+  const heap = facet(new THREE.IcosahedronGeometry(size * 0.5, 0).scale(1.3, 0.55, 1), stone, 0.1, seed);
+  const beams = [0, 1].map((i) => place(block(size * 0.18, size * 0.18, size * 1.4, timber, 0.05, seed + i), (i - 0.5) * size * 0.4, size * 0.25, 0, 0.2 * (i ? 1 : -1), 0.5 + i, 0));
+  return merge([heap, ...beams]);
+}
+
 /** A great pillar of the pit standing out of the fog, a gilt band near its top (Devil hero prop). Base at y = 0. */
 export function pitPillarGeo(h: number, stone: number, dark: number, gilt: number) {
   const w = Math.max(3, h * 0.11);

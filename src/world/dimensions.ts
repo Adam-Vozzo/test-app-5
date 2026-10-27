@@ -44,6 +44,8 @@ export interface RoomKitDef {
   grass?: number;
   /** Column height for colonnade edges (m); the colonnade under the scales stands taller. */
   columnHeight?: number;
+  /** The floor is timber decks over the drop, not stone (the Tower: decks crack, burn and fall). */
+  scaffold?: boolean;
 }
 
 /**
@@ -60,6 +62,17 @@ export interface TemptationDef {
   costs: [HoardCost[], HoardCost[], HoardCost[]];
   /** Risk branches hold a bigger hoard instead of the cache, with this cost. */
   branchCost: HoardCost;
+}
+
+/**
+ * The Tower's rule (collapse): scaffold rooms' floors are timber decks (`tile` metres square); a share of them are
+ * rotten (darker, gapped planks: they crack when stepped on and fall). Feel numbers (crack and burn times, fire
+ * spread, lightning) live in tuning.tower.
+ */
+export interface CollapseDef {
+  tile: number;
+  /** Share of a scaffold room's decks that are rotten, per level (introduce, develop, twist). */
+  rotten: [number, number, number];
 }
 
 export interface SetPieceDef {
@@ -127,15 +140,19 @@ export interface DimensionDef {
    * The landmark stands on the main axis, beyond the exit and at least `fromStart` from the spawn (m). `targets` are
    * the points that must be in plain sight from the spawn and the vistas: [across, up] as fractions of its height.
    */
-  landmark: { kind: 'scales' | 'pedestal'; beyondExit: number; fromStart: number; height: number; baseY: number; targets: [number, number][] };
+  landmark: { kind: 'scales' | 'pedestal' | 'tower'; beyondExit: number; fromStart: number; height: number; baseY: number; targets: [number, number][] };
   /** Great props standing out of the fog near vista sight lines (hero props). */
   heroProps: [number, number];
+  /** Where the arcana waits, for gates and toasts: its landmark's name and the way to it. */
+  seat: { name: string; way: string };
   /** How the builder draws the strewn floor props and the hero props (data for the builder; the generator only places them). */
-  props: { strewn: 'sword' | 'hoard'; hero: 'sword' | 'pillar' };
+  props: { strewn: 'sword' | 'hoard' | 'rubble'; hero: 'sword' | 'pillar' };
   /** Enemies that throw from range (held to the fair-distance rule in validation). */
   rangedFoes: string[];
   /** The Devil's temptation: hoards in plain sight that cost something to take. */
   temptation?: TemptationDef;
+  /** The Tower's collapse: timber decks that crack, burn and fall. */
+  collapse?: CollapseDef;
 }
 
 export const JUSTICE_DIMENSION: DimensionDef = {
@@ -220,6 +237,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
     targets: [[0, 1.06], [0, 0.8], [0, 0.55], [-0.35, 0.74], [0.35, 0.74]],
   },
   heroProps: [1, 3],
+  seat: { name: 'the scales', way: 'toward the scales' },
   props: { strewn: 'sword', hero: 'sword' },
   rangedFoes: ['page'],
 };
@@ -315,6 +333,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
     targets: [[0, 1.08], [0, 1.0], [-0.1, 0.96], [0.1, 0.96], [0, 0.9]],
   },
   heroProps: [2, 4],
+  seat: { name: 'the pedestal', way: 'down toward the pedestal' },
   props: { strewn: 'hoard', hero: 'pillar' },
   // The Devil's own have no thrower: the Page of Pentacles runs instead (V2-9).
   rangedFoes: [],
@@ -325,4 +344,99 @@ export const DEVIL_DIMENSION: DimensionDef = {
   },
 };
 
-export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION };
+/**
+ * The Tower × Wands (DESIGN.md → The Tower; V2-11): a burning scaffold-city climbing toward the struck tower. Always
+ * going up: each room a step higher. The fights happen on timber decks over the drop (the rule: collapse); the
+ * lanterns, the gates and the throne room stand on stone. Its own enemies come in V2-12: until then its rooms are
+ * held by the Swords and Pentacles archetypes, and the throne rooms by Swords court cards.
+ */
+export const TOWER_DIMENSION: DimensionDef = {
+  id: 'tower',
+  name: 'The Tower',
+  arcana: 'The Tower (XVI)',
+  suit: 'Wands',
+  levels: [
+    {
+      beat: 'introduce',
+      miniboss: 'knight',
+      minibossName: 'Knight of Wands',
+      combats: [2, 2],
+      enemies: [2, 3],
+      templates: ['arena', 'patrol', 'guarded', 'signature'],
+      mustInclude: ['signature'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff'], guard: ['miser'], ranged: ['imp'], patrol: ['imp'], signature: ['gavel'] },
+    },
+    {
+      beat: 'develop',
+      miniboss: 'queen',
+      minibossName: 'Queen of Wands',
+      combats: [2, 3],
+      enemies: [3, 4],
+      templates: ['ambush', 'nest', 'guarded', 'arena'],
+      mustInclude: ['nest'],
+      allowAdjacentCombats: false,
+      roster: { grunt: ['bailiff', 'imp'], guard: ['miser'], ranged: ['page'], patrol: ['imp'], signature: ['gavel'] },
+    },
+    {
+      beat: 'twist',
+      miniboss: 'king',
+      minibossName: 'King of Wands',
+      combats: [3, 3],
+      enemies: [4, 5],
+      templates: ['ambush', 'nest', 'arena', 'guarded'],
+      mustInclude: ['ambush'],
+      allowAdjacentCombats: true,
+      roster: { grunt: ['bailiff', 'imp', 'gavel'], guard: ['miser', 'gavel'], ranged: ['page'], patrol: ['imp', 'bailiff'], signature: ['gavel'] },
+    },
+  ],
+  setPieces: [
+    { id: 'burningLibrary', name: 'the burning library floor', kit: 'burningLibrary', combat: true, vista: false },
+    { id: 'lightningBell', name: 'the bell that brings lightning', kit: 'lightningBell', combat: true, vista: false },
+    { id: 'scaffoldClimb', name: 'the scaffold climb', kit: 'scaffoldClimb', combat: false, vista: true },
+    { id: 'towerLeap', name: 'the leap between towers', kit: 'towerLeap', combat: false, vista: true },
+  ],
+  symmetric: false,
+  kits: {
+    start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
+    court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'flag', cover: [2, 3], scaffold: true },
+    arena: { w: [28, 32], d: [28, 32], edge: 'parapet', turns: true, floor: 0, ground: 'flag', cover: [3, 4], scaffold: true },
+    nest: { w: [24, 28], d: [26, 30], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [2, 3], tier: { depth: 6, height: 2.4 }, scaffold: true },
+    terrace: { w: [16, 20], d: [14, 18], edge: 'parapet', turns: true, floor: 0, ground: 'flag' },
+    pass: { w: [7, 9], d: [18, 24], edge: 'wall', turns: false, floor: 0, ground: 'flag' },
+    stair: { w: [12, 14], d: [12, 16], edge: 'parapet', turns: true, floor: 2.4, ground: 'flag' },
+    shrine: { w: [14, 16], d: [14, 16], edge: 'colonnade', turns: true, floor: 0, ground: 'flag', columnHeight: 5 },
+    gatehouse: { w: [18, 22], d: [18, 22], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [1, 2] },
+    throne: { w: [32, 38], d: [32, 38], edge: 'colonnade', turns: false, floor: 0, ground: 'flag', cover: [2, 2], columnHeight: 7 },
+    threshold: { w: [12, 14], d: [12, 14], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
+    cache: { w: [10, 12], d: [10, 12], edge: 'parapet', turns: false, floor: 0, ground: 'flag', swords: 3 },
+    burningLibrary: { w: [30, 34], d: [28, 32], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [4, 5], scaffold: true, swords: 10 },
+    lightningBell: { w: [28, 32], d: [28, 32], edge: 'parapet', turns: true, floor: 0, ground: 'flag', cover: [2, 3], scaffold: true },
+    scaffoldClimb: { w: [12, 14], d: [40, 46], edge: 'parapet', turns: false, floor: 4, ground: 'flag', scaffold: true },
+    towerLeap: { w: [6, 7], d: [44, 52], edge: 'parapet', turns: false, floor: 2, ground: 'flag', scaffold: true },
+  },
+  nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
+  templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
+  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
+  criticalNodes: [9, 10],
+  loop: { rooms: [2, 3], shortcut: [8, 70] },
+  branches: [1, 2],
+  // Always going up.
+  descent: -3,
+  landmark: {
+    kind: 'tower',
+    beyondExit: 110,
+    fromStart: 380,
+    height: 260,
+    baseY: -90,
+    // The broken crown, the storm over it, and the upper shaft.
+    targets: [[0, 1.02], [0, 0.95], [0, 0.85], [-0.06, 0.92], [0.06, 0.92]],
+  },
+  heroProps: [2, 4],
+  seat: { name: 'the crown', way: 'up toward the Tower' },
+  props: { strewn: 'rubble', hero: 'pillar' },
+  rangedFoes: ['page'],
+  collapse: { tile: 3, rotten: [0.1, 0.16, 0.24] },
+};
+
+export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION, tower: TOWER_DIMENSION };

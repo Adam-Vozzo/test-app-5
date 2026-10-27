@@ -101,6 +101,18 @@ above:
 
 The palette test now checks every accent against kill red as well as crit gold.
 
+*As built in V2-11 (`TOWER`, Proposed until played):* ash-pale stone `#C9C3BC`, timber `#8A6D58`, charred timber
+`#4A3C36`, shadow `#1E1B1C` and ash drifts `#8C857E`. The fog is a pale storm lilac `#E6E3EC` (the table's
+`#8E8A9C` was too dark for telegraph contrast) under a grey-violet sky. The accent is **fire** `#E0853A`, nudged
+toward amber from the table's `#E07A3A`, which sat within 20° of kill red. Deck states:
+- **sound:** timber
+- **rotten:** charred, sagging, with a wider gap
+- **cracking:** pulsing telegraph magenta
+- **burning:** flickering between the two fire oranges
+- **fallen:** gone
+
+Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
+
 Rules:
 - **Accent colours must stay clear of the signal colours** (below) in hue and saturation. The Tower's fire orange and
   the Devil's gilt get the `tests/palette.test.ts` checks against telegraph magenta, crit gold and kill red.

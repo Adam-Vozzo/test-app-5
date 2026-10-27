@@ -54,6 +54,28 @@ export const tuning = {
     tumbleTurns: 1,
   },
   /**
+   * The Tower's collapse (V2-11): rotten decks hold `crackTime` once stepped on; burning decks hurt `burnDps` while you
+   * stand on them, spread fire to sound neighbours (`spreadPerSec` each), and fall after `burnTime`. Lightning
+   * marks where you stand every `lightning[level]` seconds (min, max), strikes `lightningDelay` later, and sets the
+   * decks within `igniteRadius` alight. Falling into the drop costs `fallDamage` and puts you back on solid ground.
+   */
+  tower: {
+    crackTime: 1.0,
+    burnTime: 4.5,
+    spreadPerSec: 0.32,
+    burnDps: 14,
+    lightning: [
+      [10, 14],
+      [8, 11],
+      [6, 9],
+    ] as [number, number][],
+    lightningDelay: 1.4,
+    lightningRadius: 2.4,
+    lightningDamage: 28,
+    igniteRadius: 2.6,
+    fallDamage: 30,
+  },
+  /**
    * The chain-break dash (V2-10, the Devil's unbinding; Proposed): a short, very fast burst with i-frames for its
    * whole length, cheaper than a roll and quick to recover. It breaks any binding, and any Thrall chain it passes
    * through. A cooldown keeps it from replacing the roll.

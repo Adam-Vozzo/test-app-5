@@ -4,6 +4,7 @@
 import type { Rng } from '../core/rng';
 import type { DimensionDef, EncounterTemplate, HoardCost, SocketRole } from './dimensions';
 import type { MissionGraph } from './gen-graph';
+import { connected } from './scaffold';
 import { connRect, DX, DZ, overlaps, roomRect, toLocal, toWorld, yawOf, type Dir, type Room, type Space } from './gen-space';
 
 /** Edge heights (m). Parapets stay above the player's step height; walls hide what's beyond. */
@@ -410,12 +411,42 @@ export interface Dressing {
   caches: { node: number; x: number; z: number; y: number }[];
   /** The Devil's temptation: hoards in plain sight, each with a cost and its tell. */
   hoards: Hoard[];
+  /** The Tower's collapse: timber deck grids in scaffold rooms, some rotten. */
+  scaffolds: Scaffold[];
   vistas: Pose[];
   landmark: { x: number; z: number; y: number; h: number };
   /** The shortcut's barred door; it opens only from the `opensFrom` side. */
   door: { x: number; z: number; y: number; dir: Dir; width: number; opensFrom: Dir };
   /** The way on: a veiled gate at the exit room's far edge. */
   exit: { x: number; z: number; y: number; dir: Dir; width: number };
+}
+
+/**
+ * A scaffold room's floor: `cols × rows` timber decks laid world-aligned from (x0, z0), each `tx × tz` metres, at
+ * height y. `rotten` lists the decks that crack underfoot (row-major indices).
+ */
+export interface Scaffold {
+  node: number;
+  x0: number;
+  z0: number;
+  y: number;
+  cols: number;
+  rows: number;
+  tx: number;
+  tz: number;
+  rotten: number[];
+}
+
+/** The deck cell under a world point, or [-1, -1]. */
+export function deckCell(s: Scaffold, x: number, z: number): [number, number] {
+  const c = Math.floor((x - s.x0) / s.tx);
+  const r = Math.floor((z - s.z0) / s.tz);
+  return c >= 0 && r >= 0 && c < s.cols && r < s.rows ? [c, r] : [-1, -1];
+}
+
+/** The cells a room's doors open onto (a deck just inside each door). */
+export function doorCells(s: Scaffold, r: Room): [number, number][] {
+  return r.doors.map((d) => deckCell(s, d.x - DX[d.dir] * 1.0, d.z - DZ[d.dir] * 1.0));
 }
 
 export interface Hoard {
@@ -511,6 +542,41 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
   }
 
+  // Scaffold rooms (the Tower): timber decks over the drop, some rotten. Door landings, cover and the decks under
+  // the tiers stay sound, and the rot never cuts the doors apart (collapse closes ways behind you, not ahead).
+  const scaffolds: Scaffold[] = [];
+  const co = dim.collapse;
+  if (co) {
+    for (const r of rooms) {
+      const kit = dim.kits[r.kit];
+      if (!kit.scaffold) continue;
+      const sr = rng.fork(`deck${r.node}`);
+      const cols = Math.max(1, Math.round(r.sx / co.tile));
+      const rows = Math.max(1, Math.round(r.sz / co.tile));
+      const s: Scaffold = { node: r.node, x0: r.x - r.sx / 2, z0: r.z - r.sz / 2, y: r.y, cols, rows, tx: r.sx / cols, tz: r.sz / rows, rotten: [] };
+      const doors = doorCells(s, r);
+      const keep = (i: number) => {
+        const c = i % cols;
+        const rw = Math.floor(i / cols);
+        const x = s.x0 + (c + 0.5) * s.tx;
+        const z = s.z0 + (rw + 0.5) * s.tz;
+        if (doors.some(([dc, dr]) => Math.abs(dc - c) <= 1 && Math.abs(dr - rw) <= 1)) return true;
+        return furn.boxes.some((b) => b.node === r.node && b.kind !== 'edge' && Math.abs(x - b.x) < b.sx / 2 + s.tx / 2 && Math.abs(z - b.z) < b.sz / 2 + s.tz / 2);
+      };
+      let share = co.rotten[level];
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const rot: number[] = [];
+        for (let i = 0; i < cols * rows; i++) if (!keep(i) && sr() < share) rot.push(i);
+        if (connected(cols, rows, (i) => rot.includes(i), doors.slice(0, 1), doors)) {
+          s.rotten = rot;
+          break;
+        }
+        share *= 0.7;
+      }
+      scaffolds.push(s);
+    }
+  }
+
   // Hoards in plain sight: in the fights and set-pieces, off the lanes, sockets and cover, toward the far side.
   const tm = dim.temptation;
   if (tm) {
@@ -577,7 +643,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     heroSwords.push({ x, z, y: -34, len: rng.range(40, 64), yaw: rng.range(0, Math.PI * 2), tilt: rng.range(-0.22, 0.22) });
   }
 
-  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, vistas, landmark, door, exit };
+  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, scaffolds, vistas, landmark, door, exit };
 }
 
 export function inRoom(r: Room, x: number, z: number, inset = 0) {

@@ -4,6 +4,30 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-11: the Tower's climb (the space and the rule)
+After the Devil, the lion's gate opens on **the Tower**: three generated levels that climb about 18 m each, fought on
+**timber decks** over the drop. Its own enemies, court cards and boss are V2-12. Until then it borrows Bailiffs,
+Imps, Misers, Gavels and Pages, and the Swords court.
+
+**Try:**
+- **Rotten decks** are darker, sag, and sit in a wider gap. Step on one: it pulses magenta and falls a second later.
+  Can you read them before you step?
+- **Lightning** marks where you stand (a magenta ring) every 6–14 s. Move, and watch the timber it hits catch
+  fire, spread, and fall away.
+- **Fire** hurts while you stand in it, and burnt decks fall. Does the floor of a long fight change shape in a way
+  that's interesting, or just punishing?
+- **Fall in:** it costs 30 and puts you back on the last stone you stood on.
+- **Rest** at a lantern: every deck is back.
+
+**Unsure about:**
+- **"Standing still is the mistake"** is the card's rule. Lightning that tracks you does push you to move. Is it
+  frequent enough to matter, or so frequent it's noise? The numbers are in `tuning.tower.lightning`.
+- **The rotten tell** is colour, sag and a wider gap. At pixel scale and in fog it may be too subtle.
+- **Burning decks** use the Tower's fire orange, not magenta: fire is a lasting state of the ground, not an attack's
+  wind-up. Does that read as "don't stand here"?
+- **The climb is the grid, not a spiral** round the tower, like the Devil's descent.
+- **Falling to the last stone** can put you back some way behind.
+
 ## V2-10: the Pentacles court, the Devil and the dash
 The second dimension is complete: three generated levels with their court cards, then the Devil in his pit. Beating
 him frees the **dash (X)**. Everything here is a first version that nobody has played yet.

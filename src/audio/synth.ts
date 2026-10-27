@@ -359,6 +359,22 @@ const SFX = {
     over: L({ kind: 'osc', wave: 'sine', f0: 1650, f1: 1640, dur: 1.1, gain: 0.1 }),
     over2: L({ kind: 'osc', wave: 'sine', f0: 660, f1: 655, dur: 1.4, gain: 0.22, delay: 0.5 }),
   },
+  // The Tower (V2-11): a deck creaks before it goes, falling timber, fire catching, and thunder after a strike.
+  creak: {
+    groan: L({ kind: 'osc', wave: 'sawtooth', f0: 140, f1: 95, dur: 0.6, gain: 0.12, attack: 0.05 }),
+    split: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 4, dur: 0.25, gain: 0.35, delay: 0.25 }),
+  },
+  timberFall: {
+    crack: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 200, dur: 0.5, gain: 0.7 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.4, gain: 0.5, delay: 0.1 }),
+  },
+  fireCatch: {
+    whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 400, f1: 1600, q: 1, dur: 0.5, gain: 0.4, attack: 0.08 }),
+  },
+  thunder: {
+    crack: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 800, dur: 0.15, gain: 0.9 }),
+    roll: L({ kind: 'noise', filter: 'lowpass', f0: 500, f1: 80, dur: 1.6, gain: 0.8, delay: 0.05 }),
+  },
   rest: {
     a: L({ kind: 'osc', wave: 'sine', f0: 523, f1: 523, dur: 0.6, gain: 0.2 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 659, f1: 659, dur: 0.6, gain: 0.18, delay: 0.15 }),

@@ -346,7 +346,7 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - the dash breaks a chain
   - The V2-9 scenarios now fight in the Devil's open arena (the courtyard's training-dummy colliders got in the way).
 
-### V2-11: The Tower's climb (space and the collapse rule)
+### V2-11: The Tower's climb (space and the collapse rule) ✅ (waiting on your playtest)
 - **The generator stacks floors** and turns the heading around the tower (`LEVELS.md → The Tower`).
 - **The collapse rule:**
   - floors crumble on a telegraphed timer (cracks glow magenta, then drop)
@@ -355,6 +355,31 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
 
   Physics colliders are removed and restored on rest, like the shortcut door.
 - **Palette:** soot and charred timber, an ember fog, and storm violet held clear of the charge colour (tested).
+- **Done as:**
+  - `TOWER_DIMENSION`: negative `descent` (a climb), scaffold kits, four set-pieces, `CollapseDef` (deck size, rot
+    by level), and a `seat` (where the arcana waits) on every dimension.
+  - Pure rules in `src/world/scaffold.ts`, tested:
+    - `ScaffoldGrid`: step, crack, ignite, spread, fall, reset
+    - `connected`: the door check
+  - The dressing layer lays decks and rot (`Scaffold`, `deckCell`, `doorCells`); `checkScaffolds` validates them.
+  - Builder:
+    - `src/world/decks.ts`: an instanced draw per room and a collider per deck; state colours as in `STYLE.md`
+    - beam-and-stilt frames under scaffold rooms
+    - rubble cover
+    - the Tower landmark (`towerGeo`) with an unfogged storm glow
+  - `Game.collapse` each frame:
+    - steps crack rotten decks; fire ticks; lightning marks and strikes, then ignites
+    - falls cost health and return her to the last stone (`lastSafe`); a rest resets the decks
+    - feel numbers in `tuning.tower`
+  - Sounds: creak, timber fall, fire catching, thunder.
+  - `TOWER` palette (tested); the lion's gate.
+  - Tests: `tests/tower.test.ts`.
+  - Smoke: `--tower`:
+    - through the lion's gate
+    - a rotten deck cracks and drops her, and the fall costs health and returns her to stone
+    - lightning marks, strikes and sets decks alight
+    - a rest restores the decks
+    - three levels, then home
 
 ### V2-12: Wands enemies, court cards and the Crowned Tower
 - **Enemies:**

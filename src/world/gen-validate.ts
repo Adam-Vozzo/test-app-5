@@ -1,7 +1,8 @@
 // Level generation, layer 6 (LEVELS.md → Validation): a generated level must pass every check, or the caller
 // re-rolls it. Pure: no Three/DOM. Each check returns the reasons it failed (empty = pass).
 import type { DimensionDef } from './dimensions';
-import { EDGE, EYE, inRoom, type Dressing, type Furnishing, type Socket } from './gen-dress';
+import { doorCells, EDGE, EYE, inRoom, type Dressing, type Furnishing, type Socket } from './gen-dress';
+import { connected } from './scaffold';
 import { isCombat, type LevelScript, type MissionGraph } from './gen-graph';
 import { connLength, connRect, overlaps, roomRect, toLocal, type Space } from './gen-space';
 
@@ -21,7 +22,21 @@ export interface LevelParts {
 export const BUDGET = { rooms: 14, props: 700, lanternClear: 15, entryClear: 6 };
 
 export function validate(p: LevelParts): string[] {
-  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkLandmark(p), ...checkBudget(p)];
+  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkScaffolds(p), ...checkLandmark(p), ...checkBudget(p)];
+}
+
+/** The Tower's collapse: every scaffold room's doors are joined by sound decks before anything has been stepped on. */
+export function checkScaffolds({ dim, space, dressing }: LevelParts): string[] {
+  const out: string[] = [];
+  const want = dim.collapse ? space.rooms.filter((r) => dim.kits[r.kit].scaffold).length : 0;
+  if (dressing.scaffolds.length !== want) out.push(`scaffolds: ${dressing.scaffolds.length} of ${want} rooms`);
+  for (const s of dressing.scaffolds) {
+    const r = space.rooms.find((x) => x.node === s.node)!;
+    const doors = doorCells(s, r);
+    if (doors.some(([c]) => c < 0)) out.push(`scaffolds: a door off room ${s.node}'s decks`);
+    else if (!connected(s.cols, s.rows, (i) => s.rotten.includes(i), doors.slice(0, 1), doors)) out.push(`scaffolds: rot cuts room ${s.node}'s doors apart`);
+  }
+  return out;
 }
 
 /** The Devil's temptation: enough hoards, each inside its room, with a cost its level allows. */

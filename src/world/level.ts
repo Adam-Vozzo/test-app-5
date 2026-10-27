@@ -10,11 +10,12 @@ import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
 import { COVER, EDGE, type Box, type Hoard } from './gen-dress';
+import { Decks } from './decks';
 import { tuning } from '../tuning';
 import { DEVIL_FOES } from '../render/palette';
 import type { LevelLayout, LevelReport } from './gen-level';
 import { connLength, DX, DZ, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
+import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
 /** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
 let S = JUSTICE.surfaces;
@@ -41,6 +42,8 @@ export interface LevelWorld extends BuiltWorld {
   onHoard?: (h: Hoard, at: THREE.Vector3) => string | null;
   /** The way on opens once the court card has fallen (set by the game). */
   exitOpen?: () => boolean;
+  /** The Tower's timber decks (collapse), if this level has scaffold rooms. */
+  decks: Decks | null;
 }
 
 export function buildLevel(layout: LevelLayout, report: LevelReport, dim: DimensionDef, physics: Physics): LevelWorld {
@@ -48,6 +51,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   const P = AREAS[dim.id] ?? JUSTICE;
   S = P.surfaces;
   const hoards = dim.props.strewn === 'hoard';
+  const rubble = dim.props.strewn === 'rubble';
   const group = new THREE.Group();
   const mat = toonMat();
   const solid: THREE.BufferGeometry[] = [];
@@ -69,11 +73,22 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   // ---- rooms: a platform (stone foundation into the fog) with a paved or earth top
   for (const r of space.rooms) {
     const kit = dim.kits[r.kit];
+    if (kit.scaffold) {
+      // Timber decks over the drop (the decks themselves are built below): a frame of beams and stilts into the fog.
+      for (const [dx, dz, sx, sz] of [[0, -r.sz / 2, r.sx + 0.6, 0.5], [0, r.sz / 2, r.sx + 0.6, 0.5], [-r.sx / 2, 0, 0.5, r.sz], [r.sx / 2, 0, 0.5, r.sz]] as const) {
+        solid.push(place(block(sx, 0.5, sz, S.dark, 0.05), r.x + dx, r.y - 0.8, r.z + dz));
+      }
+      for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++) far.push(place(block(0.5, FOUNDATION, 0.5, S.dark, 0.06), r.x - r.sx / 2 + (r.sx * i) / 2, r.y - 0.8 - FOUNDATION, r.z - r.sz / 2 + (r.sz * j) / 2));
+      continue;
+    }
     far.push(place(facet(new THREE.BoxGeometry(r.sx + 1.2, FOUNDATION, r.sz + 1.2).translate(0, -FOUNDATION / 2, 0), S.dark, 0.06, r.node), r.x, r.y - 0.02, r.z));
     staticBox(r.x, r.y - 1, r.z, r.sx / 2, 1, r.sz / 2);
     if (kit.ground === 'earth') flat.push(earthTop(r));
     else flat.push(...flagTop(r, rng));
   }
+  // The Tower's decks: one instanced draw per scaffold room, a collider per deck.
+  const decks = dr.scaffolds.length ? new Decks(dr.scaffolds, physics, P) : null;
+  if (decks) group.add(decks.group);
 
   // ---- connectors: causeway decks on piers, or stairs; parapets both sides unless walled
   for (const c of space.connectors) connectorGeo(c, solid, far, staticBox);
@@ -123,6 +138,12 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
 
   // ---- strewn props (Justice: planted swords on the sword field; the Devil: coin hoards), and hero props in the fog
   for (const s of dr.swords) {
+    if (rubble) {
+      const size = s.len * 0.55;
+      solid.push(place(rubbleGeo(size, S.mid, S.light, s.x + s.z), s.x, s.y, s.z, 0, s.yaw, 0));
+      staticBox(s.x, s.y + size * 0.3, s.z, size * 0.55, size * 0.3, size * 0.55);
+      continue;
+    }
     if (hoards) {
       // A hoard is low cover: its size follows the planted length the generator rolled.
       const size = s.len * 0.5;
@@ -213,7 +234,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   interactables.push({
     pos: exitPos,
     radius: 3.4,
-    prompt: () => (world.exitOpen?.() ?? true ? `E: walk on ${dim.landmark.kind === 'pedestal' ? 'down toward the pedestal' : 'toward the scales'}` : `The way on is sealed while the ${layout.script.minibossName} stands`),
+    prompt: () => (world.exitOpen?.() ?? true ? `E: walk on ${dim.seat.way}` : `The way on is sealed while the ${layout.script.minibossName} stands`),
     usable: () => world.exitOpen?.() ?? true,
     use: () => {
       world.exited = true;
@@ -322,7 +343,13 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     if (dim.props.hero === 'pillar') far.push(place(pitPillarGeo(rng.range(50, 90), S.mid, S.dark, P.accentShade), cx + Math.sin(a) * r, -60 + rng.range(0, 12), cz + Math.cos(a) * r, 0, rng.range(0, 6.28), 0));
     else far.push(place(swordGeo(rng.range(40, 80), S.mid, S.dark), cx + Math.sin(a) * r, -40 + rng.range(0, 12), cz + Math.cos(a) * r, rng.range(-0.35, 0.35), rng.range(0, 6.28), rng.range(-0.2, 0.2)));
   }
-  if (dim.landmark.kind === 'pedestal') {
+  if (dim.landmark.kind === 'tower') {
+    far.push(place(towerGeo(lm.h, S.light, S.dark, P.accent), lm.x, lm.y, lm.z));
+    // Lightning in the storm over the break: an unfogged glow, the way up.
+    const glow = new THREE.Mesh(flameGeo(lm.h * 0.05, 0xe8e4ff), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
+    glow.position.set(lm.x, lm.y + lm.h * (TOWER_GLOW - 0.17), lm.z);
+    group.add(glow);
+  } else if (dim.landmark.kind === 'pedestal') {
     // The Devil's pedestal rises out of the pit; its brazier burns with the lantern's warm light, the way down.
     far.push(place(pedestalGeo(lm.h, S.mid, S.dark, P.accent, P.accentShade), lm.x, lm.y, lm.z));
     // The flame is a glow (FX), so it opts out of the fog: the warm point that leads down reads from every vista.
@@ -361,6 +388,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     restPoints,
     interactables,
     bounds: b,
+    decks,
     shortcutOpen: () => open,
   });
   return world as LevelWorld;
