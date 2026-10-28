@@ -59,6 +59,8 @@ export interface EnemyWorld {
   bossPhase?(phase: number): void;
   /** Bring a new enemy into the fight (a King's squad); it arrives alerted. `illusion`: as a reflection (the Queen of Cups' copies). */
   summon(id: string, pos: THREE.Vector3, yaw: number, illusion?: boolean): Hostile | null;
+  /** Solid ground for a court card or boss that fell off the stage: the standing deck nearest `near`, if any. */
+  safeGround?(near: THREE.Vector3): THREE.Vector3 | null;
   /** The Knight of Cups' true cup: restore this much health. */
   healPlayer?(amount: number): void;
   /** Wake everyone within `radius` of `from` and tell them where the player is. */

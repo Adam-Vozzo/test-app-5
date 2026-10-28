@@ -111,7 +111,20 @@ const cupStemGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.24, 6).translate(0
 const cupBowlGeo = new THREE.CylinderGeometry(0.22, 0.07, 0.16, 8, 1, true).translate(0, 0.36, 0);
 const draughtGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.03, 10);
 const beamGeo = new THREE.CylinderGeometry(0.12, 0.2, 2.6, 8, 1, true);
+/** A shot's line: unit length along +Z (Object3D.lookAt turns +Z toward the target), thin. */
+const tracerGeo = new THREE.BoxGeometry(0.06, 0.06, 1).translate(0, 0, 0.5);
+/** A low cylinder wall around a landing strike (unit radius, 0.6 m tall, open). */
+const burstWallGeo = new THREE.CylinderGeometry(1, 1, 0.6, 32, 1, true).translate(0, 0.3, 0);
 const laneGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0, -0.5);
+
+/** A marked ground strike landing: a flash that snaps outward and fades (so a strike you dodged still reads). */
+interface Burst {
+  g: THREE.Group;
+  t: number;
+  r: number;
+  mats: THREE.MeshBasicMaterial[];
+}
+const BURST_T = 0.45;
 
 export class Hazards {
   private globs: Glob[] = [];
@@ -131,6 +144,10 @@ export class Hazards {
   private seedRingMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.95, depthWrite: false, fog: false });
   private seedDiscMat = new THREE.MeshBasicMaterial({ color: DEVIL.accent, transparent: true, opacity: 0.4, depthWrite: false, fog: false });
   private knifePool: THREE.Mesh[] = [];
+  private bursts: Burst[] = [];
+  private tracers: { mesh: THREE.Mesh; t: number }[] = [];
+  private tracerPool: { mesh: THREE.Mesh; t: number }[] = [];
+  private burstPool: Burst[] = [];
   readonly waves: Wave[] = [];
   private wavePool: THREE.Group[] = [];
   private waveMat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, opacity: 0.45, depthWrite: false, fog: false, side: THREE.DoubleSide });
@@ -209,6 +226,7 @@ export class Hazards {
         continue;
       }
       if (v.t < v.delay) continue;
+      this.burst(v.at, v.radius);
       if (v.kind === 'shackle') {
         w.sound('chainSnap', v.at);
         if (inside) w.bindPlayer?.(v.bindTime, v.damage, v.knockback, v.at, null);
@@ -229,10 +247,11 @@ export class Hazards {
     this.verdicts.splice(i, 1);
   }
 
-  /** A thrown blade: flies straight, stops at walls, hurts on contact. */
-  knife(from: THREE.Vector3, vel: THREE.Vector3, damage: number, knockback: number) {
+  /** A thrown blade: flies straight, stops at walls, hurts on contact. `size` scales it (a rifle's heavy bolt). */
+  knife(from: THREE.Vector3, vel: THREE.Vector3, damage: number, knockback: number, size = 1) {
     const mesh = this.knifePool.pop() ?? this.makeKnife();
     mesh.visible = true;
+    mesh.scale.setScalar(size);
     mesh.position.copy(from);
     this.knives.push({ pos: from.clone(), vel: vel.clone(), t: 0, damage, knockback, mesh });
   }
@@ -452,9 +471,78 @@ export class Hazards {
     this.cups.splice(i, 1);
   }
 
+  /** A strike lands at `at` across `radius`: the mark flashes and snaps outward as it fades. */
+  burst(at: THREE.Vector3, radius: number) {
+    let b = this.burstPool.pop();
+    if (!b) {
+      const g = new THREE.Group();
+      const ringM = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, depthWrite: false, fog: false });
+      const discM = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+      const wallM = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+      g.add(new THREE.Mesh(ringGeo, ringM), new THREE.Mesh(discGeo, discM), new THREE.Mesh(burstWallGeo, wallM));
+      g.renderOrder = 6;
+      this.scene.add(g);
+      b = { g, t: 0, r: 1, mats: [ringM, discM, wallM] };
+    }
+    b.t = 0;
+    b.r = radius;
+    b.g.visible = true;
+    b.g.position.copy(at).setY(at.y + 0.14);
+    this.bursts.push(b);
+    this.stepBurst(b, 0);
+  }
+
+  private stepBurst(b: Burst, dt: number) {
+    b.t += dt;
+    const k = Math.min(1, b.t / BURST_T);
+    const out = 1 - (1 - k) * (1 - k);
+    b.g.scale.set(b.r * (1 + 0.35 * out), 1 + 2 * (1 - k), b.r * (1 + 0.35 * out));
+    b.mats[0].opacity = 1 - k;
+    b.mats[1].opacity = 0.6 * (1 - k) * (1 - k);
+    b.mats[2].opacity = 0.5 * (1 - k);
+  }
+
+  /** A shot's line flashing along `length` from `from` (a heavy bolt fired down its lane): it fades in a moment. */
+  tracer(from: THREE.Vector3, dir: THREE.Vector3, length: number) {
+    let t = this.tracerPool.pop();
+    if (!t) {
+      const mat = new THREE.MeshBasicMaterial({ color: SIGNAL.telegraph, transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending });
+      t = { mesh: new THREE.Mesh(tracerGeo, mat), t: 0 };
+      t.mesh.renderOrder = 6;
+      this.scene.add(t.mesh);
+    }
+    t.t = 0;
+    t.mesh.visible = true;
+    t.mesh.position.copy(from);
+    t.mesh.lookAt(_p.copy(from).add(dir));
+    t.mesh.scale.set(1, 1, length);
+    this.tracers.push(t);
+  }
+
   /** Advance globs; returns the impacts that landed this frame. */
   update(dt: number): GlobImpact[] {
     this.time += dt;
+    for (let i = this.tracers.length - 1; i >= 0; i--) {
+      const t = this.tracers[i];
+      t.t += dt;
+      const k = Math.min(1, t.t / 0.3);
+      (t.mesh.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - k);
+      t.mesh.scale.x = t.mesh.scale.y = 1 + k * 2;
+      if (k >= 1) {
+        t.mesh.visible = false;
+        this.tracerPool.push(t);
+        this.tracers.splice(i, 1);
+      }
+    }
+    for (let i = this.bursts.length - 1; i >= 0; i--) {
+      const b = this.bursts[i];
+      this.stepBurst(b, dt);
+      if (b.t >= BURST_T) {
+        b.g.visible = false;
+        this.burstPool.push(b);
+        this.bursts.splice(i, 1);
+      }
+    }
     const out: GlobImpact[] = [];
     const pulse = 0.75 + 0.25 * Math.sin(this.time * 18);
     for (let i = this.globs.length - 1; i >= 0; i--) {
@@ -488,6 +576,16 @@ export class Hazards {
     this.globs.length = 0;
     for (const lane of this.lanes.values()) lane.visible = false;
     for (const r of this.rings.values()) r.visible = false;
+    for (const t of this.tracers) {
+      t.mesh.visible = false;
+      this.tracerPool.push(t);
+    }
+    this.tracers.length = 0;
+    for (const b of this.bursts) {
+      b.g.visible = false;
+      this.burstPool.push(b);
+    }
+    this.bursts.length = 0;
     for (const v of this.verdicts) {
       v.g.visible = false;
       (v.kind === 'seed' ? this.seedPool : this.verdictPool).push(v.g);

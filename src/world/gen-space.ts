@@ -210,8 +210,10 @@ export function embed(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nul
     if (kind !== 'shortcut' && kind !== 'branch' && Math.abs(b.y - a.y) > 0.05) c.kind = 'stairs';
     const idx = connectors.length;
     connectors.push(c);
-    a.doors.push({ dir, width: width + 1, x: ax, z: az, connector: idx });
-    b.doors.push({ dir: opposite(dir), width: width + 1, x: bx, z: bz, connector: idx });
+    // The doorway is exactly the connector's width: its parapets (or walls) then run on flush from the room's, with no
+    // end face standing into the opening for her to walk into at the foot of the stairs.
+    a.doors.push({ dir, width, x: ax, z: az, connector: idx });
+    b.doors.push({ dir: opposite(dir), width, x: bx, z: bz, connector: idx });
     return idx;
   };
   for (let i = 1; i < rooms.length; i++) {

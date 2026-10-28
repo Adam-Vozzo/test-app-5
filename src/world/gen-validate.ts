@@ -30,6 +30,18 @@ export function checkIllusions({ dim, space, sockets, dressing }: LevelParts): s
   const out: string[] = [];
   if (!dim.illusion) return dressing.falsePaths.length || sockets.some((s) => s.illusion) ? ['illusions: in a dimension without them'] : [];
   for (const i of dressing.falsePaths) if (space.connectors[i]?.kind !== 'branch') out.push(`illusions: connector ${i} is a false path on the way on`);
+  // Each false path has its hidden way across, stone to stone within a careful step (corner to corner).
+  for (const i of dressing.falsePaths) {
+    const c = space.connectors[i];
+    const mine = dressing.stones.filter((s) => Math.min(Math.hypot(s.x - c.ax, s.z - c.az), Math.hypot(s.x - c.bx, s.z - c.bz)) <= Math.hypot(c.bx - c.ax, c.bz - c.az));
+    if (mine.length < 2) out.push(`illusions: false path ${i} has no hidden way across`);
+    for (let k = 1; k < mine.length; k++) {
+      const a = mine[k - 1];
+      const b = mine[k];
+      const gap = Math.max(0, Math.abs(a.x - b.x) - a.size) ** 2 + Math.max(0, Math.abs(a.z - b.z) - a.size) ** 2;
+      if (Math.sqrt(gap) > 1.0) out.push(`illusions: false path ${i}'s stones ${k - 1}-${k} are too far apart`);
+    }
+  }
   const rooms = new Set(sockets.map((s) => s.node));
   for (const n of rooms) {
     const here = sockets.filter((s) => s.node === n && s.kind !== 'miniboss');

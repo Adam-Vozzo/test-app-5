@@ -62,6 +62,8 @@ export class SwingState {
   /** The charge is held long enough to strike. */
   chargeReady = false;
   private queued = false;
+  /** A press during a recovery that can't chain (the last swing, a rebound): it starts a fresh combo on the end. */
+  private late = false;
   private recoverTime = 0;
 
   get busy() {
@@ -90,6 +92,7 @@ export class SwingState {
     this.t = 0;
     this.index = 0;
     this.queued = false;
+    this.late = false;
     this.charged = false;
     this.chargeReady = false;
   }
@@ -157,13 +160,17 @@ export class SwingState {
       this.recoverTime = this.t;
       if (inp.light && !this.charged && this.recoverTime <= m.comboWindow) this.queued = true;
       const last = this.charged || this.index >= m.combo.length - 1;
+      // Pressed too late to chain (or out of a rebound): remembered, not dropped. It starts a new combo at the end.
+      if (inp.light && (last || this.recoverTime > m.comboWindow)) this.late = true;
       if (this.queued && !last && this.t >= d.recover * m.cancelInto) {
         begin(this.index + 1, false);
         return out;
       }
       if (this.t >= d.recover) {
+        const again = this.late;
         this.cancel();
         out.push({ type: 'end' });
+        if (again) begin(0, false);
       }
     }
     return out;

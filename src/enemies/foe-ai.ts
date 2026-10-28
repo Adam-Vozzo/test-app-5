@@ -95,6 +95,9 @@ export interface FoeTune {
   chainHealth?: number;
   rage?: number;
   fleeTime?: number;
+  /** A boss: wakes only when you come this close (into its arena), never by sight or sound, and never sleeps hidden. */
+  wakeRadius?: number;
+  fleeGone?: number;
   attacks: Record<string, AttackTune>;
 }
 

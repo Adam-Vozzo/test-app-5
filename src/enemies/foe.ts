@@ -13,6 +13,7 @@ import type { EnemyWorld, Hostile } from './enemy';
 import { attackTimeline, fleeHeading, guards, inArc, leashBroken, loudest, pickAttack, slamCentre, type AttackTune, type FoeTune, type TimelinePoint } from './foe-ai';
 import { blankPose, lerpPose, mirrorPose, type ArmPose, type FoePlan } from './foes';
 import { HumanoidRig } from './humanoid';
+import { BeastRig, type FoeRig } from './beast';
 
 export type FoeState = 'idle' | 'alert' | 'approach' | 'search' | 'return' | 'attack' | 'stagger' | 'dead';
 /** Idle behaviour: stand guard, pace, crouch in ambush, or hold the throne room (wakes when you walk in). */
@@ -28,10 +29,14 @@ const _to = new THREE.Vector3();
 const _des = new THREE.Vector3();
 const _fwd = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
+const _down = new THREE.Vector3(0, -1, 0);
+/** A shield (off hand) swung wide and low, edge-on: the guard open after a swing (hand position, then angles). */
+const GUARD_HAND = [-0.46, -0.26, -0.02];
+const GUARD_OFF = [-0.5, 1.25, -0.3];
 
 export class Foe implements Damageable, Hostile {
   readonly plan: FoePlan;
-  readonly rig: HumanoidRig;
+  readonly rig: FoeRig;
   protected body: RAPIER.RigidBody;
   protected collider: RAPIER.Collider;
   protected kcc: RAPIER.KinematicCharacterController;
@@ -101,10 +106,10 @@ export class Foe implements Damageable, Hostile {
   ) {
     this.plan = plan;
     this.id = plan.id;
-    this.rig = new HumanoidRig(scene, physics, this.plan);
+    this.rig = plan.beast ? new BeastRig(scene, physics, plan, plan.beast) : new HumanoidRig(scene, physics, plan);
     const s = this.rig.s;
     this.radius = plan.radius * s;
-    this.halfH = 0.42 * s;
+    this.halfH = this.rig.capsuleHalf;
     const w = physics.world;
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(pos.x, pos.y + this.radius + this.halfH, pos.z));
     this.collider = w.createCollider(RAPIER.ColliderDesc.capsule(this.halfH, this.radius).setCollisionGroups(BODY_GROUPS), this.body);
@@ -244,6 +249,7 @@ export class Foe implements Damageable, Hostile {
 
   /** Move it to `p` (on the ground) at once: the Queen of Cups trading places with a reflection. */
   placeAt(p: THREE.Vector3) {
+    this.settle = true;
     this.center.set(p.x, p.y + this.radius + this.halfH, p.z);
     this.body.setTranslation(this.center, true);
     this.body.setNextKinematicTranslation(this.center);
@@ -303,6 +309,7 @@ export class Foe implements Damageable, Hostile {
     this.push.addScaledVector(_v.set(info.dir.x, 0, info.dir.z).normalize(), (info.knockback * 1.6) / heavy);
     this.provoked = true;
     if (this.health <= 0) {
+      this.rig.setFallDir(info.dir as THREE.Vector3);
       this.die();
       return true;
     }
@@ -314,6 +321,34 @@ export class Foe implements Damageable, Hostile {
       this.set('stagger');
     }
     return false;
+  }
+
+  /**
+   * It fell off the stage (through a fallen deck, off an edge). A common enemy dies of the fall. A court card or boss is
+   * set back down on solid ground near where it stood, fall checked, reeling. (It used to be put back at home with its
+   * fall speed kept: over a hole, it fell again, faster each time, forever.)
+   */
+  protected fellOff(w: EnemyWorld) {
+    this.vy = 0;
+    this.push.set(0, 0, 0);
+    this.vel.set(0, 0, 0);
+    if (!this.bar) {
+      this.health = 0;
+      this.die();
+      this.rig.group.visible = false;
+      return;
+    }
+    const at = w.safeGround?.(this.home) ?? this.home;
+    this.placeAt(at);
+    this.endAttack();
+    this.set('stagger');
+  }
+
+  /** 0 while a corpse lies, rising to 1 as it sinks away. */
+  get sink() {
+    if (this.state !== 'dead') return 0;
+    const T = tuning.foes.corpseTime;
+    return smoothstep(T - 1.2, T, this.deadT);
   }
 
   protected die() {
@@ -354,11 +389,10 @@ export class Foe implements Damageable, Hostile {
     if (this.state === 'dead') {
       this.deadT += dt;
       this.vel.multiplyScalar(Math.exp(-6 * dt));
-      const T = tuning.foes.corpseTime;
-      const fade = smoothstep(T - 1, T, this.deadT);
-      this.rig.update(dt, this.ground, this.yaw, this.vel, this.pose, true);
-      this.rig.group.scale.setScalar(1 - fade * 0.999);
-      this.rig.group.visible = fade < 1;
+      // Lie still, then sink into the ground (the whole body together: limbs and all).
+      _v.copy(this.ground).addScaledVector(_up, -this.sink * (this.plan.height * 0.45 + 0.3));
+      this.rig.update(dt, _v, this.yaw, this.vel, this.pose, true);
+      this.rig.group.visible = this.sink < 1;
       this.rig.setGlow(0, false);
       return;
     }
@@ -366,8 +400,9 @@ export class Foe implements Damageable, Hostile {
     _to.subVectors(w.playerPos, this.ground).setY(0);
     this.dist = _to.length();
     const playerFar = Math.hypot(w.playerPos.x - this.home.x, w.playerPos.z - this.home.z);
-    // Asleep: idle and far beyond notice. Hidden, and skipped (they're lost in the fog).
-    if (this.state === 'idle' && playerFar > tuning.foes.sleepDistance) {
+    // Asleep: idle and far beyond notice. Hidden, and skipped (they're lost in the fog). Not a boss: you see it waiting
+    // the whole way in (hiding it made it pop in as you walked up).
+    if (this.state === 'idle' && playerFar > tuning.foes.sleepDistance && !this.cfg.wakeRadius) {
       this.rig.group.visible = false;
       return;
     }
@@ -433,6 +468,10 @@ export class Foe implements Damageable, Hostile {
     }
     this.push.multiplyScalar(Math.exp(-6 * dt));
     this.move(dt);
+    if (this.ground.y < this.home.y - tuning.foes.fallDepth) {
+      this.fellOff(w);
+      if (!this.alive) return;
+    }
     this.computePose();
     this.rig.update(dt, this.ground, this.yaw, this.vel, this.pose, false);
     this.glow = this.state === 'attack' && this.tl?.phase === 'windup' ? this.glow : damp(this.glow, 0, 12, dt);
@@ -470,11 +509,15 @@ export class Foe implements Damageable, Hostile {
       this.searchTarget.copy(w.playerPos);
       if (this.state === 'idle' || this.state === 'search' || this.state === 'return' || this.state === 'alert') this.set('approach');
     }
-    // The throne room: a court card rises when you walk in.
-    const throne = this.idle === 'throne' && w.playerAlive && this.dist < 17 && Math.abs(w.playerPos.y - this.ground.y) < 3;
-    if (this.state === 'idle' && (this.sees || heard || throne)) this.wake(w);
+    // The throne room: a court card rises when you walk in. A boss waits for you to step into its arena (seeing you
+    // down the approach, it used to start before you'd arrived).
+    const wakeR = c.wakeRadius ?? 17;
+    const throne = this.idle === 'throne' && w.playerAlive && this.dist < wakeR && Math.abs(w.playerPos.y - this.ground.y) < 3;
+    if (this.state === 'idle' && (throne || (!c.wakeRadius && (this.sees || heard)))) this.wake(w);
     else if (this.plan.senses === 'sound' && heard && (this.state === 'return' || this.state === 'search')) this.set('search');
-    else if (this.state === 'return' && this.sees && !leashBroken(this.home.x, this.home.z, w.playerPos.x, w.playerPos.z, this.cfg.leash)) this.set('approach');
+    // Found you again while searching (or heading home): back into the fight. (Without this, a Blindfold that lost
+    // you walked right up to you and stood there.)
+    else if ((this.state === 'return' || this.state === 'search') && this.sees && !leashBroken(this.home.x, this.home.z, w.playerPos.x, w.playerPos.z, this.cfg.leash)) this.set('approach');
   }
 
   protected wake(w: EnemyWorld) {
@@ -605,7 +648,9 @@ export class Foe implements Damageable, Hostile {
       if (!this.dealt.has(tl.hit) && !a.speed && !a.radius) {
         _v.subVectors(w.playerChest, this.rig.chest);
         const d = Math.hypot(_v.x, _v.z);
-        if (d <= a.range * 0.75 + this.radius + 0.5 && Math.abs(_v.y) < 1.6 && inArc(this.yaw, _v.x, _v.z, a.arcDeg)) {
+        // Never further than the model can really reach (arm and weapon, and her body's width): what you see hits.
+        const reach = Math.min(a.range * 0.75 + this.radius + 0.5, this.rig.reach + tuning.foes.reachMargin);
+        if (d <= reach && Math.abs(_v.y) < 1.6 && inArc(this.yaw, _v.x, _v.z, a.arcDeg)) {
           this.dealt.add(tl.hit);
           w.hurtPlayer(a.damage, this.center, a.knockback, this);
         }
@@ -639,6 +684,7 @@ export class Foe implements Damageable, Hostile {
       const [x, z] = slamCentre(this.ground.x, this.ground.z, this.yaw, a.reach ?? 2);
       w.hazards.hideRing(this);
       const at = _v.set(x, this.ground.y, z);
+      w.hazards.burst(at, a.radius);
       w.sound('slamImpact', at);
       w.shake(0.55, at);
       const dx = w.playerPos.x - x;
@@ -673,6 +719,15 @@ export class Foe implements Damageable, Hostile {
         lerpPose(from, wind, smoothstep(0, 1, tl.k), out);
       } else if (tl.phase === 'active') lerpPose(wind, act, smoothstep(0, 0.7, tl.k), out);
       else lerpPose(act, p.ready, smoothstep(0.3, 1, tl.k), out);
+      // A shield swings wide while it strikes and recovers: that's when it's open (blocks() agrees), so it looks it.
+      if (p.shield && tl.phase !== 'windup') {
+        const open =
+          tl.phase === 'active' ? (m.shieldAttack ? 0 : smoothstep(0, 0.5, tl.k)) : m.shieldAttack ? smoothstep(0, 0.3, tl.k) * (1 - smoothstep(0.85, 1, tl.k)) : 1 - smoothstep(0.85, 1, tl.k);
+        for (let i = 0; i < 3 && open > 0; i++) {
+          out.handL[i] += (GUARD_HAND[i] - out.handL[i]) * open;
+          out.off[i] += (GUARD_OFF[i] - out.off[i]) * open;
+        }
+      }
       return;
     }
     copy(p.ready);
@@ -734,7 +789,16 @@ export class Foe implements Damageable, Hostile {
     _des.multiplyScalar(speed);
   }
 
+  /** Just moved by hand: its collider catches up on the next physics step, so skip one step of movement. */
+  private settle = false;
+
   protected move(dt: number) {
+    if (this.settle) {
+      this.settle = false;
+      this.vy = 0;
+      this.body.setNextKinematicTranslation(this.center);
+      return;
+    }
     if (this.vy <= 0 && this.kcc.computedGrounded()) this.vy = -2;
     else this.vy -= 30 * dt;
     const want = { x: (this.vel.x + this.push.x) * dt, y: this.vy * dt, z: (this.vel.z + this.push.z) * dt };
@@ -743,7 +807,14 @@ export class Foe implements Damageable, Hostile {
     this.center.x += mv.x;
     this.center.y += mv.y;
     this.center.z += mv.z;
-    if (this.center.y < this.home.y - 30) this.center.set(this.home.x, this.home.y + this.radius + this.halfH, this.home.z);
+    // The character controller now and then misses the floor for a frame and lets the body sink a few centimetres;
+    // left alone, an enemy could sink right through a stage. If the floor is above its feet, stand it back on top.
+    const feet = this.radius + this.halfH;
+    const hit = this.physics.raycast(_v.set(this.center.x, this.center.y, this.center.z), _down, feet, SIGHT);
+    if (hit) {
+      this.center.y += feet - hit.distance;
+      if (this.vy < 0) this.vy = -2;
+    }
     this.body.setNextKinematicTranslation(this.center);
     this.ground.set(this.center.x, this.center.y - this.radius - this.halfH, this.center.z);
   }

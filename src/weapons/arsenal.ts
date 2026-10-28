@@ -82,6 +82,22 @@ export class Arsenal {
     this.switched = false;
   }
 
+  /** What's in hand (and the SwordRifle's mode), to carry into the next scene. */
+  get state(): { index: number; mode: 'rifle' | 'sword' } {
+    const s = this.swords.find((x) => x !== null);
+    return { index: this.swapping ? this.target : this.index, mode: s?.mode ?? 'rifle' };
+  }
+
+  /** Take up a carried state at once (no swap animation): the weapon she had out, the mode it was in. */
+  restore(st: { index: number; mode: 'rifle' | 'sword' }) {
+    const n = this.guns.length;
+    this.index = ((st.index % n) + n) % n;
+    this.swapping = false;
+    this.player.setWeapon(this.current.model);
+    this.sling();
+    for (const s of this.swords) s?.setMode(st.mode);
+  }
+
   cycle(dir: number) {
     this.request((this.swapping ? this.target : this.index) + dir);
   }

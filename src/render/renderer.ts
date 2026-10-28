@@ -1,6 +1,6 @@
 // Scene, camera, lights, fog and sky per STYLE.md. One shadow-casting light that follows the player.
 import * as THREE from 'three';
-import { fogParams, Sky } from './atmosphere';
+import { fogMark, fogParams, Sky } from './atmosphere';
 import type { AreaLighting } from './palette';
 import { tuning } from '../tuning';
 import { PixelPass } from './pixel';
@@ -101,6 +101,7 @@ export class Renderer {
       fogParams.y = look.fogPower;
       fogParams.z = look.heightFalloff;
       fogParams.w = look.heightMix;
+      fogMark.x = look.landmarkFog;
     }
     this.sky.update(this.camera, look.skyBands, look.cloudAmount);
     if (tuning.pixel.enabled) {

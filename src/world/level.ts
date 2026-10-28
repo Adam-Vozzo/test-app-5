@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { makeRng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
-import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
+import { landmarkMat, merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
 import { AREAS, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
@@ -59,12 +59,17 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   const solid: THREE.BufferGeometry[] = [];
   const flat: THREE.BufferGeometry[] = [];
   const far: THREE.BufferGeometry[] = [];
+  const mark: THREE.BufferGeometry[] = [];
   const { space, furn, dressing: dr } = layout;
 
   const staticBox = (x: number, y: number, z: number, hx: number, hy: number, hz: number, q?: THREE.Quaternion) => {
     const d = RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(x, y, z);
     if (q) d.setRotation(q);
     physics.addStatic(d);
+  };
+  const staticHull: StaticHull = (pts) => {
+    const d = RAPIER.ColliderDesc.convexHull(pts);
+    if (d) physics.addStatic(d);
   };
   /** A world-aligned box standing on y, with a collider. */
   const box = (x: number, z: number, y: number, sx: number, sz: number, h: number, color: number, list = solid) => {
@@ -95,7 +100,18 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   // ---- connectors: causeway decks on piers, or stairs; parapets both sides unless walled
   // The Moon's false paths: the boardwalk is drawn, but it casts no shadow on the water and nothing holds you up.
   const noBox: StaticBox = () => {};
-  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox) : connectorGeo(c, solid, far, staticBox)));
+  const noHull: StaticHull = () => {};
+  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox, noHull) : connectorGeo(c, solid, far, staticBox, staticHull)));
+  // ...and under it, the way that is there: stepping stones no one can see, which cast their shadows on the water.
+  if (dr.stones.length) {
+    const casters = dr.stones.map((st) => place(new THREE.BoxGeometry(st.size, 0.4, st.size), st.x, st.y - 0.2, st.z));
+    for (const st of dr.stones) staticBox(st.x, st.y - 0.2, st.z, st.size / 2, 0.2, st.size / 2);
+    // Drawn into the shadow map only: no colour, no depth in the view.
+    const hidden = new THREE.Mesh(merge(casters), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+    hidden.castShadow = true;
+    hidden.receiveShadow = false;
+    group.add(hidden);
+  }
 
   // ---- kit structure: edges, cover, tiers, dividers, connector walls
   for (const b of furn.boxes) {
@@ -106,7 +122,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
       else solid.push(place(swordGeo(3.2, S.light, S.shadow), b.x, b.y + b.h, b.z, 0.06, rng.range(0, Math.PI), 0.05));
     }
   }
-  for (const rp of furn.ramps) rampGeo(rp.x0, rp.z0, rp.y0, rp.x1, rp.z1, rp.y1, rp.width, S.light, solid, staticBox, false);
+  for (const rp of furn.ramps) rampGeo(rp.x0, rp.z0, rp.y0, rp.x1, rp.z1, rp.y1, rp.width, S.light, solid, staticBox, false, staticHull);
   // Columns, with an entablature over neighbours in the same row.
   for (const c of furn.columns) {
     solid.push(place(columnGeo(1.0, c.h, S.mid, S.light), c.x, c.y, c.z));
@@ -362,24 +378,24 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   }
   if (dim.landmark.kind === 'moon') {
     // The two towers, and the Moon low between them: unfogged, the light that leads on.
-    far.push(place(moonTowersGeo(lm.h, S.dark, S.shadow), lm.x, lm.y, lm.z));
+    mark.push(place(moonTowersGeo(lm.h, S.dark, S.shadow), lm.x, lm.y, lm.z));
     const moon = new THREE.Mesh(new THREE.CircleGeometry(lm.h * MOON_R, 32), new THREE.MeshBasicMaterial({ color: P.accent, fog: false }));
     moon.position.set(lm.x, lm.y + lm.h, lm.z - 4);
     group.add(moon);
   } else if (dim.landmark.kind === 'tower') {
-    far.push(place(towerGeo(lm.h, S.light, S.dark, P.accent), lm.x, lm.y, lm.z));
+    mark.push(place(towerGeo(lm.h, S.light, S.dark, P.accent), lm.x, lm.y, lm.z));
     // Lightning in the storm over the break: an unfogged glow, the way up.
     const glow = new THREE.Mesh(flameGeo(lm.h * 0.05, 0xe8e4ff), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
     glow.position.set(lm.x, lm.y + lm.h * (TOWER_GLOW - 0.17), lm.z);
     group.add(glow);
   } else if (dim.landmark.kind === 'pedestal') {
     // The Devil's pedestal rises out of the pit; its brazier burns with the lantern's warm light, the way down.
-    far.push(place(pedestalGeo(lm.h, S.mid, S.dark, P.accent, P.accentShade), lm.x, lm.y, lm.z));
+    mark.push(place(pedestalGeo(lm.h, S.mid, S.dark, P.accent, P.accentShade), lm.x, lm.y, lm.z));
     // The flame is a glow (FX), so it opts out of the fog: the warm point that leads down reads from every vista.
     const flame = new THREE.Mesh(flameGeo(lm.h * 0.07, GEAR.lantern), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
     flame.position.set(lm.x, lm.y + lm.h * PEDESTAL_FLAME, lm.z + lm.h * PEDESTAL_BRAZIER_Z);
     group.add(flame);
-  } else far.push(place(scalesGeo(lm.h, S.dark, S.shadow, P.accent, P.accentShade), lm.x, lm.y, lm.z));
+  } else mark.push(place(scalesGeo(lm.h, S.dark, S.shadow, P.accent, P.accentShade), lm.x, lm.y, lm.z));
 
   // ---- merge into a few meshes: shadow casters, ground (receives only), far scenery (no shadows)
   group.add(meshOf(merge(solid), mat));
@@ -388,6 +404,10 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   const distant = meshOf(merge(far), mat, false);
   distant.receiveShadow = false;
   group.add(distant);
+  // The landmark: its own mesh, fogged lightly, so the shape (not just its glow) reads from every vista.
+  const landmark = meshOf(merge(mark), landmarkMat(), false);
+  landmark.receiveShadow = false;
+  group.add(landmark);
 
   const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
   const sp = dr.spawn;
@@ -479,14 +499,15 @@ function earthTop(r: Room) {
 }
 
 type StaticBox = (x: number, y: number, z: number, hx: number, hy: number, hz: number, q?: THREE.Quaternion) => void;
+type StaticHull = (points: Float32Array) => void;
 
-function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.BufferGeometry[], staticBox: StaticBox) {
+function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.BufferGeometry[], staticBox: StaticBox, hull: StaticHull) {
   const len = connLength(c);
   const ns = c.dir % 2 === 0;
   const mx = (c.ax + c.bx) / 2;
   const mz = (c.az + c.bz) / 2;
   if (Math.abs(c.y1 - c.y0) > 0.05) {
-    rampGeo(c.ax, c.az, c.y0, c.bx, c.bz, c.y1, c.width, S.light, solid, staticBox, !c.walled);
+    rampGeo(c.ax, c.az, c.y0, c.bx, c.bz, c.y1, c.width, S.light, solid, staticBox, !c.walled, hull);
     far.push(place(block(ns ? c.width : len, FOUNDATION, ns ? len : c.width, S.dark, 0.06), mx, Math.min(c.y0, c.y1) - FOUNDATION, mz));
     return;
   }
@@ -515,8 +536,31 @@ function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.Bu
 
 const UP = new THREE.Vector3(0, 1, 0);
 
+/**
+ * The stairs' collider: a solid wedge from below the floor up to a smooth slope that runs from (x0, y0, z0) to
+ * (x1, y1, z1). Solid like the stepped treads drawn over it: a thin tilted slab hung in the air above a gap near its
+ * foot, and coming at it from the side, her feet slid under it and she wedged. Returns the hull's points.
+ */
+export function rampWedge(x0: number, z0: number, y0: number, x1: number, z1: number, y1: number, width: number) {
+  const run = Math.hypot(x1 - x0, z1 - z0);
+  const ux = (x1 - x0) / run;
+  const uz = (z1 - z0) / run;
+  // Across the stairs (either way: the hull doesn't care).
+  const rx = -uz * (width / 2);
+  const rz = ux * (width / 2);
+  const lo = Math.min(y0, y1) - 0.4;
+  const pts: number[] = [];
+  for (const [x, z, y] of [
+    [x0, z0, y0],
+    [x1, z1, y1],
+  ]) {
+    for (const s of [-1, 1]) pts.push(x + rx * s, y, z + rz * s, x + rx * s, lo, z + rz * s);
+  }
+  return new Float32Array(pts);
+}
+
 /** Stairs: a smooth ramp collider under stepped treads, with sloped parapets. */
-function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1: number, width: number, color: number, solid: THREE.BufferGeometry[], staticBox: StaticBox, parapets: boolean) {
+function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1: number, width: number, color: number, solid: THREE.BufferGeometry[], staticBox: StaticBox, parapets: boolean, hull: StaticHull) {
   const dx = x1 - x0;
   const dz = z1 - z0;
   const dy = y1 - y0;
@@ -526,9 +570,7 @@ function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1:
   const pitch = Math.atan2(dy, run);
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-pitch, yaw, 0, 'YXZ'));
   const up = UP.clone().applyQuaternion(q);
-  // The collider's top face lies on the line from start to end; it reaches a little into the rooms.
-  const c = new THREE.Vector3((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2).addScaledVector(up, -0.2);
-  staticBox(c.x, c.y, c.z, width / 2, 0.2, len / 2 + 0.3, q);
+  hull(rampWedge(x0, z0, y0, x1, z1, y1, width));
   const steps = Math.max(2, Math.ceil(Math.abs(dy) / 0.3));
   const ux = dx / run;
   const uz = dz / run;

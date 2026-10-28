@@ -204,8 +204,8 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     - **Phase 1:** raking claws (a two-swing combo), the torch **brand** (a 3.4 m ground ring), and **shackles**: a
       magenta zone closes where you stand and **binds** you if you're in it, and a roll breaks it.
     - **At half health he stops and offers the pact:** "double the damage you deal, and double what you take."
-      **E** accepts within 6 s; letting it pass refuses. He can't be hurt while he offers, and the choice lasts the
-      fight (resting or dying resets it).
+      *After the first playtest* the fight pauses for the answer: a panel with the terms, **Accept (E)** or **Refuse
+      (Esc)**. He can't be hurt while he offers, and the choice lasts the fight (resting or dying resets it).
     - **Phase 2:** shackles in threes, and coin rain that leaves coin.
     - **The arena:** the pit at the pedestal's foot, ringed by chained pillars (`LEVELS.md → Boss arenas`).
   - **His unbinding: the chain-break dash** (**X**, Proposed). A short, very fast burst: 17 m/s for 0.22 s, i-frames
@@ -244,8 +244,10 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     ring, 1.4 s) and strikes (28 damage). The timber within 2.6 m **catches fire**. Never at a lantern.
   - **Fire:** a burning deck hurts while you stand on it (14/s) and spreads to its neighbours. After 4.5 s it falls.
     Fire doesn't jump a gap.
-  - **Falling** into the drop costs 30 and puts you back on the last stone you stood on.
-  - **Resting** brings every deck back.
+  - **Falling** into the drop costs 30 and puts you back on the last stone you stood on (well inside its room,
+    not at the brink).
+  - **Fallen decks are built back after 6 s** (*after the first playtest*: the stage emptied too fast to fight on),
+    once nothing stands in their space, so the floor keeps changing under a fight. Resting brings every deck back.
   - **Set-pieces:** the burning library floor (rubble cover), the bell that brings lightning, the scaffold climb, and
     the leap between towers (a long narrow deck).
   - **Landmark:** the Tower itself, 260 m, pale stone with its crown struck askew, fire in the break and a dark storm
@@ -273,7 +275,10 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
       and a sweep.
     - **The arena is the Tower's top floor, all timber** under a storm. At 66% the outer ring of decks pulses and
       falls (1.6 s warning plus the crack). At 33% it falls again, down to a **last platform** about 9 m across.
-      Falling puts you on the nearest deck still standing.
+      Falling puts you on the nearest deck still standing. *After the first playtest:* the decks are built back behind
+      the collapse, and in each phase that phase's ring gives way again every 14 s, so the top floor keeps changing
+      instead of emptying. Stone landings at its doors never fall. A court card or boss that falls off a stage is set
+      back down on the nearest deck; a common enemy dies of the fall.
     - **When it falls,** the storm passes and the floor holds again.
   - **Its unbinding: the safe fall** (Proposed). Once the Tower has fallen, a fall into the drop costs nothing, and
     the landing knocks back anyone within 4.5 m.
@@ -315,14 +320,18 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     A reflection's swings and rings look real but touch nothing, and one hit dispels it with a shimmer, for no
     pentacles.
   - **False paths:** one branch per level is a causeway that isn't there. It's drawn, but casts no shadow on the
-    water and holds nothing up, so you sink and come up on the last stone (a fall). Its cache is a reflection too:
-    "Nothing was ever there."
+    water and holds nothing up, so you sink and come up back inside the room you left (a fall). *Changed after the
+    first playtest:* under it runs a **secret way across**, stepping stones nobody can see that cast their shadows
+    on the water (the rule turned around: what's real casts a shadow). They wind left, middle, right, so walking the
+    drawn boardwalk straight still drops you; following the shadows gets you over, and the cache beyond is real.
   - **The eagle's gate** opens once the Tower is cleared.
   - **Placeholders (until V2-14):** the rooms held archetypes from the first three dimensions and the Swords court,
     and level 3 led home.
 - **As built in V2-14 (Proposed until played): its own, the court, the Shadow and the ending.**
   - **Dog and Wolf** come as a pair. Either may stop and howl (a long wind-up), and the other is maddened for a few
-    seconds (faster, quicker to strike). They're built on the humanoid rig crouched on all fours, not the v1 rig.
+    seconds (faster, quicker to strike). *After the first playtest* they (and the Crayfish, the fish and the Tower's
+    cat) have their own animal bodies (`src/enemies/beast.ts`): four legs at a trot, eight legs and pincers, or a
+    swimming body with no legs.
   - **Crayfish** (signature) wait unseen under the water. Come near and ripples fill where you stand; it surges up
     there. Armoured in front, soft tail behind.
   - **Phantoms** are always reflections. **The Page of Cups** pours fish from its cup (a channel a stagger stops).

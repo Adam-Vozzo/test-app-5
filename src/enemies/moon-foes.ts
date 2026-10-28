@@ -4,8 +4,9 @@
 // are only ever reflections (no shadow, no footsteps); the Page of Cups pours fish from its cup, again and again,
 // until you stop it.
 //
-// Poses use the body space of foes.ts (origin at the chest, x right, y up, forward -Z, metres for a 1.6 m body). The
-// Dog and the Wolf are built like the Tower's black cat: the humanoid rig crouched low on all fours.
+// The Phantom and the Page are people (the humanoid rig: poses in foes.ts's body space). The Dog, the Wolf, the
+// Crayfish and the fish are beasts (src/enemies/beast.ts): their own bodies in metres, and their poses move the head
+// (handR) or the pincers (handR, handL) from the neck, in body space (x right, y up, -Z forward).
 import * as THREE from 'three';
 import type { Rng } from '../core/rng';
 import type { Physics } from '../physics/world';
@@ -16,31 +17,71 @@ import { block, facet } from '../world/kit';
 import type { EnemyWorld, Hostile } from './enemy';
 import { Foe, type FoeIdle } from './foe';
 import type { AttackTune, FoeTune, TimelinePoint } from './foe-ai';
-import { hunchedTorso, pose, type FoePlan } from './foes';
+import { hunchedTorso, pose, type FoePlan, type V3 } from './foes';
+import type { BeastLeg, BeastSpec } from './beast';
 
 type MoonId = 'dog' | 'wolf' | 'crayfish' | 'phantom' | 'pageCups' | 'fish';
 const tune = (id: MoonId) => () => tuning.foes[id] as unknown as FoeTune;
 
-/** A beast's long body and tail, hung back from the chest (the rig crouches it onto all fours). */
-function beastTorso(len: number, w: number, fur: number, shade: number) {
+/** A four-legged body, centred, nose toward -Z: barrel chest, narrower loins, a ruff at the shoulders. */
+export function quadTorso(len: number, w: number, fur: number, shade: number) {
   return merge([
-    facet(new THREE.BoxGeometry(w, w * 0.9, len).translate(0, -w * 0.45, len * 0.4), fur, 0.06),
-    place(facet(new THREE.ConeGeometry(w * 0.16, len * 0.7, 4).rotateX(-1.1), shade, 0.04), 0, -w * 0.2, len * 0.95),
+    facet(new THREE.BoxGeometry(w, w * 1.05, len * 0.55).translate(0, 0.02, -len * 0.18), fur, 0.06),
+    facet(new THREE.BoxGeometry(w * 0.82, w * 0.85, len * 0.5).translate(0, 0, len * 0.22), fur, 0.06),
+    place(facet(new THREE.BoxGeometry(w * 1.1, w * 0.5, len * 0.22), shade, 0.05), 0, w * 0.3, -len * 0.35),
   ]);
 }
 
-/** A muzzle, ears up: the dog's pricked, the wolf's laid back. */
-function beastHead(s: number, fur: number, shade: number, lay: number) {
+/** A head, skull at the origin, muzzle toward -Z, ears up (pricked, or laid back by `lay`). */
+export function quadHead(s: number, fur: number, shade: number, lay: number) {
   return merge([
-    facet(new THREE.BoxGeometry(0.22 * s, 0.2 * s, 0.24 * s), fur, 0.05),
-    place(facet(new THREE.BoxGeometry(0.12 * s, 0.1 * s, 0.18 * s), shade, 0.04), 0, -0.04 * s, -0.18 * s),
-    ...[-1, 1].map((k) => place(facet(new THREE.ConeGeometry(0.05 * s, 0.12 * s, 4), fur, 0.03), k * 0.07 * s, 0.13 * s, 0.02 * s, lay, 0, 0)),
+    facet(new THREE.BoxGeometry(0.2 * s, 0.18 * s, 0.2 * s), fur, 0.05),
+    place(facet(new THREE.BoxGeometry(0.11 * s, 0.1 * s, 0.2 * s), shade, 0.04), 0, -0.03 * s, -0.17 * s),
+    ...[-1, 1].map((k) => place(facet(new THREE.ConeGeometry(0.05 * s, 0.12 * s, 4), fur, 0.03), k * 0.06 * s, 0.13 * s, 0.03 * s, lay, 0, 0)),
   ]);
 }
 
-function fangGeo(c: number) {
-  return merge([-0.04, 0.04].map((x) => place(facet(new THREE.ConeGeometry(0.025, 0.12, 4).rotateX(-Math.PI / 2), c, 0.02), x, 0, -0.06)));
+/** Fangs at the front of the muzzle (the head's weapon: the bite). */
+function fangGeo(c: number, s: number) {
+  return merge([-0.035, 0.035].map((x) => place(facet(new THREE.ConeGeometry(0.02 * s, 0.09 * s, 4).rotateX(Math.PI), c, 0.02), x * s, -0.08 * s, -0.24 * s)));
 }
+
+/** A quadruped's legs: front pair under the shoulders (elbows back), hind pair under the hips (stifles forward). */
+export function quadLegs(len: number, w: number, ride: number, r: number): BeastLeg[] {
+  const leg = ride * 0.62;
+  const hip = (x: number, z: number): V3 => [x, -0.1 * ride, z];
+  return [
+    { hip: hip(-w * 0.32, -len * 0.33), rest: [-w * 0.4, 0, -len * 0.36], upper: leg, lower: leg, knee: 'back', radius: r },
+    { hip: hip(w * 0.32, -len * 0.33), rest: [w * 0.4, 0, -len * 0.36], upper: leg, lower: leg, knee: 'back', radius: r },
+    { hip: hip(-w * 0.3, len * 0.33), rest: [-w * 0.4, 0, len * 0.33], upper: leg, lower: leg, knee: 'forward', radius: r * 1.1 },
+    { hip: hip(w * 0.3, len * 0.33), rest: [w * 0.4, 0, len * 0.33], upper: leg, lower: leg, knee: 'forward', radius: r * 1.1 },
+  ];
+}
+
+/** A trotting four-legged spec: diagonal pairs step together. */
+export function quadSpec(len: number, w: number, ride: number, r: number, fur: number, wag: number, lift = -0.4): BeastSpec {
+  return {
+    kind: 'legged',
+    legs: quadLegs(len, w, ride, r),
+    groups: [
+      [0, 3],
+      [1, 2],
+    ],
+    ride,
+    stepHeight: ride * 0.22,
+    stepTime: 0.24,
+    // A long stride, landing well ahead: short ones let the waiting pair fall so far behind that all four scrambled.
+    stepThreshold: len * 0.4,
+    velocityLead: 0.2,
+    neck: [0, w * 0.45, -len * 0.45],
+    reach: len * 0.5,
+    capsuleHalf: Math.max(0.12, ride * 0.35),
+    tail: { base: [0, w * 0.35, len * 0.48], links: 4, length: len * 0.55, radius: r * 0.9, wag, color: fur, lift },
+  };
+}
+
+/** Beast poses: the head's offset from the neck (handR), the jaw's angles (weapon), the body's lunge (lean). */
+const head = (h: V3, jaw: V3 = [0, 0, 0], lean = 0, crouch = 0) => pose(h, [0, 0, 0], jaw, [0, 0, 0], crouch, lean);
 
 /** The Page's cup: a pale chalice, a fish's head looking out of it (the card). */
 function cupGeo() {
@@ -51,126 +92,149 @@ function cupGeo() {
 }
 
 function pincerGeo() {
+  // A heavy claw, grip at the origin, pointing -Z (big: it's half the animal).
   return merge([
-    facet(new THREE.BoxGeometry(0.1, 0.08, 0.3).translate(0, 0, -0.14), M.crayClaw, 0.04),
-    place(facet(new THREE.BoxGeometry(0.04, 0.05, 0.2).translate(0, 0, -0.1), M.crayClaw, 0.03), 0.05, 0, -0.28, 0, 0.35, 0),
-    place(facet(new THREE.BoxGeometry(0.04, 0.05, 0.2).translate(0, 0, -0.1), M.crayClaw, 0.03), -0.05, 0, -0.28, 0, -0.35, 0),
+    facet(new THREE.BoxGeometry(0.18, 0.13, 0.5).translate(0, 0, -0.22), M.crayClaw, 0.04),
+    place(facet(new THREE.BoxGeometry(0.07, 0.08, 0.34).translate(0, 0, -0.17), M.crayClaw, 0.03), 0.08, 0, -0.44, 0, 0.35, 0),
+    place(facet(new THREE.BoxGeometry(0.07, 0.08, 0.34).translate(0, 0, -0.17), M.crayClaw, 0.03), -0.08, 0, -0.44, 0, -0.35, 0),
   ]);
 }
 
-const beastReady = pose([0.18, -0.25, -0.3], [-0.18, -0.25, -0.3], [0.2, 0.3, 0], [0.2, -0.3, 0], 0.75, 0.65);
-const howlWindup = pose([0.18, -0.25, -0.2], [-0.18, -0.25, -0.2], [0.8, 0.3, 0], [0.8, -0.3, 0], 0.5, -0.4);
-const howlActive = pose([0.18, -0.25, -0.2], [-0.18, -0.25, -0.2], [1.0, 0.3, 0], [1.0, -0.3, 0], 0.45, -0.55);
+/** The Crayfish's eight walking legs, four a side, knees up and out like a crab's. */
+function crayLegs(): BeastLeg[] {
+  const out: BeastLeg[] = [];
+  for (const side of [-1, 1]) for (const z of [-0.3, -0.08, 0.14, 0.36]) out.push({ hip: [side * 0.32, -0.08, z], rest: [side * 0.95, 0, z * 1.25], upper: 0.42, lower: 0.5, knee: 'out', radius: 0.035 });
+  return out;
+}
 
 export const MOON_PLANS: Record<MoonId, FoePlan> = {
   dog: {
     id: 'dog',
     name: 'Dog',
-    height: 1.0,
-    radius: 0.26,
+    height: 0.9,
+    radius: 0.32,
     tune: tune('dog'),
     senses: 'sight',
     ranged: false,
     elite: false,
     shield: false,
     hitAndRun: true,
-    dualWield: true,
     limb: M.dogFur,
     sleeve: M.dogFur,
-    torso: () => beastTorso(0.62, 0.32, M.dogFur, M.crest),
-    head: () => beastHead(1, M.dogFur, M.crest, -0.1),
-    weapon: () => fangGeo(M.crest),
-    offhand: () => fangGeo(M.crest),
+    beast: quadSpec(0.85, 0.3, 0.52, 0.045, M.dogFur, 0.5),
+    torso: () => quadTorso(0.85, 0.3, M.dogFur, M.crest),
+    head: () => quadHead(1, M.dogFur, M.crest, -0.15),
+    weapon: () => fangGeo(M.crest, 1),
+    offhand: null,
     hitboxes: [
-      { part: 'body', at: [0, 0.6, 0.2], r: 0.3 },
-      { part: 'weak', at: [0, 0.8, -0.3], r: 0.14 },
+      { part: 'body', at: [0, 0.55, -0.15], r: 0.26 },
+      { part: 'body', at: [0, 0.52, 0.25], r: 0.24 },
+      { part: 'weak', at: [0, 0.72, -0.62], r: 0.13 },
     ],
     weakGlow: null,
-    ready: beastReady,
+    ready: head([0, 0.1, -0.14]),
     motions: {
-      bite: {
-        windup: pose([0.18, -0.15, -0.1], [-0.18, -0.15, -0.1], [0.5, 0.2, 0], [0.5, -0.2, 0], 0.85, 0.3),
-        active: pose([0.12, -0.25, -0.55], [-0.12, -0.25, -0.55], [-0.1, 0.1, 0], [-0.1, -0.1, 0], 0.55, 0.85),
-        sound: 'windupThrust',
-      },
-      howl: { windup: howlWindup, active: howlActive, sound: 'howl' },
+      // Head drawn back and down, then snapped forward: the bite.
+      bite: { windup: head([0, 0.02, 0.02], [0.3, 0, 0], -0.1, 0.4), active: head([0, -0.04, -0.42], [-0.3, 0, 0], 0.5), sound: 'windupThrust' },
+      // Nose to the Moon.
+      howl: { windup: head([0, 0.3, -0.04], [0.9, 0, 0], -0.3, 0.3), active: head([0, 0.36, -0.02], [1.1, 0, 0], -0.4, 0.4), sound: 'howl' },
     },
   },
   wolf: {
     id: 'wolf',
     name: 'Wolf',
-    height: 1.25,
-    radius: 0.3,
+    height: 1.1,
+    radius: 0.38,
     tune: tune('wolf'),
     senses: 'sight',
     ranged: false,
     elite: false,
     shield: false,
-    dualWield: true,
     limb: M.wolfFur,
     sleeve: M.wolfFur,
-    torso: () => beastTorso(0.7, 0.36, M.wolfFur, M.shadowEdge),
-    head: () => beastHead(1.1, M.wolfFur, M.shadowEdge, 0.5),
-    weapon: () => fangGeo(M.crest),
-    offhand: () => fangGeo(M.crest),
+    beast: quadSpec(1.1, 0.38, 0.66, 0.055, M.wolfFur, 0.25, -0.9),
+    torso: () => quadTorso(1.1, 0.38, M.wolfFur, M.shadowEdge),
+    head: () => quadHead(1.25, M.wolfFur, M.shadowEdge, 0.5),
+    weapon: () => fangGeo(M.crest, 1.25),
+    offhand: null,
     hitboxes: [
-      { part: 'body', at: [0, 0.62, 0.22], r: 0.34 },
-      { part: 'weak', at: [0, 0.84, -0.32], r: 0.15 },
+      { part: 'body', at: [0, 0.7, -0.2], r: 0.32 },
+      { part: 'body', at: [0, 0.66, 0.3], r: 0.3 },
+      { part: 'weak', at: [0, 0.9, -0.8], r: 0.15 },
     ],
     weakGlow: null,
-    ready: beastReady,
+    ready: head([0, 0.06, -0.18]),
     motions: {
-      maul: {
-        windup: pose([0.3, 0.1, -0.05], [-0.18, -0.2, -0.2], [0.6, -1.0, 0.3], [0.2, -0.3, 0], 0.8, 0.2),
-        active: pose([-0.2, -0.25, -0.5], [-0.18, -0.25, -0.3], [-0.2, 0.9, -0.3], [0.2, -0.3, 0], 0.6, 0.8),
-        sound: 'windupSlash',
-      },
-      howl: { windup: howlWindup, active: howlActive, sound: 'howl' },
+      // A low lunge, the head swinging across: two bites.
+      maul: { windup: head([0.12, 0.04, 0.0], [0.25, 0.4, 0], -0.15, 0.5), active: head([-0.08, -0.06, -0.5], [-0.3, -0.3, 0], 0.55), sound: 'windupSlash' },
+      howl: { windup: head([0, 0.34, -0.04], [0.9, 0, 0], -0.3, 0.3), active: head([0, 0.42, -0.02], [1.1, 0, 0], -0.4, 0.4), sound: 'howl' },
     },
   },
   crayfish: {
     id: 'crayfish',
     name: 'Crayfish',
-    height: 1.4,
-    radius: 0.42,
+    height: 1.2,
+    radius: 0.62,
     tune: tune('crayfish'),
     senses: 'sight',
     ranged: false,
     elite: false,
     shield: true,
-    dualWield: true,
     limb: M.crayClaw,
     sleeve: M.crayShell,
+    beast: {
+      kind: 'legged',
+      legs: crayLegs(),
+      // Alternating tetrapods: front and third legs of one side step with the second and fourth of the other.
+      groups: [
+        [0, 2, 5, 7],
+        [1, 3, 4, 6],
+      ],
+      ride: 0.5,
+      stepHeight: 0.16,
+      stepTime: 0.22,
+      stepThreshold: 0.3,
+      velocityLead: 0.1,
+      neck: [0, 0.05, -0.55],
+      reach: 1.05,
+      capsuleHalf: 0.22,
+      tail: { base: [0, 0.02, 0.5], links: 5, length: 1.3, radius: 0.17, wag: 0.12, color: M.crayShell, lift: 0.05 },
+      arms: { shoulder: [0.28, 0.05, -0.45], upper: 0.55, fore: 0.55, radius: 0.06 },
+    },
     torso: () =>
       merge([
-        // Shell plates over a low, broad body; the tail fans out behind (its soft spot).
-        ...[0, 1, 2, 3].map((i) => place(block(0.62 - i * 0.08, 0.26, 0.2, M.crayShell, 0.05, i), 0, -0.25 + i * 0.02, 0.05 + i * 0.18)),
-        place(facet(new THREE.ConeGeometry(0.28, 0.3, 5).rotateX(Math.PI / 2), M.crayClaw, 0.05), 0, -0.2, 0.86),
+        // The carapace: plates over a broad low body, the front armoured (the guard), a spike between the eyes.
+        ...[0, 1, 2].map((i) => place(block(0.78 - i * 0.08, 0.34, 0.36, M.crayShell, 0.05, i), 0, 0.02 + i * 0.02, -0.32 + i * 0.32)),
+        place(facet(new THREE.ConeGeometry(0.06, 0.3, 4).rotateX(-Math.PI / 2), M.crayClaw, 0.03), 0, 0.1, -0.62),
       ]),
     head: () =>
       merge([
-        facet(new THREE.BoxGeometry(0.3, 0.16, 0.26), M.crayShell, 0.05),
-        ...[-1, 1].map((k) => place(facet(new THREE.CylinderGeometry(0.008, 0.012, 0.8, 3).rotateX(-1.2), M.crayClaw, 0.02), k * 0.08, 0.08, -0.4, 0, k * 0.3, 0)),
+        facet(new THREE.BoxGeometry(0.34, 0.16, 0.22), M.crayShell, 0.05),
+        // Long feelers sweeping back over it.
+        ...[-1, 1].map((k) => place(facet(new THREE.CylinderGeometry(0.008, 0.014, 1.3, 3).rotateX(-1.25), M.crayClaw, 0.02), k * 0.1, 0.12, -0.45, 0, k * 0.35, 0)),
       ]),
     weapon: pincerGeo,
     offhand: pincerGeo,
     hitboxes: [
-      { part: 'armor', at: [0, 0.7, -0.15], r: 0.42 },
-      { part: 'body', at: [0, 0.6, 0.35], r: 0.36 },
-      { part: 'weak', at: [0, 0.55, 0.85], r: 0.2 },
+      { part: 'armor', at: [0, 0.55, -0.45], r: 0.55 },
+      { part: 'body', at: [0, 0.5, 0.15], r: 0.48 },
+      // The soft tail (behind it): the weak spot.
+      { part: 'weak', at: [0, 0.4, 1.0], r: 0.32 },
     ],
     weakGlow: null,
-    ready: pose([0.32, -0.1, -0.35], [-0.32, -0.1, -0.35], [0.3, 0.2, 0], [0.3, -0.2, 0], 0.6, 0.5),
+    // Pincers held out ahead (offsets from the neck): right, then left.
+    ready: pose([0.38, 0.0, -0.4], [-0.38, 0.0, -0.4], [0.2, 0.15, 0], [0.2, -0.15, 0], 0, 0),
     motions: {
       // Out of the water: both pincers up, then down where you stood.
       surge: {
-        windup: pose([0.34, 0.4, -0.2], [-0.34, 0.4, -0.2], [1.6, 0.2, 0], [1.6, -0.2, 0], 0.3, -0.2),
-        active: pose([0.2, -0.3, -0.6], [-0.2, -0.3, -0.6], [-0.6, 0.2, 0], [-0.6, -0.2, 0], 0.7, 0.6),
+        windup: pose([0.45, 0.65, -0.15], [-0.45, 0.65, -0.15], [1.3, 0.2, 0], [1.3, -0.2, 0], 0.2, -0.25),
+        active: pose([0.28, -0.3, -0.85], [-0.28, -0.3, -0.85], [-0.5, 0.1, 0], [-0.5, -0.1, 0], 0, 0.45),
         sound: 'ripple',
       },
+      // The right claw thrown wide, then snapped shut across.
       pinch: {
-        windup: pose([0.45, 0.1, -0.1], [-0.32, -0.1, -0.35], [0.6, -0.8, 0], [0.3, -0.2, 0], 0.6, 0.3),
-        active: pose([0.05, -0.1, -0.6], [-0.32, -0.1, -0.35], [0.0, 0.3, 0], [0.3, -0.2, 0], 0.6, 0.6),
+        windup: pose([0.8, 0.15, -0.2], [-0.38, 0.0, -0.4], [0.3, -0.9, 0], [0.2, -0.15, 0], 0.1, 0),
+        active: pose([0.05, 0.0, -0.95], [-0.38, 0.0, -0.4], [0.0, 0.4, 0], [0.2, -0.15, 0], 0, 0.35),
         sound: 'windupSlash',
       },
     },
@@ -249,8 +313,8 @@ export const MOON_PLANS: Record<MoonId, FoePlan> = {
   fish: {
     id: 'fish',
     name: 'Fish',
-    height: 0.6,
-    radius: 0.24,
+    height: 0.45,
+    radius: 0.2,
     tune: tune('fish'),
     senses: 'sight',
     ranged: false,
@@ -259,24 +323,37 @@ export const MOON_PLANS: Record<MoonId, FoePlan> = {
     hitAndRun: true,
     limb: M.fish,
     sleeve: M.fish,
-    // Out of the cup and swimming through the fog: legs are its fins.
+    // Out of the cup and swimming through the fog: no legs, a body that waves head to tail.
+    beast: {
+      kind: 'swim',
+      legs: [],
+      groups: [],
+      ride: 0.75,
+      stepHeight: 0,
+      stepTime: 0.3,
+      stepThreshold: 1,
+      velocityLead: 0,
+      neck: [0, 0, -0.18],
+      reach: 0.3,
+      capsuleHalf: 0.12,
+      tail: { base: [0, 0, 0.22], links: 3, length: 0.4, radius: 0.07, wag: 0.55, color: M.fish, lift: 0 },
+      swim: { amp: 0.5, hz: 1.8 },
+    },
     torso: () =>
       merge([
-        facet(new THREE.OctahedronGeometry(0.3, 0).scale(0.5, 0.7, 1.2).translate(0, -0.1, 0.1), M.fish, 0.05),
-        place(facet(new THREE.ConeGeometry(0.16, 0.24, 4).rotateX(Math.PI / 2), M.fish, 0.04), 0, -0.1, 0.5),
+        facet(new THREE.OctahedronGeometry(0.22, 0).scale(0.6, 0.85, 1.4), M.fish, 0.05),
+        // Fins: one on the back, one either side.
+        place(facet(new THREE.ConeGeometry(0.05, 0.16, 3), M.fish, 0.04), 0, 0.2, 0.02),
+        ...[-1, 1].map((k) => place(facet(new THREE.ConeGeometry(0.04, 0.14, 3).rotateZ(k * 1.4), M.fish, 0.04), k * 0.13, -0.04, -0.04)),
       ]),
-    head: () => facet(new THREE.OctahedronGeometry(0.1, 0), MOON.surfaces.light, 0.03),
-    weapon: () => block(0.04, 0.04, 0.12, M.fish, 0.02),
+    head: () => merge([facet(new THREE.OctahedronGeometry(0.1, 0).scale(0.8, 0.8, 1.1), MOON.surfaces.light, 0.03), place(facet(new THREE.BoxGeometry(0.06, 0.03, 0.05), M.crest, 0.02), 0, -0.03, -0.09)]),
+    weapon: () => facet(new THREE.BoxGeometry(0.05, 0.02, 0.04), M.crest, 0.02).translate(0, -0.04, -0.1),
     offhand: null,
-    hitboxes: [{ part: 'body', at: [0, 0.45, 0], r: 0.26 }],
+    hitboxes: [{ part: 'body', at: [0, 0.75, 0], r: 0.24 }],
     weakGlow: null,
-    ready: pose([0.12, -0.15, -0.2], [-0.12, -0.15, -0.2], [0, 0, 0], [0, 0, 0], 0.5, 0.4),
+    ready: head([0, 0, -0.06]),
     motions: {
-      nip: {
-        windup: pose([0.12, -0.1, 0.0], [-0.12, -0.1, 0.0], [0.3, 0, 0], [0, 0, 0], 0.6, 0.1),
-        active: pose([0.08, -0.15, -0.4], [-0.08, -0.15, -0.4], [0, 0, 0], [0, 0, 0], 0.4, 0.7),
-        sound: 'impChitter',
-      },
+      nip: { windup: head([0, 0.04, 0.06], [0.3, 0, 0], -0.2), active: head([0, -0.02, -0.3], [-0.2, 0, 0], 0.4), sound: 'impChitter' },
     },
   },
 };
@@ -449,6 +526,7 @@ export class Lurker extends Foe {
       }
       if (k < 1) return;
       w.hazards.hideRing(this);
+      w.hazards.burst(this.at, r);
       this.lurk = 'up';
       this.home.copy(this.at);
       this.yaw = Math.atan2(-(w.playerPos.x - this.at.x), -(w.playerPos.z - this.at.z));

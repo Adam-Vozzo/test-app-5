@@ -93,3 +93,34 @@ describe('the Tower: levels that climb on timber', () => {
     expect(tuning.tower.lightningDelay).toBeGreaterThan(tuning.roll.duration + tuning.roll.recovery + 0.4);
   });
 });
+
+describe('the stage keeps changing (playtest: it emptied too fast)', () => {
+  it('a fallen deck is built back after regrowTime, but never under someone standing there', () => {
+    const g = new ScaffoldGrid(2, 1, [0]);
+    const T = { crackTime: 1, burnTime: 4, spreadPerSec: 0, regrowTime: 6 };
+    g.step(0);
+    const run = (s: number, occupied = false) => {
+      const ev: string[] = [];
+      for (let t = 0; t < s; t += 0.1) ev.push(...g.update(0.1, T, () => 0.5, () => occupied).map((e) => e.kind));
+      return ev;
+    };
+    expect(run(1.2)).toContain('fall');
+    expect(g.state[0]).toBe('gone');
+    // Someone in the hole's space (falling through it, or standing beside it): it waits.
+    run(7, true);
+    expect(g.state[0]).toBe('gone');
+    expect(run(0.3)).toContain('regrow');
+    expect(g.state[0]).toBe('sound');
+    // Rotten it was, and rotten it is: it cracks again when stepped on.
+    expect(g.step(0)).not.toBeNull();
+  });
+  it('holes in a round floor never grow decks, and without regrowTime nothing comes back', () => {
+    const g = new ScaffoldGrid(2, 1, [], [1]);
+    for (let t = 0; t < 20; t += 0.5) g.update(0.5, { crackTime: 1, burnTime: 4, spreadPerSec: 0, regrowTime: 6 }, () => 0.5);
+    expect(g.state[1]).toBe('gone');
+    const h = new ScaffoldGrid(1, 1, []);
+    h.crack(0);
+    for (let t = 0; t < 20; t += 0.5) h.update(0.5, { crackTime: 1, burnTime: 4, spreadPerSec: 0 }, () => 0.5);
+    expect(h.state[0]).toBe('gone');
+  });
+});

@@ -101,6 +101,7 @@ export const DEVIL_PLANS: Record<'miser' | 'imp' | 'pagePentacles' | 'thrall', F
       shove: {
         windup: pose([0.26, -0.1, 0.02], [-0.04, -0.06, 0.02], [0.2, 0.1, 0], [0, 0, 0], 0.45, -0.1),
         active: pose([0.24, -0.1, -0.2], [-0.02, -0.02, -0.66], [0.2, 0.1, 0], [0, 0, 0], 0.2, 0.4),
+        shieldAttack: true,
         sound: 'windupThrust',
       },
     },
@@ -424,13 +425,24 @@ export class Thrall extends Foe {
     if (this.gone) return;
     if (this.role === 'flee' && this.alive) {
       this.fleeT += dt;
-      if (this.fleeT > (super.cfg.fleeTime ?? 3)) {
+      const c = super.cfg;
+      const far = Math.hypot(w.playerPos.x - this.ground.x, w.playerPos.z - this.ground.z) > (c.fleeGone ?? 24);
+      // Cornered (it can't get away from you): it sinks into the ground over its last second instead of vanishing.
+      const T = c.fleeTime ?? 8;
+      if (far || this.fleeT > T + 1) {
         // It ran into the fog: gone (no reward; resting brings the pair back).
         this.gone = true;
         this.state = 'dead';
         this.collider.setEnabled(false);
         for (const h of this.hitboxes) h.col.setEnabled(false);
         this.rig.group.visible = false;
+        return;
+      }
+      if (this.fleeT > T) {
+        this.collider.setEnabled(false);
+        for (const h of this.hitboxes) h.col.setEnabled(false);
+        _a.copy(this.ground).setY(this.ground.y - (this.fleeT - T) * 1.8);
+        this.rig.update(dt, _a, this.yaw, this.vel, this.pose, false);
         return;
       }
     }

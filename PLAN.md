@@ -432,7 +432,8 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
   - `MOON_DIMENSION`: level, near-duplicate earth kits, four set-pieces, `IllusionDef` (reflection share by level,
     false branches), `water`, and the Moon landmark (`moonTowersGeo` plus an unfogged disc).
   - Generator:
-    - sockets carry `illusion`; the dressing carries `falsePaths` and reflected caches
+    - sockets carry `illusion`; the dressing carries `falsePaths` and reflected caches (*V2-15:* a false path's
+      cache is real now, reached by hidden stepping stones)
     - validated by `checkIllusions`
   - Builder:
     - a water plane under the islands (it takes the shadows)
@@ -468,9 +469,9 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
 - **Boss:** the Shadow, the Eight of Swords' own shadow using her moves. Its unbinding is the blindfold.
 - **Ending:** the Sun, which is short and has no cutscene (the card's image and one line).
 - **Done as:**
-  - **Changed from the plan:** the Dog and the Wolf are built on the v2 humanoid rig crouched on all fours (like the
-    Tower's cat), not the v1 multi-legged rig. The v1 rig is in beetle units with its own state machine; porting it
-    for two enemies would have meant a second AI. Say if you want the real quadruped.
+  - **Changed from the plan:** the Dog and the Wolf were first built on the v2 humanoid rig crouched on all fours
+    (like the Tower's cat), not the v1 multi-legged rig. *Superseded in V2-15:* every animal now has its own body,
+    the beast rig (`beast.ts`), driven by the same `Foe` state machine.
   - `src/enemies/moon-foes.ts`:
     - `MOON_PLANS` (Dog, Wolf, Crayfish, Phantom, Page of Cups, fish) as data.
     - `MoonFoe`: the **howl** (a long wind-up; its partner is maddened for `rageTime`: faster, quicker to strike) and
@@ -504,6 +505,65 @@ be mostly new data. Where it needs new code, that code is the dimension's **rule
     - the King's wave and wolves
     - the Shadow wakes, splits at its phase, and falls
     - the blindfold comes off and the Sun shows
+
+### V2-15: Fixes from the first full playtest ✅ (waiting on your playtest)
+The first play through all four dimensions turned up 23 notes. Each is fixed below, in the order they were given.
+Where a note asked a question, the answer is here too. Two real bugs surfaced on the way and are fixed: Rapier's
+character controller sometimes let an enemy sink through the floor, and a court card's volley picked its gap
+before it was drawn, so the single-lane "rifle" bolt never fired.
+- **Done as:**
+  1. **Deaths:** the body no longer scales away from its arms. The rig itself falls: knees buckle, it topples away
+     from the killing blow with its feet trailing, and then the corpse sinks into the floor (`Foe.sink`).
+  2. **Foes that walk up and never swing:** a foe returning or searching that sees her now switches to approach.
+     The melee reach is capped by the rig's real reach plus `tuning.foes.reachMargin`. The KCC sink guard (a
+     downward ray in `Foe.move`) keeps foes standing on the floor.
+  3. **Shields open on the swing:** the guard arm swings wide and low during the strike and recovery, matching
+     `blocks()` (`AttackMotion.shieldAttack` keeps a shield bash closed until its swing).
+  4. **The sword parried instead of switching or firing:** a mode switch pressed during a swing is buffered for
+     0.6 s and cancels the recovery, and a swing after a non-chaining recovery starts a fresh combo. *Best guess*
+     at the cause: I couldn't reproduce it directly.
+  5. **Caught on stair edges:** the tier ramps were slabs whose top edge caught her capsule. They are wedge hulls
+     now (`rampWedge`), and doors are as wide as their connector. `tests/stairs.test.ts` sweeps the approach.
+     *Best guess* that this was the place it happened.
+  6. **The chained Thralls:** breaking the chain frees both, and the freed one fleeing is intended (the card: the
+     chains were loose). Its vanishing was a bug: it now runs until it is 24 m away (`fleeGone`), or sinks after
+     8 s when cornered (`fleeTime`).
+  7. **The throne in the fog:** landmarks take only 35% of the fog (`tuning.look.landmarkFog`, the `FOG_MARK`
+     shader define), so the throne reads as a silhouette behind its glowing spike.
+  8. **Knight of Pentacles:** faster.
+  9. **Imp reach:** see 2: no melee reaches past the arm and weapon you can see.
+  10. **Bosses popping in:** bosses stand in their arena from the start and wake only within `wakeRadius` (30 m),
+      not by sight or sound from the corridor.
+  11. **Attacks with no effect:** a slam ring or glob now bursts where it lands (`hazards.burst`). The fix for the
+      volley gap makes the single-lane bolt a heavy shot with a tracer, shake and sound.
+  12. **The pact pauses:** the Devil's offer is an overlay that stops the game until you answer (E to accept,
+      Esc to refuse).
+  13. **The Knight of Wands' stage:** fallen decks grow back after `tuning.tower.regrowTime` (6 s), never under
+      someone standing in the gap, so the stage keeps changing.
+  14. **The Queen of Wands falling forever:** a court card or boss that falls off its stage is set back on safe
+      ground (`safeGround`, else its home) and staggered. A common foe that falls dies. Its fall speed is reset.
+  15. **The tower top:** the landing at each arena door is stone, and scenery keeps out of the walkable strip
+      (`SCENERY_CLEAR`).
+  16. **The Crowned Tower pops in:** see 10.
+  17. **The Crowned Tower's arena:** its decks regrow too (see 13), and at each phase the outer ring cracks again
+      every `tuning.tower.ringEvery` (14 s), so the floor keeps changing instead of emptying. The door landings
+      never fall.
+  18. **The gap at the bridge's end:** closed by the stone landings (see 15).
+  19. **Animals get their own bodies:** `BeastRig` (`beast.ts`, sharing `FoeRig` with the humanoid). Four legs
+      step in diagonal pairs with two-bone IK, the body rides the feet, the head lunges and the tail follows. The
+      Crayfish (bigger, 1.2 m) has eight legs that step as tetrapods, plus pincers. Fish swim. The Dog, the Wolf
+      and the cat all use it.
+  20. **The Moon's false paths:** each now has a **secret way across**: hidden stepping stones that cast their
+      shadows on the water, winding so you can't walk straight over. The cache beyond is real. A fall puts you back
+      on the last safe ground well inside a room (`tuning.player.fallMargin`), not at the edge you slipped from.
+  21. **The weapon carries:** what she has in hand, and the SwordRifle's mode, carry from one scene to the next
+      (`Arsenal.state`/`restore`).
+  22. **The sword reaches low:** the lower half of the sweep is also cast down, so it cuts cats and fish at her feet.
+  23. **The Shadow's dud:** that was the rifle lane of item 11; it now fires.
+  - Tests: `foe-behaviour`, `stairs`, `level-walk`, `arena-walk` and `beast` drive real enemies and the real
+    controller on real Rapier (`tests/support`).
+  - Smoke: the pact's pause, the false path's stones and the sword cutting a cat at her feet (`--moonfoes`), and the
+    weapon carrying through a scene change (main run).
 
 ### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel

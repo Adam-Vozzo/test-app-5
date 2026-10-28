@@ -131,6 +131,13 @@ export function toonMat(opts: THREE.MeshToonMaterialParameters = {}) {
   return new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonRamp(), ...opts });
 }
 
+/** A toon material that takes only `tuning.look.landmarkFog` of the fog: for landmarks, seen from far off. */
+export function landmarkMat() {
+  const m = toonMat();
+  m.defines = { ...(m.defines ?? {}), FOG_MARK: '' };
+  return m;
+}
+
 export function meshOf(geo: THREE.BufferGeometry, mat: THREE.Material, shadows = true) {
   const m = new THREE.Mesh(geo, mat);
   m.castShadow = shadows;

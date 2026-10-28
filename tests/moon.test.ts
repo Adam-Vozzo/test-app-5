@@ -30,17 +30,34 @@ describe("the Moon's marsh (illusion, but fair)", () => {
       expect(L.sockets.some((s) => s.kind === 'miniboss' && s.illusion)).toBe(false);
     }
   });
-  it('false paths are only ever branches, and their caches are reflections', () => {
+  it('false paths are only ever branches, each with a hidden way across, and the cache beyond is real', () => {
     for (const { layout: L } of levels) {
       expect(L.dressing.falsePaths.length).toBe(Math.min(DIM.illusion!.falseBranches, L.space.connectors.filter((c) => c.kind === 'branch').length));
+      for (const i of L.dressing.falsePaths) expect(L.space.connectors[i].kind).toBe('branch');
+      // Stones only where there are false paths; reading their shadows earns a real cache.
+      expect(L.dressing.stones.length > 0).toBe(L.dressing.falsePaths.length > 0);
+      for (const k of L.dressing.caches) expect(!!k.reflection).toBe(false);
+    }
+  });
+  it("the hidden stones wind: the drawn boardwalk's middle line has holes a body falls through", () => {
+    for (const { layout: L } of levels) {
       for (const i of L.dressing.falsePaths) {
         const c = L.space.connectors[i];
-        expect(c.kind).toBe('branch');
-        expect(L.dressing.caches.filter((k) => k.node === c.to).every((k) => k.reflection)).toBe(true);
+        const len = Math.hypot(c.bx - c.ax, c.bz - c.az);
+        const ux = (c.bx - c.ax) / len;
+        const uz = (c.bz - c.az) / len;
+        // Walk the middle line in 5 cm steps: is a 0.3 m-radius body over some stone?
+        let hole = 0;
+        let longest = 0;
+        for (let a = 0; a <= len; a += 0.05) {
+          const x = c.ax + ux * a;
+          const z = c.az + uz * a;
+          const held = L.dressing.stones.some((s) => Math.max(0, Math.abs(s.x - x) - s.size / 2) ** 2 + Math.max(0, Math.abs(s.z - z) - s.size / 2) ** 2 < 0.3 ** 2);
+          hole = held ? 0 : hole + 0.05;
+          longest = Math.max(longest, hole);
+        }
+        expect(longest).toBeGreaterThan(1.2);
       }
-      // Every other cache is real.
-      const lies = new Set(L.dressing.falsePaths.map((i) => L.space.connectors[i].to));
-      for (const k of L.dressing.caches) expect(!!k.reflection).toBe(lies.has(k.node));
     }
   });
   it('the Moon and its two towers are in plain sight from the spawn and every vista', () => {

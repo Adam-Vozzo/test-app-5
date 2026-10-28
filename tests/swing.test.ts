@@ -49,7 +49,22 @@ describe('melee swing state', () => {
     const late = Math.round((0.2 + 0.28) / DT);
     const ev = run(s, 60, (f) => ({ ...NONE, light: f === 0 || f === late }));
     const begins = ev.filter((e) => e.type === 'begin');
-    expect(begins.length).toBe(1);
+    // It doesn't chain into the second swing: the first recovers fully, then a fresh combo starts (the press is
+    // remembered, not dropped).
+    expect(begins.map((b) => (b as { index: number }).index)).toEqual([0, 0]);
+    const types = ev.map((e) => e.type);
+    expect(types.indexOf('end')).toBeLessThan(types.lastIndexOf('begin'));
+  });
+
+  it('a press while rebounding off a shield swings again once the rebound ends (not swallowed)', () => {
+    const s = new SwingState();
+    const out: SwingEvent[] = [];
+    // Into the active window, then the blade is caught by a guard.
+    for (let f = 0; f < 12; f++) s.step(DT, { ...NONE, light: f === 0 }, M, out);
+    s.rebound(0.35);
+    expect(s.phase).toBe('recover');
+    for (let f = 0; f < 60; f++) s.step(DT, { ...NONE, light: f === 3 }, M, out);
+    expect(out.filter((e) => e.type === 'begin').length).toBe(2);
   });
 
   it('holding RMB charges, and releasing when ready strikes', () => {

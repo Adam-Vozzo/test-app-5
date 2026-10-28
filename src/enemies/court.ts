@@ -215,11 +215,18 @@ export class CourtCard extends Foe {
   private laneKeys = Array.from({ length: 12 }, () => ({}));
   private retreatT = 0;
   private gapIdx = 0;
+  /** This attack's gap lane has been chosen. */
+  protected gapPicked = false;
   private roar = false;
 
   constructor(plan: FoePlan, scene: THREE.Scene, physics: Physics, pos: THREE.Vector3, yaw: number, rng: Rng) {
     super(plan, scene, physics, pos, yaw, 'throne', rng);
     this.rank = plan.rank ?? plan.id;
+  }
+
+  protected begin(name: string, w: EnemyWorld) {
+    this.gapPicked = false;
+    super.begin(name, w);
   }
 
   /** Where a strike at (x, z) echoes, if anywhere (Justice: across her arena in phase 2). */
@@ -356,8 +363,12 @@ export class CourtCard extends Foe {
       const lanes = a.lanes ?? 7;
       if (tl.phase === 'windup') {
         this.vel.multiplyScalar(Math.exp(-10 * dt));
-        // A single lane (the Shadow's rifle) has no gap: step out of it.
-        if (tl.hit === 0 && starting) this.gapIdx = lanes < 3 ? -1 : 1 + Math.floor(this.rng() * (lanes - 2));
+        // A single lane (the Shadow's rifle) has no gap: step out of it. (Picked once per attack: `begin` already sets
+        // the wind-up, so "the wind-up starting" was never seen and every volley kept lane 0 as its gap.)
+        if (!this.gapPicked) {
+          this.gapPicked = true;
+          this.gapIdx = lanes < 3 ? -1 : 1 + Math.floor(this.rng() * (lanes - 2));
+        }
         const offs = volleyOffsets(lanes, a.spacing ?? 1.7, this.gapIdx, tl.mirrored);
         offs.forEach((o, i) => {
           _p.set(this.ground.x - fz * o, this.ground.y, this.ground.z + fx * o);
@@ -369,12 +380,19 @@ export class CourtCard extends Foe {
       if (tl.phase === 'active' && starting) {
         this.hideLanes();
         const offs = volleyOffsets(lanes, a.spacing ?? 1.7, this.gapIdx, tl.mirrored);
+        // A single lane is a heavy rifle bolt (the Shadow's): bigger, with its line flashed down the lane, so even a
+        // miss reads.
+        const heavy = lanes === 1;
         for (const o of offs) {
           _p.set(this.ground.x - fz * o, this.ground.y + 1.2, this.ground.z + fx * o);
           _dir.set(fx, 0, fz).multiplyScalar(a.speed ?? 17);
-          w.hazards.knife(_p, _dir, a.damage, a.knockback);
+          w.hazards.knife(_p, _dir, a.damage, a.knockback, heavy ? 2.6 : 1);
+          if (heavy) {
+            w.hazards.tracer(_p, _dir, a.range * 0.8);
+            w.shake(0.3, this.center);
+          }
         }
-        w.sound('lunge', this.center);
+        w.sound(heavy ? 'boltShot' : 'lunge', this.center);
       }
       this.vel.multiplyScalar(Math.exp(-8 * dt));
       return null;

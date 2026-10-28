@@ -159,6 +159,7 @@ export class EnemyManager {
     this.hazards.updateWaves(dt, w);
     this.hazards.updateCups(dt, w);
     for (const hit of this.hazards.update(dt)) {
+      this.hazards.burst(hit.at, hit.radius);
       w.sound('splash', hit.at);
       const dx = w.playerPos.x - hit.at.x;
       const dz = w.playerPos.z - hit.at.z;
@@ -176,7 +177,7 @@ export class EnemyManager {
       const ghost = e instanceof Foe && e.illusion;
       e.draw(ghost ? ghosts : limbs);
       if (ghost || !(e instanceof Foe) || n >= 256) continue;
-      const size = e.plan.radius * (e.plan.height / 1.6) * 3.4 * e.rig.group.scale.x;
+      const size = e.plan.radius * (e.plan.height / 1.6) * 3.4 * (1 - e.sink);
       _bm.compose(_bp.copy(e.ground).setY(e.ground.y + 0.05), _bq.identity(), _bs.set(size, 1, size));
       this.blobs.setMatrixAt(n++, _bm);
     }

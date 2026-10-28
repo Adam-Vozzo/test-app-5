@@ -10,6 +10,7 @@ import { FOES } from '../render/palette';
 import { block, facet } from '../world/kit';
 import { tuning } from '../tuning';
 import type { FoeTune } from './foe-ai';
+import type { BeastSpec } from './beast';
 
 export type V3 = [number, number, number];
 
@@ -29,6 +30,8 @@ export interface ArmPose {
 export interface AttackMotion {
   windup: ArmPose;
   active: ArmPose;
+  /** The shield (or chest) is the weapon in this attack: it stays forward instead of swinging open. */
+  shieldAttack?: boolean;
   /** Sound that announces the wind-up. */
   sound: 'windupThrust' | 'windupSlam' | 'windupSlash' | 'windupThrow' | 'verdict' | 'chainRattle' | 'impChitter' | 'coinJingle' | 'whistle' | 'howl' | 'pour' | 'ripple';
 }
@@ -73,6 +76,11 @@ export interface FoePlan {
   flees?: boolean;
   /** Always a reflection, wherever it stands (the Moon's Phantoms, after the Seven of Cups). */
   phantom?: boolean;
+  /**
+   * Not a person: a beast's body (four legs, eight, or none and swimming) instead of the humanoid rig. Its hitboxes and
+   * capsule are then in metres (not scaled by height), and its poses move the head and pincers (src/enemies/beast.ts).
+   */
+  beast?: BeastSpec;
   limb: number;
   sleeve: number;
   /** Hitboxes relative to the feet (x right, y up, z back), for a 1.6 m body. */
@@ -210,6 +218,7 @@ export const PLANS: Record<'bailiff' | 'gavel' | 'blindfold' | 'page', FoePlan> 
       bash: {
         windup: pose([0.28, -0.05, 0.05], [-0.28, 0.02, 0.05], [0.4, 0.1, 0], [0, -0.4, 0], 0.4, -0.05),
         active: pose([0.26, -0.05, -0.1], [-0.08, 0.05, -0.62], [0.4, 0.1, 0], [0, 0, 0], 0.15, 0.35),
+        shieldAttack: true,
         sound: 'windupThrust',
       },
     },

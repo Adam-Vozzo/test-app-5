@@ -121,9 +121,8 @@ export class Game {
   burden = 0;
   /** Coin the King of Pentacles' rain leaves on the floor (each pile pays, and weighs). */
   private coins!: CoinPiles;
-  /** The Devil's pact: offered at half his health; E accepts, letting it pass refuses. Lasts the fight. */
+  /** The Devil's pact: offered at half his health (the fight pauses for the answer). Lasts the fight. */
   pact: 'none' | 'offered' | 'accepted' | 'refused' = 'none';
-  private pactT = 0;
   /** The Tower: seconds until the next lightning mark, the last solid stone she stood on, and fire's damage tick. */
   private stormT = 6;
   /** The collapse's own seeded stream (fire spread, lightning timing), reseeded with each level. */
@@ -202,6 +201,7 @@ export class Game {
     this.menus.onQuit = () => this.quitToMenu();
     this.menus.onRise = () => this.rise();
     this.menus.onSunClose = () => this.closeSun();
+    this.menus.onPact = (yes) => this.answerPact(yes);
     this.input.onLockChange = (locked) => {
       if (!locked && this.mode === 'playing' && !this.panel.open && !this.vitals.dead) this.pause();
     };
@@ -313,8 +313,11 @@ export class Game {
     this.zone?.cache.group.traverse((o) => (o.matrixAutoUpdate = true));
     this.lastRest = 0;
     this.vistaCursor = 0;
+    // She keeps what she had in hand (and the SwordRifle's mode) from one scene to the next.
+    const carried = this.arsenal?.state;
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
+    if (carried) this.arsenal.restore(carried);
     this.applyUpgrades();
     this.parry.cancel();
     this.binding.cancel();
@@ -367,6 +370,7 @@ export class Game {
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
       bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
       summon: (id, pos, yaw, illusion) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion),
+      safeGround: (near) => this.decks?.nearestStanding(near) ?? null,
       healPlayer: (amount) => {
         if (this.vitals.dead) return;
         this.vitals.health = Math.min(this.vitals.maxHealth, this.vitals.health + amount);
@@ -750,7 +754,9 @@ export class Game {
     const decks = this.decks;
     if (!lv && !decks) return;
     if (decks) {
-      for (const e of decks.update(dt, this.collapseRng)) {
+      const occupants = [c.pos];
+      for (const e of this.enemies.enemies) if (e.alive && e instanceof Foe) occupants.push(e.ground);
+      for (const e of decks.update(dt, this.collapseRng, occupants)) {
         if (e.kind === 'fall') this.sfxAt('timberFall', c.pos);
         else if (e.kind === 'ignite') this.stats.decksBurnt++;
       }
@@ -767,8 +773,19 @@ export class Game {
         }
       } else this.burnAcc = 0;
     }
-    // Remember the last solid stone (decks can fall).
-    if (c.grounded && !decks?.standing(c.pos)) this.lastSafe.copy(c.pos);
+    // Remember the last solid stone (decks can fall). In a generated level that's a spot inside a room, kept well
+    // back from its edges: coming up at the brink of the drop you just fell from only sends you over it again.
+    if (c.grounded && !decks?.standing(c.pos)) {
+      const room = lv?.generated.space.rooms.find((r) => Math.abs(c.pos.x - r.x) <= r.sx / 2 && Math.abs(c.pos.z - r.z) <= r.sz / 2 && Math.abs(c.pos.y - r.y) < 1.5);
+      if (room) {
+        const m = tuning.player.fallMargin;
+        this.lastSafe.set(
+          THREE.MathUtils.clamp(c.pos.x, room.x - room.sx / 2 + m, room.x + room.sx / 2 - m),
+          c.pos.y,
+          THREE.MathUtils.clamp(c.pos.z, room.z - room.sz / 2 + m, room.z + room.sz / 2 - m),
+        );
+      } else if (!lv) this.lastSafe.copy(c.pos);
+    }
     // Lightning: a mark where she stands, a strike a beat later, and the timber there catches. Never at a lantern.
     if (lv && this.dimension === 'tower' && lv.generated.dimension === 'tower') {
       this.stormT -= dt;
@@ -803,7 +820,7 @@ export class Game {
         this.hud.toast('You fall, and land on your feet.', 2);
       } else {
         this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
-        this.hud.toast(this.dimension === 'moon' ? 'The path lied. You come up where you last stood on stone.' : 'You fell. Nothing stays standing.', 2.5);
+        this.hud.toast(this.dimension === 'moon' ? 'The path lied. What is really there casts a shadow on the water.' : 'You fell. Nothing stays standing.', 3);
       }
     }
   }
@@ -813,13 +830,32 @@ export class Game {
     return this.level?.decks ?? this.bossWorld?.decks ?? null;
   }
 
-  /** The Devil stops at half his health and holds out the pact. E accepts; letting it pass refuses. */
+  /** The Devil stops at half his health and holds out the pact. The fight pauses until she answers. */
   private offerPact() {
     if (this.pact !== 'none') return;
     this.pact = 'offered';
-    this.pactT = tuning.foes.devil.pactTime;
     this.synth.sfx('courtHorn');
-    this.hud.toast(`The Devil offers a pact: ${PACT_TERMS}. E: accept. (Let it pass to refuse.)`, tuning.foes.devil.pactTime);
+    this.mode = 'shop';
+    this.shopOpenedAt = performance.now();
+    this.input.exitLock();
+    this.menus.showPact(true, `He holds it out: ${PACT_TERMS}, for the rest of the fight.`);
+  }
+
+  /** Her answer to the pact (the overlay's buttons, E or Esc). */
+  answerPact(accept: boolean) {
+    if (this.pact !== 'offered') return;
+    this.menus.showPact(false);
+    this.mode = 'playing';
+    this.input.requestLock();
+    if (accept) {
+      this.pact = 'accepted';
+      this.synth.sfx('bound');
+      this.camera.addTrauma(0.3);
+      this.hud.toast('The pact is made. Every blow, yours and his, lands twice as hard.', 3.5);
+    } else {
+      this.pact = 'refused';
+      this.hud.toast('You refuse. The fight goes on as it was.', 2.5);
+    }
   }
 
   /** Caught across a chain: held, then struck, unless she rolls. A roll's i-frames slip it entirely. */
@@ -937,7 +973,7 @@ export class Game {
       if (!had) this.hud.toast(`The King of ${suit} gives up the relic of ${suit}. The Magician will want it.`, 4);
     }
     // The Crowned Tower falls: the storm passes, and its top floor holds again (the way on is across it).
-    if (e.name === 'The Crowned Tower') this.bossWorld?.decks?.reset();
+    if (e.name === 'The Crowned Tower') this.bossWorld?.onBossPhase(0);
     this.sfxAt('die', e.center);
     this.fx.sparksAt(e.center, new THREE.Vector3(0, -1, 0), 0xffe14d, 10, 3);
     if (e.elite) this.hud.toast(`${e.name} defeated  ${this.money.glyph} +${reward}`, 3);
@@ -967,7 +1003,10 @@ export class Game {
   private onKey(code: string) {
     if (code === 'Backquote') this.panel.toggle();
     // (The E that opened the table doesn't also close it.)
-    if (this.mode === 'shop' && (code === 'Escape' || (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300))) {
+    if (this.mode === 'shop' && this.menus.pactShown) {
+      if (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300) this.answerPact(true);
+      else if (code === 'Escape') this.answerPact(false);
+    } else if (this.mode === 'shop' && (code === 'Escape' || (code === 'KeyE' && performance.now() - this.shopOpenedAt > 300))) {
       if (this.menus.sunShown) this.closeSun();
       else this.shop.close();
     }
@@ -1066,20 +1105,6 @@ export class Game {
     const cp = this.world?.checkpoint;
     const nearCheckpoint = alive && (rests ? restAt >= 0 : !!cp && Math.hypot(c.pos.x - cp.x, c.pos.z - cp.z) < 3.2);
     let usedE = false;
-    // The pact: E accepts while he holds it out; letting the time pass refuses.
-    if (this.pact === 'offered') {
-      this.pactT -= simDt;
-      if (control && inp.justPressed('KeyE')) {
-        this.pact = 'accepted';
-        usedE = true;
-        this.synth.sfx('bound');
-        this.camera.addTrauma(0.3);
-        this.hud.toast('The pact is made. Every blow, yours and his, lands twice as hard.', 3.5);
-      } else if (this.pactT <= 0) {
-        this.pact = 'refused';
-        this.hud.toast('You let it pass. The fight goes on as it was.', 2.5);
-      }
-    }
     if (control && nearCheckpoint && !usedE && inp.justPressed('KeyE') && !c.committed) {
       if (restAt >= 0) this.lastRest = restAt;
       this.rest();

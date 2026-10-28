@@ -365,7 +365,10 @@ export class CupsCard extends CourtCard {
       const fz = -Math.cos(this.yaw);
       this.vel.multiplyScalar(Math.exp(-10 * dt));
       if (tl.phase === 'windup') {
-        if (tl.hit === 0 && starting) this.waveGap = 1 + Math.floor(this.rng() * (lanes - 2));
+        if (!this.gapPicked) {
+          this.gapPicked = true;
+          this.waveGap = 1 + Math.floor(this.rng() * (lanes - 2));
+        }
         // The wave's path, drawn on the water: every lane but the gap.
         volleyOffsets(lanes, spacing, this.waveGap, tl.mirrored).forEach((o, i) => {
           _p.set(this.ground.x - fz * o, this.ground.y, this.ground.z + fx * o);

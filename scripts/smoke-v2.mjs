@@ -1292,8 +1292,11 @@ export async function devilCourtScenario({ g, wait, shot }) {
   await wait(500);
   await shot('90-devil-pact');
   const immune = await g(() => { const e = window.__game.enemies.enemies[0]; const h = e.health; e.takeDamage({ amount: 100, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 }); return h === e.health; });
-  await tap('KeyE');
-  const accepted = await until(() => window.__game.pact === 'accepted', 3000);
+  // The fight waits for her answer: the overlay is up and the game is paused.
+  const paused = await g(() => window.__game.menus.pactShown && window.__game.mode === 'shop');
+  if (!paused) throw new Error("the Devil's pact should pause the fight behind its overlay");
+  await g(() => window.__game.answerPact(true));
+  const accepted = await until(() => window.__game.pact === 'accepted' && !window.__game.menus.pactShown, 3000);
   await wait(300);
   const doubled = await g(() => { const e = window.__game.enemies.enemies[0]; const h = e.health; e.takeDamage({ amount: 100, crit: false, point: e.center.clone(), dir: { x: 0, y: 0, z: 1 }, knockback: 0, stagger: 0 }); return Math.round(h - e.health); });
   const hurtMore = await g(() => {
@@ -1803,8 +1806,17 @@ export async function moonScenario({ g, wait, shot }) {
         const i = L.dressing.falsePaths[0];
         if (i === undefined) return null;
         const c = L.space.connectors[i];
-        gm.player.controller.teleport({ x: (c.ax + c.bx) / 2, y: c.y0 + 0.3, z: (c.az + c.bz) / 2 }, 0);
-        return true;
+        // On the drawn boardwalk's middle line, between its hidden stones (on one, she'd stand: that's the secret way).
+        const len = Math.hypot(c.bx - c.ax, c.bz - c.az);
+        for (let t = 0.2; t < 0.8; t += 0.02) {
+          const x = c.ax + (c.bx - c.ax) * t;
+          const z = c.az + (c.bz - c.az) * t;
+          const held = L.dressing.stones.some((st) => Math.max(0, Math.abs(st.x - x) - st.size / 2) ** 2 + Math.max(0, Math.abs(st.z - z) - st.size / 2) ** 2 < 0.5 ** 2);
+          if (held) continue;
+          gm.player.controller.teleport({ x, y: c.y0 + 0.3, z }, 0);
+          return { at: +(t * len).toFixed(1) };
+        }
+        return null;
       });
       const sank = fp ? await until(() => window.__game.stats.falls > 0, 8000) : true;
       // And its cache is a reflection.
@@ -1876,6 +1888,30 @@ export async function moonFoesScenario({ g, wait, shot }) {
     window.__tuning.debug.showAI = true;
   });
   await wait(1500);
+
+  // 0. The sword reaches low things (playtest: cats and fish were under the blade). A cat at her feet; three swings.
+  await fresh();
+  await put(0, Z + 8, 0);
+  await g(() => window.__game.arsenal.request(1));
+  await until(() => window.__game.arsenal.index === 1 && !window.__game.arsenal.isSwapping, 6000);
+  await g(() => window.__game.input.press('KeyF'));
+  await wait(60);
+  await g(() => window.__game.input.release('KeyF'));
+  await until(() => window.__game.arsenal.sword.mode === 'sword' && !window.__game.arsenal.sword.switching, 6000);
+  const ci0 = await spawn('cat', 0, Z + 6.6, Math.PI);
+  await g((i) => { const e = window.__game.enemies.enemies[i]; e.update = () => {}; }, ci0);
+  for (let k = 0; k < 6; k++) {
+    await g(() => window.__game.input.press('Mouse0'));
+    await wait(60);
+    await g(() => window.__game.input.release('Mouse0'));
+    await wait(350);
+  }
+  const cut = await until((i) => !window.__game.enemies.enemies[i].alive || window.__game.enemies.enemies[i].health < window.__game.enemies.enemies[i].maxHealth, 4000, ci0);
+  await shot('107b-sword-cuts-low');
+  console.log(`  the sword reaches a cat at her feet: ${cut}`);
+  if (!cut) throw new Error('the sword should cut low things (a cat at her feet)');
+  await g(() => window.__game.arsenal.request(0));
+  await until(() => window.__game.arsenal.index === 0 && !window.__game.arsenal.isSwapping, 6000);
 
   // 1. The Dog and the Wolf: one howls, the other is maddened.
   await fresh();
