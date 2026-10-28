@@ -11,7 +11,7 @@
 import type { Rng } from '../core/rng';
 import type { Beat, CourtRank, DimensionDef, EncounterTemplate, RoomKitId, SetPieceDef } from './dimensions';
 
-export type NodeKind = 'start' | 'combat' | 'traverse' | 'vista' | 'lantern' | 'branch' | 'setpiece' | 'gate' | 'miniboss' | 'exit';
+export type NodeKind = 'start' | 'combat' | 'traverse' | 'vista' | 'lantern' | 'branch' | 'setpiece' | 'gate' | 'miniboss' | 'exit' | 'key';
 
 export interface LevelScript {
   level: number;
@@ -57,6 +57,11 @@ export interface MissionGraph {
   loop: number[];
   /** Which way the loop bows: +1 east, -1 west. */
   side: 1 | -1;
+  /**
+   * Justice's weighing: the two wings off the mid lantern (`shortcut.lantern`), each a run of rooms ending in its key
+   * room (left first, then its mirror). The axis gate (`shortcut.gate`) opens when both keys are set. No loop.
+   */
+  wings?: [number[], number[]];
 }
 
 /** Layer 1: the level script, chosen from the dimension script and the seed. */
@@ -100,6 +105,10 @@ type Slot = { kind: NodeKind; setPiece?: boolean };
 
 /** Layer 2: the mission graph. Returns null if no order satisfies the constraints (the caller reseeds). */
 export function missionGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
+  return dim.layout.kind === 'weighing' ? weighingGraph(dim, script, rng) : loopGraph(dim, script, rng);
+}
+
+function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
   const sp = script.setPiece;
   const middle: Slot[] = [{ kind: 'setpiece', setPiece: true }];
   for (let i = 0; i < 2 - (sp.vista ? 1 : 0); i++) middle.push({ kind: 'vista' });
@@ -214,6 +223,8 @@ function kitsFor(dim: DimensionDef, s: Slot, sp: SetPieceDef): RoomKitId[] {
       return [k.miniboss];
     case 'exit':
       return [k.exit];
+    case 'key':
+      return [...new Set(Object.values(dim.templateKits))];
     case 'combat':
       // The template (and so the kit) is chosen later; any combat kit that can turn keeps the slot open.
       return [...new Set(Object.values(dim.templateKits))];
@@ -232,6 +243,111 @@ function assignTemplates(dim: DimensionDef, script: LevelScript, nodes: LevelNod
     if (n.kind === 'setpiece' && sp.combat) n.template = 'arena';
     if (n.kind === 'gate' && script.gateGuarded) n.template = 'guarded';
   }
+}
+
+/**
+ * Justice's weighing (LEVELS.md → Space): start → P… → the mid lantern, where the level forks into two mirrored wings
+ * (the scales' pans), each a room then a key room. The axis gate past the lantern opens when both keys are set, and
+ * the way goes on: gate → Q… → lantern → miniboss → exit. Play order (`critical`) walks the left wing, then the right,
+ * then the axis. The set-piece is the reward past the gate; fights never sit back to back along an edge (but the
+ * twist); branches come in a mirrored pair off the wing rooms.
+ */
+function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
+  const sp = script.setPiece;
+  const L = dim.levels[script.level];
+  for (let attempt = 0; attempt < 120; attempt++) {
+    // What stands in each wing before its key: a vista over the drop most often; a fight in the twist.
+    const wingKinds: NodeKind[] = rng.chance(script.allowAdjacentCombats ? 0.35 : 0) ? ['combat'] : [rng.chance(0.65) ? 'vista' : 'traverse'];
+    const wingVistas = wingKinds.filter((k) => k === 'vista').length * 2;
+    const wingCombats = wingKinds.filter((k) => k === 'combat').length * 2;
+    const combats = rng.int(L.combats[0], L.combats[1]);
+    // The keys are fights (2); the rest of the level's fights stand on the axis.
+    const plain = Math.max(0, combats - 2 - wingCombats - (sp.combat ? 1 : 0));
+    const vistas = Math.max(0, 2 - wingVistas - (sp.vista ? 1 : 0));
+    const axisSlots: NodeKind[] = [];
+    for (let i = 0; i < vistas; i++) axisSlots.push('vista');
+    for (let i = 0; i < plain; i++) axisSlots.push('combat');
+    const [nMin, nMax] = dim.criticalNodes;
+    // Fixed: start, lantern, 2 × (wing + key), gate, set-piece, lantern, miniboss, exit.
+    const fixed = 10 + (wingKinds.length - 1) * 2;
+    while (fixed + axisSlots.length < nMin) axisSlots.push('traverse');
+    if (fixed + axisSlots.length > nMax) continue;
+    const order = shuffle(axisSlots, rng);
+    // P (before the fork) holds at least one room; the rest follow the set-piece past the gate.
+    const pN = Math.max(1, Math.min(order.length, rng.int(1, 2)));
+    const P = order.slice(0, pN);
+    const Q = order.slice(pN);
+    if (P.length === 0) P.push('traverse');
+    const seq: { kind: NodeKind; setPiece?: boolean; wing?: 0 | 1 }[] = [{ kind: 'start' }, ...P.map((kind) => ({ kind })), { kind: 'lantern' }];
+    for (const w of [0, 1] as const) {
+      for (const kind of wingKinds) seq.push({ kind, wing: w });
+      seq.push({ kind: 'key', wing: w });
+    }
+    seq.push({ kind: 'gate' }, { kind: 'setpiece', setPiece: true }, ...Q.map((kind) => ({ kind })), { kind: 'lantern' }, { kind: 'miniboss' }, { kind: 'exit' });
+    const n = seq.length;
+    const hub = 1 + P.length;
+    const gateIdx = seq.findIndex((s) => s.kind === 'gate');
+
+    const nodes: LevelNode[] = seq.map((s, i) => ({
+      id: i,
+      kind: s.kind,
+      kit: '',
+      index: i,
+      template: null,
+      vista: s.kind === 'vista' || (s.kind === 'setpiece' && sp.vista),
+      lantern: s.kind === 'start' || s.kind === 'lantern',
+      host: -1,
+    }));
+    // Edges: the axis, the fork into each wing, and the gate off the lantern.
+    const edges: [number, number][] = [];
+    for (let i = 1; i <= hub; i++) edges.push([i - 1, i]);
+    const wings: [number[], number[]] = [[], []];
+    for (const w of [0, 1] as const) {
+      const ids = seq.map((s, i) => [s, i] as const).filter(([s]) => s.wing === w).map(([, i]) => i);
+      wings[w] = ids;
+      ids.forEach((id, k) => edges.push([k === 0 ? hub : ids[k - 1], id]));
+    }
+    edges.push([hub, gateIdx]);
+    for (let i = gateIdx + 1; i < n; i++) edges.push([i - 1, i]);
+
+    // Templates: the plain fights first (the beat's required one among them), then the keys (mirrored), then the
+    // wing fights (mirrored).
+    const plainNodes = nodes.filter((nd) => nd.kind === 'combat' && seq[nd.id].wing === undefined);
+    const must = [...script.mustInclude];
+    const pool = L.templates;
+    for (const nd of shuffle(plainNodes, rng)) nd.template = must.shift() ?? rng.pick(pool.filter((t) => t !== 'signature'));
+    const keyT = must.shift() ?? rng.pick(pool.filter((t) => t !== 'patrol'));
+    const wingT = rng.pick(pool.filter((t) => t !== 'signature' && t !== 'nest'));
+    for (const nd of nodes) {
+      if (nd.kind === 'key') nd.template = keyT;
+      if (nd.kind === 'combat' && seq[nd.id].wing !== undefined) nd.template = wingT;
+      if (nd.kind === 'setpiece' && sp.combat) nd.template = 'arena';
+    }
+    // No fights back to back along an edge (but the twist).
+    const fight = (nd: LevelNode) => isCombat(nd);
+    if (!script.allowAdjacentCombats && edges.some(([a, b]) => fight(nodes[a]) && fight(nodes[b]))) continue;
+    // Rest after a fight where it can: the fork's lantern doesn't follow one.
+    if (attempt < 60 && fight(nodes[hub - 1]) && script.beat === 'introduce') continue;
+
+    // Kits: mirrored wings share theirs.
+    for (const nd of nodes) {
+      const s = seq[nd.id];
+      if (s.wing === 1) continue;
+      nd.kit = nd.template && (nd.kind === 'combat' || nd.kind === 'key') ? dim.templateKits[nd.template] : rng.pick(kitsFor(dim, s, sp));
+      if (s.wing === 0) nodes[wings[1][wings[0].indexOf(nd.id)]].kit = nd.kit;
+    }
+    // Branches: a mirrored pair off the wing rooms before the keys.
+    const want = rng.int(dim.branches[0], dim.branches[1]);
+    if (want >= 2 && wingKinds.length) {
+      for (const w of [0, 1] as const) {
+        const id = nodes.length;
+        nodes.push({ id, kind: 'branch', kit: dim.nodeKits.branch, index: -1, template: null, vista: false, lantern: false, host: wings[w][0] });
+        edges.push([wings[w][0], id]);
+      }
+    }
+    return { nodes, critical: seq.map((_, i) => i), edges, shortcut: { gate: gateIdx, lantern: hub }, loop: [], side: 1, wings };
+  }
+  return null;
 }
 
 function shuffle<T>(arr: readonly T[], rng: Rng): T[] {

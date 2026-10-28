@@ -9,7 +9,7 @@ import { hash2, makeRng } from '../core/rng';
 import type { DimensionDef } from './dimensions';
 import { dress, encounters, furnish, type Dressing, type Furnishing, type Socket } from './gen-dress';
 import { levelScript, missionGraph, type LevelScript, type MissionGraph } from './gen-graph';
-import { embed, roomRect, type Rect, type Space } from './gen-space';
+import { embed, embedFailure, roomRect, type Rect, type Space } from './gen-space';
 import { validate } from './gen-validate';
 
 export interface LevelLayout {
@@ -48,8 +48,8 @@ export function attemptLevel(dim: DimensionDef, level: number, seed: number, opt
   const graph = missionGraph(dim, script, rng.fork('graph'));
   if (!graph) return { layout: null, fail: ['graph: no order satisfies the constraints'] };
   const space = embed(dim, graph, rng.fork('space'));
-  if (!space) return { layout: null, fail: ['space: the loop or a branch would not fit'] };
-  const furn = furnish(dim, space, rng.fork('kits'));
+  if (!space) return { layout: null, fail: [`space: ${embedFailure}`] };
+  const furn = furnish(dim, space, rng.fork('kits'), graph);
   const sockets = encounters(dim, graph, space, furn, level, rng.fork('encounters'), opts.rangedMin ?? 0);
   const dressing = dress(dim, graph, space, furn, sockets, rng.fork('dress'), level);
   const b = space.rooms.map((r) => roomRect(r));

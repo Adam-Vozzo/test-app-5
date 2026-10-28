@@ -88,7 +88,13 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
 - **Space:** a windswept plateau of white stone courts and colonnades, with swords planted in the earth like grave
   markers. Rooms are **symmetric** (the generator uses a mirror axis), formal and ordered. *As built in V2-3
   (Proposed until played):* the plateau is broken into stone platforms over a fog-filled drop, joined by causeways on
-  a right-angled grid, with the barred shortcut running down the main axis toward the scales.
+  a right-angled grid, with the barred shortcut running down the main axis toward the scales. *As built in V2-16
+  (Proposed until played): the weighing.* The level is shaped like the scales. A straight axis (the beam) runs from the
+  spawn toward the scales; at the mid lantern it forks into **two mirrored wings** (the pans), each bending forward
+  off the grid to a key room. In each key room a **brass weight** stands on a plinth, guarded. Set it in its pan and
+  that pan of the scales is weighted; **the axis gate past the mid lantern stays barred until both are**. Once a pan
+  is weighted it **carries her back to the mid lantern** across the drop (a short committed ride, untouchable), so a
+  wing is walked only once. Branches come in a mirrored pair, one off each wing.
 - **Landmark:** a vast set of scales hanging over the dimension, visible from every level.
 - **Enemies:**
   - *Bailiff*: a guard enemy with a front shield; flank it or bait its swing.
@@ -145,7 +151,12 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - *King of Pentacles*: buys mercenaries mid-fight and throws coins as projectiles.
 - **Boss: the Devil.** Mid-fight he offers a **pact**: double damage dealt and taken. Accept or refuse.
   It's an autonomy choice the player owns.
-- **As built in V2-8 (Proposed until played): the space only.**
+- **As built in V2-16 (Proposed until played): the descent.** The levels spiral down the walls of a pit, tightening
+  round the throne-pedestal at its centre, each room on the way 4 m below the last (about 24 m a level). The rooms are
+  galleries round the pit: the side facing it stands open (a parapet), so the pedestal is in sight from almost every
+  room, always below and nearer at each turn. Great chains hang from the pedestal's crown out to the pit's rim, under
+  the galleries. The shortcut loop goes out on the rim side and comes back.
+- **As built in V2-8 (Proposed until played): the space only.** *(Its grid layout is superseded by V2-16's descent.)*
   - **Levels:** the generator lays the Devil's levels on the same right-angled grid as Justice, without the mirror.
     Each room on the critical path sits a step (3 m) lower than the last, so a level falls about 18 m. The
     shortcut loop stays level, so the barred shortcut is still a flat walk back.
@@ -234,7 +245,10 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   last platform under open sky.
 - **As built in V2-11 (Proposed until played): the space and the rule.**
   - **Levels:** the same right-angled grid, climbing. Each critical room is 3 m above the last, about 18 m per level.
-    The loop stays level.
+    The loop stays level. *Changed in V2-16:* the levels spiral up round the Tower itself (it stands at the spiral's
+    centre), each room 4 m above the last, about 24 m a level, and the side of each room facing the Tower stands open,
+    so the crown is in sight from every room. No floor stands over another: a fall drops into the void (onto the floor
+    below would be a shortcut, which the playtest notes left for later).
   - **Timber and stone:** the fights and the scaffold set-pieces are **timber decks** (3 m square) over the drop. The
     lanterns, gates, passes and the throne room are stone.
   - **Rotten decks:** 10% / 16% / 24% of the decks by level. They're charred, sag, and sit loose in a wider gap (the
@@ -307,7 +321,10 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   This is the Jungian shadow, and the last thing holding her back is herself.
 - **As built in V2-13 (Proposed until played): the space and the rule.**
   - **Levels:** islands in a fogged marsh, **level** (no climb, no descent), joined by causeways over **dark water**.
-    The rooms are near-duplicates on purpose: earth islands, reeds, low parapets.
+    The rooms are near-duplicates on purpose: earth islands, reeds, low parapets. *Changed in V2-16:* the way
+    **meanders** toward the Moon, swinging from side to side so the Moon never sits dead ahead for long (the first
+    causeway runs straight at it from the spawn). **Every true way passes between two towers** (the card's): a pair of
+    small towers stands at the far end of every real causeway, never at a false path's.
   - **Landmark:** the Moon, an enormous pale disc hung low and unfogged, with **two dark towers** beneath it.
   - **Set-pieces:** the two-tower gate, the crayfish shallows (reed beds), the reflecting pool crossing, and the
     drowned path (a long narrow causeway).

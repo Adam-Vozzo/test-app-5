@@ -37,7 +37,8 @@ import { buildCourtyard } from './world/courtyard';
 import { DIMENSIONS, type DimensionDef } from './world/dimensions';
 import { generateLevel } from './world/gen-level';
 import { buildLevel as buildGeneratedLevel, type LevelWorld } from './world/level';
-import type { Hoard } from './world/gen-dress';
+import { deckCentre, type Hoard, type Scaffold } from './world/gen-dress';
+import { inRoom, toLocal, toWorld } from './world/gen-space';
 import { CoinPiles } from './world/coins';
 import { Thrall } from './enemies/devil';
 import { Foe } from './enemies/foe';
@@ -154,6 +155,8 @@ export class Game {
   private last = performance.now();
   private fps = 60;
   private frameCount = 0;
+  /** Justice: riding a pan back to the mid lantern. */
+  private ride: { from: THREE.Vector3; to: THREE.Vector3; yaw: number; t: number } | null = null;
   private fpsTime = 0;
 
   constructor(
@@ -284,6 +287,18 @@ export class Game {
         return `Left by someone before you: +1 heal, ✪ +${tuning.vitals.cachePentacles}`;
       };
       lw.onHoard = (h, at) => this.takeHoard(h, at);
+      lw.onWeight = (k, n) => {
+        this.synth.sfx('slamImpact', 0.7);
+        this.camera.addTrauma(0.2);
+        const side = k.wing === 0 ? 'left' : 'right';
+        return n === 2 ? `The ${side} pan is weighted. Both are: the axis gate lifts.` : `The ${side} pan is weighted (1 of 2). The pan will carry you back to the beam.`;
+      };
+      lw.onRide = (k) => {
+        const c = this.player.controller;
+        this.ride = { from: c.pos.clone(), to: new THREE.Vector3(k.ride.x, k.ride.y + 0.05, k.ride.z), yaw: k.ride.yaw, t: 0 };
+        this.synth.sfx('chainRattle', 0.8);
+        return null;
+      };
       lw.onReflection = (at) => {
         this.sfxAt('shimmer', at);
         this.stats.dispelled++;
@@ -317,6 +332,7 @@ export class Game {
     const carried = this.arsenal?.state;
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
+    this.ride = null;
     if (carried) this.arsenal.restore(carried);
     this.applyUpgrades();
     this.parry.cancel();
@@ -614,6 +630,11 @@ export class Game {
     return r.line;
   }
 
+  /** Debug and smoke: a scaffold deck's centre (decks lie in their room's own frame). */
+  deckAt(s: Scaffold, i: number) {
+    return deckCentre(s, i);
+  }
+
   /** Debug and smoke tests: stand at a vista and look where it looks. */
   gotoVista(i: number) {
     const lv = this.level;
@@ -684,7 +705,8 @@ export class Game {
   /** Enemy damage to the player. A parry, rolling i-frames and god mode make it miss. */
   hurtPlayer(amount: number, from: THREE.Vector3, knockback: number, source?: Hostile | 'projectile'): boolean {
     const c = this.player.controller;
-    if (this.vitals.dead) return false;
+    // Dead, or carried on a pan (the ride is committed and untouchable).
+    if (this.vitals.dead || this.ride) return false;
     // The Devil's pact: double what you take, for the rest of the fight.
     if (this.pact === 'accepted') amount *= 2;
     if (source && this.parry.turns(c.yaw, c.pos.x, c.pos.z, from.x, from.z)) {
@@ -776,14 +798,13 @@ export class Game {
     // Remember the last solid stone (decks can fall). In a generated level that's a spot inside a room, kept well
     // back from its edges: coming up at the brink of the drop you just fell from only sends you over it again.
     if (c.grounded && !decks?.standing(c.pos)) {
-      const room = lv?.generated.space.rooms.find((r) => Math.abs(c.pos.x - r.x) <= r.sx / 2 && Math.abs(c.pos.z - r.z) <= r.sz / 2 && Math.abs(c.pos.y - r.y) < 1.5);
+      const room = lv?.generated.space.rooms.find((r) => inRoom(r, c.pos.x, c.pos.z) && Math.abs(c.pos.y - r.y) < 1.5);
       if (room) {
+        // Clamped well inside the room, in its own frame (rooms stand at any heading).
         const m = tuning.player.fallMargin;
-        this.lastSafe.set(
-          THREE.MathUtils.clamp(c.pos.x, room.x - room.sx / 2 + m, room.x + room.sx / 2 - m),
-          c.pos.y,
-          THREE.MathUtils.clamp(c.pos.z, room.z - room.sz / 2 + m, room.z + room.sz / 2 - m),
-        );
+        const [u, w] = toLocal(room, c.pos.x, c.pos.z);
+        const [x, z] = toWorld(room, THREE.MathUtils.clamp(u, -room.w / 2 + m, room.w / 2 - m), THREE.MathUtils.clamp(w, -room.d / 2 + m, room.d / 2 - m));
+        this.lastSafe.set(x, c.pos.y, z);
       } else if (!lv) this.lastSafe.copy(c.pos);
     }
     // Lightning: a mark where she stands, a strike a beat later, and the timber there catches. Never at a lantern.
@@ -822,6 +843,25 @@ export class Game {
         this.hurtPlayer(tw.fallDamage, _o2.copy(c.pos), 0);
         this.hud.toast(this.dimension === 'moon' ? 'The path lied. What is really there casts a shadow on the water.' : 'You fell. Nothing stays standing.', 3);
       }
+    }
+  }
+
+  /** Justice's pan ride: an arc from the key room back to the mid lantern, then set down facing on. */
+  private carry(dt: number) {
+    const r = this.ride!;
+    const c = this.player.controller;
+    const j = tuning.justice;
+    r.t = Math.min(1, r.t + dt / Math.max(0.2, j.rideTime));
+    const k = r.t * r.t * (3 - 2 * r.t);
+    _o.lerpVectors(r.from, r.to, k);
+    _o.y += Math.sin(Math.PI * r.t) * j.rideRise;
+    c.teleport(_o, c.yaw);
+    if (r.t >= 1) {
+      c.teleport(r.to, r.yaw);
+      this.camera.snap(c.pos, r.yaw);
+      this.ride = null;
+      this.lastSafe.copy(r.to);
+      this.hud.toast('Set down at the beam.', 2);
     }
   }
 
@@ -907,6 +947,7 @@ export class Game {
 
   /** Respawn at the checkpoint: full heals and ammo, non-elite enemies return. */
   rise() {
+    this.ride = null;
     if (!this.world || this.deathT < 0) return;
     this.deathT = -1;
     this.menus.showDeath(false);
@@ -1072,7 +1113,8 @@ export class Game {
     const v = this.vitals;
     const c = player.controller;
     const alive = !v.dead;
-    const control = playing && alive;
+    // Riding a pan back to the beam (Justice): carried, no control, until she's set down.
+    const control = playing && alive && !this.ride;
 
     // 1. Look (real time: stays responsive in hitstop and slow-mo).
     if (control) cam.look(inp.mouseDX, inp.mouseDY);
@@ -1207,6 +1249,7 @@ export class Game {
       }
     }
     this.dashFrom.copy(c.pos);
+    if (this.ride && simDt > 0) this.carry(simDt);
     if (simDt > 0 && alive) this.collapse(simDt);
     // The binding holds, then strikes.
     if (simDt > 0 && this.binding.update(simDt) === 'struck') this.hurtPlayer(this.binding.damage, this.bindFrom, this.binding.knockback);

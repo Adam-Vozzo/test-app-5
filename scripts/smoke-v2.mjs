@@ -345,7 +345,7 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   }
 
   // Stairs: walk up the first connector that climbs.
-  const stairs = await g(() => window.__game.level.generated.space.connectors.find((c) => c.kind === 'stairs' && Math.abs(c.y1 - c.y0) > 1));
+  const stairs = await g(() => window.__game.level.generated.space.connectors.find((c) => c.kind === 'stairs' && !c.bends.length && Math.abs(c.y1 - c.y0) > 1));
   if (stairs) {
     const [x0, z0, y0, x1, z1, y1] = stairs.y1 > stairs.y0 ? [stairs.ax, stairs.az, stairs.y0, stairs.bx, stairs.bz, stairs.y1] : [stairs.bx, stairs.bz, stairs.y1, stairs.ax, stairs.az, stairs.y0];
     const yaw = Math.atan2(-(x1 - x0), -(z1 - z0));
@@ -375,31 +375,52 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   if (!reached) throw new Error('never reached the start room edge');
   if (edge[1] < room.y - 0.5 || edge[0] < room.x - room.sx / 2) throw new Error('left the platform: the parapet leaked');
 
-  // Shortcut: barred from the lantern side, lifted from the gate side, then walk back through it.
+  // The weighing: the axis gate is barred until both pans are weighted. Set the left weight, ride its pan back to the
+  // mid lantern, set the right one, and the axis lifts.
   const door = await g(() => window.__game.level.generated.dressing.door);
-  const sx = door.opensFrom === 0 ? 0 : door.opensFrom === 1 ? 1 : door.opensFrom === 2 ? 0 : -1;
-  const sz = door.opensFrom === 0 ? -1 : door.opensFrom === 2 ? 1 : 0;
-  const faceGate = Math.atan2(-sx, -sz);
-  await put(door.x - sx * 2.2, door.y, door.z - sz * 2.2, faceGate);
+  const fwd = [-Math.sin(door.yaw), -Math.cos(door.yaw)];
+  await put(door.x - fwd[0] * 2.2, door.y, door.z - fwd[1] * 2.2, door.yaw);
   await wait(400);
   await press('KeyE');
   await wait(400);
-  const barred = await g(() => !window.__game.level.shortcutOpen());
-  await shot('34-level-shortcut-barred');
-  await put(door.x + sx * 2.2, door.y, door.z + sz * 2.2, faceGate + Math.PI);
+  const barred = await g(() => !window.__game.level.shortcutOpen() && (document.querySelector('.prompt')?.textContent ?? '').includes('weighed'));
+  await shot('34-level-axis-barred');
+  const keys = await g(() => window.__game.level.generated.dressing.keys);
+  const weigh = async (k) => {
+    // Stand by the weight, facing it, and set it in the pan.
+    const yaw = Math.atan2(-(k.x - k.pan.x), -(k.z - k.pan.z));
+    const d = Math.hypot(k.x - k.pan.x, k.z - k.pan.z);
+    await put(k.x + ((k.pan.x - k.x) / d) * 1.6, k.y, k.z + ((k.pan.z - k.z) / d) * 1.6, yaw);
+    await wait(400);
+    await press('KeyE');
+    return until((w) => window.__game.level.weighted[w], 5000, k.wing);
+  };
+  const left = await weigh(keys.find((k) => k.wing === 0));
+  await shot('35-level-left-pan-weighted');
+  // Ride the pan back to the beam.
+  const lk = keys.find((k) => k.wing === 0);
+  // Beside the pan, on the weight's side.
+  const ld = Math.hypot(lk.x - lk.pan.x, lk.z - lk.pan.z);
+  await put(lk.pan.x + ((lk.x - lk.pan.x) / ld) * 2.5, lk.y, lk.pan.z + ((lk.z - lk.pan.z) / ld) * 2.5, 0);
   await wait(400);
   await press('KeyE');
+  const riding = await until(() => !!window.__game.ride, 4000);
+  await wait(700);
+  await shot('35b-level-pan-ride');
+  const landed = await until(([x, z]) => !window.__game.ride && Math.hypot(window.__game.player.pos.x - x, window.__game.player.pos.z - z) < 1.5, 15000, [lk.ride.x, lk.ride.z]);
+  const right = await weigh(keys.find((k) => k.wing === 1));
   const lifted = await until(() => window.__game.level.shortcutOpen(), 5000);
+  await put(door.x - fwd[0] * 2.2, door.y, door.z - fwd[1] * 2.2, door.yaw);
   await wait(1500);
-  await shot('35-level-shortcut-open');
+  await shot('35c-level-axis-open');
   await hold('KeyW');
-  const through = await until(([x, z, sx, sz]) => {
+  const through = await until(([x, z, fx, fz]) => {
     const p = window.__game.player.pos;
-    return (p.x - x) * sx + (p.z - z) * sz < -3;
-  }, 15000, [door.x, door.z, sx, sz]);
+    return (p.x - x) * fx + (p.z - z) * fz > 3;
+  }, 15000, [door.x, door.z, fwd[0], fwd[1]]);
   await release('KeyW');
-  console.log(`  shortcut: barred from the near side ${barred}, lifted ${lifted}, walked back through ${through}`);
-  if (!barred || !lifted || !through) throw new Error('the shortcut should open only from the gate side, then let you through');
+  console.log(`  weighing: axis barred ${barred}, left weighted ${left}, rode back ${riding && landed}, right weighted ${right}, axis lifted ${lifted}, walked through ${through}`);
+  if (!barred || !left || !riding || !landed || !right || !lifted || !through) throw new Error('the axis should stay barred until both pans are weighted, and each pan should carry her back to the beam');
 
   // Rest at the pre-miniboss lantern, die, and rise there.
   const lantern = await g(() => {
@@ -1421,8 +1442,7 @@ export async function towerScenario({ g, wait, shot }) {
         const gm = window.__game;
         const s = gm.level.generated.dressing.scaffolds.find((x) => x.rotten.length);
         const i = s.rotten[0];
-        const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
-        const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+        const [x, z] = gm.deckAt(s, i);
         window.__tuning.debug.godMode = false;
         gm.vitals.restore();
         gm.enemies.clear();
@@ -1446,8 +1466,7 @@ export async function towerScenario({ g, wait, shot }) {
         const s = gm.level.generated.dressing.scaffolds[0];
         let i = Math.floor((s.cols * s.rows) / 2);
         while (s.rotten.includes(i)) i++;
-        const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
-        const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+        const [x, z] = gm.deckAt(s, i);
         gm.player.controller.teleport({ x, y: s.y + 0.1, z }, 0);
         gm.camera.snap(gm.player.pos, 0);
         gm.camera.pitch = -0.35;
@@ -1666,8 +1685,7 @@ export async function towerFoesScenario({ g, wait, shot }) {
     gm.enemies.clear();
     const s = gm.level.generated.dressing.scaffolds.find((x) => x.rotten.length);
     const i = s.rotten[0];
-    const x = s.x0 + ((i % s.cols) + 0.5) * s.tx;
-    const z = s.z0 + (Math.floor(i / s.cols) + 0.5) * s.tz;
+    const [x, z] = gm.deckAt(s, i);
     gm.player.controller.teleport({ x, y: s.y + 0.1, z }, 0);
     return gm.vitals.health;
   });
@@ -1811,7 +1829,14 @@ export async function moonScenario({ g, wait, shot }) {
         for (let t = 0.2; t < 0.8; t += 0.02) {
           const x = c.ax + (c.bx - c.ax) * t;
           const z = c.az + (c.bz - c.az) * t;
-          const held = L.dressing.stones.some((st) => Math.max(0, Math.abs(st.x - x) - st.size / 2) ** 2 + Math.max(0, Math.abs(st.z - z) - st.size / 2) ** 2 < 0.5 ** 2);
+          // Each stone is turned square to its path: measure in its own frame.
+          const held = L.dressing.stones.some((st) => {
+            const dx = x - st.x;
+            const dz = z - st.z;
+            const u = dx * Math.cos(st.yaw) - dz * Math.sin(st.yaw);
+            const v = dx * Math.sin(st.yaw) + dz * Math.cos(st.yaw);
+            return Math.max(0, Math.abs(u) - st.size / 2) ** 2 + Math.max(0, Math.abs(v) - st.size / 2) ** 2 < 0.5 ** 2;
+          });
           if (held) continue;
           gm.player.controller.teleport({ x, y: c.y0 + 0.3, z }, 0);
           return { at: +(t * len).toFixed(1) };

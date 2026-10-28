@@ -4,6 +4,29 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-16: levels shaped by their cards
+Every dimension now lays out its own way, and rooms stand at any angle, turning on round landings.
+
+**Try:**
+- **Justice:** at the mid lantern the way forks left and right (the scales' pans). Each wing ends in a key room
+  with a brass **weight**, guarded. Set it (E): the pan beside it is weighted. Ride the pan (E) and it carries you
+  back to the lantern. The gate on the axis lifts once both pans are weighted. Does the ride save enough walking, and
+  is it clear what to do at the barred gate?
+- **The Devil:** you spiral down round the pit. Is the pedestal always there below you? Do the chains read?
+- **The Tower:** you climb round the Tower itself, the crown overhead. Falls still drop you into the void (falls
+  as routes are held back, as you asked).
+- **The Moon:** the way swings side to side toward the Moon. Every true way passes **between two towers**; a false
+  path has none (a second tell beside the shadows).
+- **Turns everywhere:** walk the bends and landings, hug the parapets, and cut corners.
+
+**Unsure about:**
+- **Getting lost:** the Moon's meander and the spirals turn a lot. The landmark should orient you; tell me where it
+  didn't.
+- **The ride** is a scripted arc (2.6 s), untouchable while you ride. It might feel like a cutscene.
+- **Landings** are 9.4 m discs for a 5 m causeway: they may look large.
+- **Room sequences** still repeat (the order of fights and vistas is one template per layout). That's next.
+- **The player sinking into a floor** (fixed): if you ever stuck fast on a flat floor before, that was it.
+
 ## V2-15: fixes from your first full playthrough
 All 23 notes are addressed (the list is in `PLAN.md → V2-15`). Two bugs I found on the way were behind several of
 them. An enemy could sink through the floor and stand there unable to reach you. A court card's single-lane volley

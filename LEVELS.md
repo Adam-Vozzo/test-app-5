@@ -173,17 +173,38 @@ footprint, walkable area, colliders, exits, cover positions and spawn sockets:
   stepped treads drawn over them (a thin tilted slab hung over a gap near its foot, and from the side her feet slid
   under it). `tests/level-walk.test.ts` walks the real player controller over every connector of real levels. **Compression** connectors (tunnels, arches,
   narrow passes) go before `vista` and `combat` nodes to build the frame-then-reveal rhythm.
-- **Layout:**
-  - Justice: rooms are placed along the main heading with a mirror axis.
-  - The Devil: a descending spiral, each room lower than the last. *As built in V2-8:* the same right-angled grid as
-    Justice (not a spiral yet), with each critical room one `descent` step (3 m) below the last. The shortcut loop
-    keeps the mid lantern's level, so its shortcut stays flat. A spiral that turns each step is a later option, once
-    the descent has been played.
-  - The Tower: a vertical stack, with the heading rotating around the tower. *As built in V2-11:* the grid again
-    (not yet rotating), with a negative `descent` (−3 m per room), so each room is a step **up**.
-  - The Moon: a meandering path between pools, with deliberate near-duplicate rooms. *As built in V2-13:* the grid
-    again (no meander yet), level, as islands over dark water with near-duplicate earth rooms.
-- **The landmark** sits beyond the `exit` node, far out in the fog, and every `vista` node is oriented toward it.
+- **Layout:** *as built in V2-16 (Proposed until played)*, each dimension lays its rooms out by its card
+  (`DimensionDef.layout`), and **rooms stand at any heading**:
+  - **Rooms** are rectangles turned to any yaw. A room is always entered by its back edge and leaves by its far edge
+    or a side, so its kit, cover, tier and sockets work in its own frame as before.
+  - **Connectors** run straight out of one doorway and into the next, square to both edges (their parapets still run
+    on flush). Where the heading changes they turn on a **round landing**, once or twice (out, across, in). A
+    landing's disc is level; the runs climb only off it. Its parapet ring is open where the runs meet it, and wide
+    enough (radius `width/2 + 2.2`) that the two openings stay apart at the sharpest turn the layouts make (about 95°).
+  - **Placement** steers each room toward where the dimension's rule wants it (a heading, or a point on a curve),
+    checking footprints as oriented boxes (2 m apart, clear of every connector). Joins between rooms already placed
+    are solved: straight if they line up, else the landing where their doors' lines cross, else two landings.
+  - **The shortcut loop** (all but Justice): the mid lantern leaves sideways; the gate stands straight ahead of it,
+    turned to face away from the loop side; the loop rooms step out well past the gate, and the last is laid
+    backwards from the gate's back door and joined to them in the middle.
+  - **Justice weighs:** a straight axis (start … the mid lantern; the gate … the exit), with **two mirrored wings**
+    off the mid lantern's sides, each bending forward at each room (`wingBend`) to a **key room**. The right wing is
+    the left reflected about the axis. The axis between the lantern and the gate is barred until both keys are set
+    (`Dressing.door.opens = 'keys'`); each key room's pan rides back to the mid lantern (`Dressing.keys`).
+  - **The Devil descends:** a spiral down the walls of a pit, its radius tightening (120 m to 70 m) round a centre
+    fitted to the rooms afterwards, each room on the way 4 m below the last. The pedestal stands at the centre, and
+    each room's side facing it is open (`Room.open`: a parapet, whatever the kit's edge).
+  - **The Tower climbs:** the same spiral, up (radius 110 m to 80 m, 4 m a room), round the Tower itself; its open
+    side faces the Tower. Footprints never overlap, so a fall drops into the void, never onto a floor below.
+  - **The Moon meanders:** the first causeway runs straight at the Moon, then each room swings 20–45° to one side or
+    the other of that heading (swapping sides often). Every true connector's far end stands between **two towers**
+    (`DimensionDef.gateway = 'towers'`, `Dressing.towers`); branches never do.
+  - *Before V2-16* every dimension used one right-angled grid heading north (V2-3's), which measured the same in all
+    four (see *Measuring the generator*): the planned spiral, stack and meander had been deferred until the levels
+    had been played.
+- **The landmark** sits where the layout puts it: beyond the exit along the axis (Justice), straight ahead of the
+  spawn past the exit (the Moon), or at the spiral's centre (the Devil's pedestal, the Tower). Every `vista` stands
+  at a spot in its room the landmark can be seen from (a walled room is looked out of through a doorway).
 - **Boundaries** are dense wall props (v1's approach) plus the dark foreground frame, never invisible walls.
 
 ### 4. Dressing
@@ -220,8 +241,44 @@ A generated level is rejected and regenerated from `seed + attempt` if any check
 - **Fair angles:** no spawn behind the entrance unless the template is *Ambush* with an audible tell.
 - **Budget:** critical-path length, room count and prop/draw-call estimates within *Budgets*.
 - **Determinism:** the same seed gives the same layout (`tests/gen-level.test.ts`).
+- **The card's shape** (`checkShape`, V2-16): Justice's wings mirror, with one key in each pan and the axis gate on
+  the keys; the Devil only goes down and the Tower only up; the Moon's true ways stand between towers and its false
+  paths never do. In a spiral the landmark must be in sight from 60% of the rooms (the pit) or every room (the crown).
+- **Square doors:** every connector leaves and enters its doorways square (V2-16).
+
+## Measuring the generator
+
+`src/world/gen-metrics.ts` measures a level's shape from its output; `tests/gen-metrics.test.ts` generates 60 levels
+per dimension (20 seeds × 3), holds each dimension to its card's shape, and prints the means. Before V2-16 (the grid),
+measured the same way on 120 levels each:
+
+| Measure (mean) | Justice | Devil | Tower | Moon |
+|---|---|---|---|---|
+| Straightness (start→exit ÷ path) | 0.79 | 0.79 | 0.80 | 0.79 |
+| Turns on the critical path | 4.0 | 4.0 | 4.0 | 4.0 |
+| Height range (m) | 2.6 | 17.6 | 17.7 | 0 |
+| Distinct room-kind sequences | 10 | 8 | 12 | 9 |
+
+After V2-16:
+
+| Measure (mean) | Justice | Devil | Tower | Moon |
+|---|---|---|---|---|
+| Straightness | 0.53 | 0.47 | 0.47 | 0.64 |
+| Turns (heading swings > 15° room to room) | 5.0 | 7.1 | 7.4 | 6.2 |
+| Heading spread (circular s.d., rad) | 0.49 | 1.35 | 1.35 | 0.95 |
+| Height range (m) | 3.0 | 23.5 | 23.4 | 0 |
+| Landings | 4.0 | 7.3 | 7.5 | 6.2 |
+| Landmark in sight (share of rooms) | 0.99 | 1.00 | 1.00 | 1.00 |
+| Rooms seen ≥ 3 steps before they're reached | 5.4 | 1.6 | 3.2 | 4.6 |
+| Distinct room-kind sequences (of 60) | 10 | 8 | 11 | 8 |
+
+The sequences haven't moved: the mission graph is still one template per layout (the cycle library proposed in the
+discovery is the next step).
 
 ## As built in V2-3 (Justice)
+*Superseded in part by V2-16:* Justice now weighs (two mirrored wings off the mid lantern, the axis gate on both
+keys; see *3. Space*) instead of the loop below, and its wing rooms turn off the grid. The kits, sockets, templates,
+rosters and validation below still hold.
 The pipeline above, for one dimension. Files: `src/world/dimensions.ts` (data), `gen-graph.ts`, `gen-space.ts`,
 `gen-dress.ts`, `gen-validate.ts`, `gen-level.ts` (pure), and `level.ts` (the builder).
 

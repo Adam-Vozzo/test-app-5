@@ -4,6 +4,8 @@ import { damp, dampAngle, DEG } from '../core/math';
 import { GROUPS, Physics, RAPIER } from '../physics/world';
 import { tuning } from '../tuning';
 
+const _down = { origin: new THREE.Vector3(), dir: new THREE.Vector3(0, -1, 0) };
+
 export type MoveState = 'move' | 'roll' | 'rollRecover';
 
 export interface MoveInput {
@@ -49,7 +51,7 @@ export class Controller {
   private radius: number;
 
   constructor(
-    physics: Physics,
+    private physics: Physics,
     spawn: THREE.Vector3,
     yaw: number,
   ) {
@@ -206,6 +208,14 @@ export class Controller {
     this.center.x += mv.x;
     this.center.y += mv.y;
     this.center.z += mv.z;
+    // The character controller now and then misses the floor for a frame and lets her sink a few centimetres into
+    // it, and once inside she can't move (walking a long causeway at a slant into its parapet did it). If the floor is
+    // above her feet, stand her back on top (as enemies are, in Foe.move).
+    if (this.grounded) {
+      const feet = this.radius + this.halfH;
+      const hit = this.physics.raycast(_down.origin.set(this.center.x, this.center.y, this.center.z), _down.dir, feet, GROUPS.qWorld);
+      if (hit && feet - hit.distance > 0.005) this.center.y += feet - hit.distance;
+    }
     this.body.setNextKinematicTranslation(this.center);
     // Actual horizontal velocity after collision (so the walk cycle doesn't moonwalk into walls).
     const actualX = mv.x / dt - this.pushVel.x;

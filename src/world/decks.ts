@@ -8,7 +8,7 @@ import { Physics, RAPIER } from '../physics/world';
 import { paint, toonMat } from '../render/geo';
 import { SIGNAL, type AreaPalette } from '../render/palette';
 import { tuning } from '../tuning';
-import { deckCell, type Scaffold } from './gen-dress';
+import { deckCell, deckCentre, type Scaffold } from './gen-dress';
 import { ScaffoldGrid, type DeckEvent } from './scaffold';
 
 const DECK_H = 0.3;
@@ -16,6 +16,7 @@ const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
 const _c = new THREE.Color();
 const _tele = new THREE.Color(SIGNAL.telegraph);
 
@@ -61,14 +62,13 @@ export class Decks {
   }
 
   private centre(s: Scaffold, i: number, out: THREE.Vector3) {
-    const c = i % s.cols;
-    const r = Math.floor(i / s.cols);
-    return out.set(s.x0 + (c + 0.5) * s.tx, s.y - DECK_H / 2, s.z0 + (r + 0.5) * s.tz);
+    const [x, z] = deckCentre(s, i);
+    return out.set(x, s.y - DECK_H / 2, z);
   }
 
   private addCollider(s: Scaffold, i: number) {
     this.centre(s, i, _p);
-    return this.physics.addStatic(RAPIER.ColliderDesc.cuboid(s.tx / 2, DECK_H / 2, s.tz / 2).setTranslation(_p.x, _p.y, _p.z));
+    return this.physics.addStatic(RAPIER.ColliderDesc.cuboid(s.tx / 2, DECK_H / 2, s.tz / 2).setTranslation(_p.x, _p.y, _p.z).setRotation(_q.setFromAxisAngle(_up, s.yaw)));
   }
 
   /** Lay out and colour every deck from its state. */
@@ -83,7 +83,7 @@ export class Decks {
       const gone = st === 'gone';
       const gap = rotten ? 0.5 : 0.12;
       _s.set(gone ? 0 : s.tx - gap, gone ? 0 : 1, gone ? 0 : s.tz - gap);
-      _m.compose(_p, _q.identity(), _s);
+      _m.compose(_p, _q.setFromAxisAngle(_up, s.yaw), _s);
       mesh.setMatrixAt(i, _m);
       if (st === 'cracking') {
         const k = Math.max(0, grid.t[i]) / Math.max(0.05, tuning.tower.crackTime);
@@ -158,7 +158,7 @@ export class Decks {
       const s = room.s;
       const occupied = (i: number) => {
         this.centre(s, i, _p);
-        return occupants.some((o) => Math.abs(o.x - _p.x) < s.tx / 2 + 0.6 && Math.abs(o.z - _p.z) < s.tz / 2 + 0.6 && o.y > s.y - 3 && o.y < s.y + 2.5);
+        return occupants.some((o) => Math.hypot(o.x - _p.x, o.z - _p.z) < Math.max(s.tx, s.tz) * 0.71 + 0.6 && o.y > s.y - 3 && o.y < s.y + 2.5);
       };
       const ev = room.grid.update(dt, tune, rng, occupied);
       for (const e of ev) {
