@@ -256,8 +256,13 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
   const sp = script.setPiece;
   const L = dim.levels[script.level];
   for (let attempt = 0; attempt < 120; attempt++) {
-    // What stands in each wing before its key: a vista over the drop most often; a fight in the twist.
-    const wingKinds: NodeKind[] = rng.chance(script.allowAdjacentCombats ? 0.35 : 0) ? ['combat'] : [rng.chance(0.65) ? 'vista' : 'traverse'];
+    // What stands in each wing before its key: none (the key off the lantern), one or two rooms: a vista over the drop
+    // most often, a fight in the twist. (Always one, after the first playtest: every level weighed alike.)
+    const r = rng();
+    const wingN = r < 0.2 ? 0 : r < 0.7 ? 1 : 2;
+    const wingKinds: NodeKind[] = Array.from({ length: wingN }, (_, k): NodeKind =>
+      k === 0 && rng.chance(script.allowAdjacentCombats ? 0.35 : 0) ? 'combat' : k === 0 && rng.chance(0.65) ? 'vista' : 'traverse',
+    );
     const wingVistas = wingKinds.filter((k) => k === 'vista').length * 2;
     const wingCombats = wingKinds.filter((k) => k === 'combat').length * 2;
     const combats = rng.int(L.combats[0], L.combats[1]);
@@ -269,7 +274,7 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
     for (let i = 0; i < plain; i++) axisSlots.push('combat');
     const [nMin, nMax] = dim.criticalNodes;
     // Fixed: start, lantern, 2 × (wing + key), gate, set-piece, lantern, miniboss, exit.
-    const fixed = 10 + (wingKinds.length - 1) * 2;
+    const fixed = 8 + wingKinds.length * 2;
     while (fixed + axisSlots.length < nMin) axisSlots.push('traverse');
     if (fixed + axisSlots.length > nMax) continue;
     const order = shuffle(axisSlots, rng);
@@ -336,9 +341,9 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
       nd.kit = nd.template && (nd.kind === 'combat' || nd.kind === 'key') ? dim.templateKits[nd.template] : rng.pick(kitsFor(dim, s, sp));
       if (s.wing === 0) nodes[wings[1][wings[0].indexOf(nd.id)]].kit = nd.kit;
     }
-    // Branches: a mirrored pair off the wing rooms before the keys.
+    // Branches: a mirrored pair off the wings' first rooms (the keys', when the keys stand off the lantern).
     const want = rng.int(dim.branches[0], dim.branches[1]);
-    if (want >= 2 && wingKinds.length) {
+    if (want >= 2) {
       for (const w of [0, 1] as const) {
         const id = nodes.length;
         nodes.push({ id, kind: 'branch', kit: dim.nodeKits.branch, index: -1, template: null, vista: false, lantern: false, host: wings[w][0] });

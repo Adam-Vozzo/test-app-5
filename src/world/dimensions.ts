@@ -83,8 +83,11 @@ export interface CollapseDef {
 export interface IllusionDef {
   /** Share of enemy sockets that hold a reflection, per level. */
   share: [number, number, number];
-  /** How many branches per level are false paths (their boardwalk isn't there, their cache is a reflection). */
-  falseBranches: number;
+  /**
+   * How many branches are false paths, by level (their boardwalk isn't there; stones you can't see carry you over).
+   * The rest are true, and stand between towers like the way on: at a fork, the way without towers is the lie.
+   */
+  falseBranches: [number, number, number];
 }
 
 export interface SetPieceDef {
@@ -131,8 +134,10 @@ export interface LayoutDef {
   radius?: [number, number];
   /** The Moon: how far each swing turns off the heading toward the Moon. */
   swing?: [number, number];
-  /** Justice: how far the wings bend forward at each room. */
+  /** Justice: how far the wings bend at each room (forward toward the scales, or back, by level: see embedWeighing). */
   wingBend?: [number, number];
+  /** Justice: past the gate (where nothing need mirror), how far the way swings off the axis at each room. */
+  swingPast?: [number, number];
 }
 
 export interface DimensionDef {
@@ -243,8 +248,9 @@ export const JUSTICE_DIMENSION: DimensionDef = {
     { id: 'windBridge', name: 'the wind bridge', kit: 'windBridge', combat: false, vista: true },
   ],
   symmetric: true,
-  // The weighing: two mirrored wings off the mid lantern, bending forward like the arms of the scales.
-  layout: { kind: 'weighing', bend: 0.8, loopBend: 1.2, wingBend: [0.35, 0.65] },
+  // The weighing: two mirrored wings off the mid lantern, swept like the arms of the scales; past the gate the way
+  // swings free.
+  layout: { kind: 'weighing', bend: 0.8, loopBend: 1.2, wingBend: [0.35, 0.65], swingPast: [0.3, 0.75] },
   kits: {
     start: { w: [20, 24], d: [22, 26], edge: 'parapet', turns: false, floor: 0, ground: 'flag', grass: 40 },
     court: { w: [24, 30], d: [26, 32], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [3, 4] },
@@ -267,7 +273,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
   connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
   // The fork adds rooms: start, the axis, two wings of a room and a key, the gate and the set-piece past it.
-  criticalNodes: [11, 13],
+  criticalNodes: [10, 14],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   // A mirrored pair, one off each wing.
   branches: [2, 2],
@@ -575,7 +581,8 @@ export const MOON_DIMENSION: DimensionDef = {
   connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
   criticalNodes: [9, 10],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
-  branches: [1, 2],
+  // Forks to read: a true branch stands between towers, a false one doesn't.
+  branches: [2, 3],
   descent: 0,
   landmark: {
     kind: 'moon',
@@ -591,7 +598,7 @@ export const MOON_DIMENSION: DimensionDef = {
   props: { strewn: 'reed', hero: 'pillar' },
   // The Page of Cups pours from range (held to the fair-distance rule).
   rangedFoes: ['pageCups'],
-  illusion: { share: [0.2, 0.3, 0.4], falseBranches: 1 },
+  illusion: { share: [0.2, 0.3, 0.4], falseBranches: [1, 1, 2] },
   water: true,
   gateway: 'towers',
 };

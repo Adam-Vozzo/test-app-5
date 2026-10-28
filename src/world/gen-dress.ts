@@ -2,7 +2,7 @@
 // tiers), the encounter sockets, and the dressing (lanterns, arches, swords, grass, hero props, vista poses).
 // Pure: no Three/DOM. Everything here is plain records the builder turns into meshes and colliders.
 import type { Rng } from '../core/rng';
-import type { DimensionDef, EncounterTemplate, HoardCost, SocketRole } from './dimensions';
+import type { DimensionDef, EncounterTemplate, HoardCost, RoomKitDef, SocketRole } from './dimensions';
 import type { MissionGraph } from './gen-graph';
 import { connected } from './scaffold';
 import { EYE, landmarkPoints, occludersOf, seesFrom, spotsIn } from './gen-sight';
@@ -147,6 +147,21 @@ export interface Furnishing {
 /** Justice: where a key room's weight stands, room-local (on the far side, on the axis). */
 export const weightSpot = (r: Room): [number, number] => [0, r.d / 2 - 4];
 
+/** Justice: a pan's dish radius, and how far its footprint (dish and post) reaches from its middle. */
+export const PAN = { r: 1.7, reach: 2.8 };
+
+/**
+ * Justice: where a key room's pan stands, room-local: beside the weight, on the side toward the mid lantern
+ * (`toward`: +1 or -1 along the room's width), and in front of a tier if the kit has one (it stood inside the tier).
+ */
+export function panSpot(r: Room, kit: RoomKitDef, toward: number): [number, number] {
+  const v = kit.tier ? r.d / 2 - EDGE.thick - kit.tier.depth - PAN.reach - 0.6 : r.d / 2 - 4;
+  return [toward * (r.w / 2 - EDGE.thick - PAN.reach - (kit.edge === 'colonnade' ? 1.4 : 0.4)), v];
+}
+
+/** Justice: which way along a key room's width the mid lantern lies (+1 or -1). */
+export const towardHub = (r: Room, hub: { x: number; z: number }) => Math.sign(toLocal(r, hub.x, hub.z)[0]) || 1;
+
 // ---------------------------------------------------------------------------------------------------------------
 // Kit structure
 
@@ -164,11 +179,15 @@ export function furnish(dim: DimensionDef, space: Space, rng: Rng, g?: MissionGr
       boxes.push({ x, z, y, sx: w, sz: d, h, yaw: r.yaw, kind, node: r.node });
     };
     const clear = clearance(r);
-    // Justice's key rooms: the weight stands on the far side, on the axis (kept clear of cover and sockets).
+    // Justice's key rooms: the weight stands on the far side, on the axis, and its pan beside it toward the mid
+    // lantern (both kept clear of cover, sockets and the tier).
     if (g?.nodes[r.node]?.kind === 'key') {
       const [u, v] = weightSpot(r);
       local(u, v, 1.8, 1.8, 1.0, 'weight');
       clear.block(u, v, 3, 3);
+      const hub = space.rooms.find((h) => h.node === g.shortcut.lantern)!;
+      const [pu, pv] = panSpot(r, kit, towardHub(r, hub));
+      clear.block(pu, pv, PAN.reach + 0.5, PAN.reach + 0.5);
     }
 
     // Tier: two wings along the far edge with a gap on the axis for the way on, each reached by a ramp.
@@ -628,21 +647,38 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
   }
 
   // Arches at the far end of compression connectors, and over the shortcut's door on the gate side. On the Moon,
-  // every true way's far end stands between two towers instead (its false paths never do).
+  // every true way's far end stands between two towers instead, branches too; its false paths never do (chosen below,
+  // before the towers go up: at a fork, the way without towers is the lie).
+  const falsePaths: number[] = [];
+  const stones: Stone[] = [];
+  if (dim.illusion) {
+    const fr = rng.fork('false-paths');
+    const branchConns = space.connectors.map((c, i) => [c, i] as const).filter(([c]) => c.kind === 'branch');
+    for (let i = branchConns.length - 1; i > 0; i--) {
+      const j = Math.floor(fr() * (i + 1));
+      [branchConns[i], branchConns[j]] = [branchConns[j], branchConns[i]];
+    }
+    for (const [c, i] of branchConns.slice(0, dim.illusion.falseBranches[Math.min(2, level)])) {
+      falsePaths.push(i);
+      stones.push(...stonesAcross(c));
+    }
+  }
   const arches: Arch[] = [];
   const towers: Arch[] = [];
-  for (const c of space.connectors) {
+  space.connectors.forEach((c, i) => {
     const frame = { x: c.bx, z: c.bz, y: c.y1, yaw: connEndYaw(c), width: c.width + 1, height: c.kind === 'shortcut' ? 6 : 7 };
     if (dim.gateway === 'towers') {
-      if (c.kind !== 'branch') towers.push({ ...frame, height: 9 });
+      if (!falsePaths.includes(i)) towers.push({ ...frame, height: c.kind === 'branch' ? 7 : 9 });
     } else if (c.arch) arches.push(frame);
-  }
+  });
   const sc = space.connectors[space.shortcut];
   // The loop's shortcut is barred at the gate's end and lifted from that side; Justice's axis gate stands at the
   // lantern's end and lifts when both pans are weighted.
   const door = g.wings
     ? { x: sc.ax, z: sc.az, y: sc.y0, yaw: connStartYaw(sc), width: sc.width + 1, opens: 'keys' as const }
     : { x: sc.bx, z: sc.bz, y: sc.y1, yaw: connEndYaw(sc), width: sc.width + 1, opens: 'far' as const };
+  // The axis gate stands in an arch of its own (its bars stood alone at the lantern's edge, framed by nothing).
+  if (door.opens === 'keys') arches.push({ x: door.x, z: door.z, y: door.y, yaw: door.yaw, width: door.width, height: 7 });
   const ex = sidePoint(exitRoom, 'front');
   const exit = { x: ex.x, z: ex.z, y: exitRoom.y, yaw: exitRoom.yaw, width: 7 };
 
@@ -692,22 +728,8 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
   }
 
-  // The Moon's false paths: some branches' boardwalks aren't there. The way across is the stones that cast shadows;
-  // the cache beyond is real (the reward for reading the water).
-  const falsePaths: number[] = [];
-  const stones: Stone[] = [];
-  if (dim.illusion) {
-    const fr = rng.fork('false-paths');
-    const branchConns = space.connectors.map((c, i) => [c, i] as const).filter(([c]) => c.kind === 'branch');
-    for (let i = branchConns.length - 1; i > 0; i--) {
-      const j = Math.floor(fr() * (i + 1));
-      [branchConns[i], branchConns[j]] = [branchConns[j], branchConns[i]];
-    }
-    for (const [c, i] of branchConns.slice(0, dim.illusion.falseBranches)) {
-      falsePaths.push(i);
-      stones.push(...stonesAcross(c));
-    }
-  }
+  // (The Moon's false paths were chosen with the towers, above: some branches' boardwalks aren't there. The way
+  // across is the stones that cast shadows; the cache beyond is real, the reward for reading the water.)
 
   // Scaffold rooms (the Tower): timber decks over the drop, some rotten. Door landings, cover and the decks under
   // the tiers stay sound, and the rot never cuts the doors apart (collapse closes ways behind you, not ahead).
@@ -801,9 +823,10 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
       const r = byNode(ids[ids.length - 1]);
       const [u, v] = weightSpot(r);
       const [x, z] = toWorld(r, u, v);
-      // The pan stands on the side toward the mid lantern, by the weight.
-      const toward = Math.sign(toLocal(r, hub.x, hub.z)[0]) || 1;
-      const [px, pz] = toWorld(r, toward * (r.w / 2 - 3.5), v);
+      // The pan stands on the side toward the mid lantern, by the weight (the spot furnish kept clear for it).
+      const hubRoom = byNode(g.shortcut.lantern);
+      const [pu, pv] = panSpot(r, dim.kits[r.kit], towardHub(r, hubRoom));
+      const [px, pz] = toWorld(r, pu, pv);
       keys.push({ node: r.node, wing: wing as 0 | 1, x, z, y: r.y, pan: { x: px, z: pz, y: r.y }, ride: hub.rest });
     });
   }

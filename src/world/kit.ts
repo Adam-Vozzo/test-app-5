@@ -290,15 +290,21 @@ export function weightGeo(brass: number, dark: number) {
  * Justice's pan: a shallow brass dish (the scales' pan, man-sized) slung by three chains from a ring on a tall post
  * beside it. Origin at the dish's centre on the floor; the post stands `postAt` along +X.
  */
-export function panGeo(radius: number, brass: number, metal: number, stone: number) {
-  const parts: THREE.BufferGeometry[] = [facet(new THREE.CylinderGeometry(radius, radius * 0.86, 0.3, 10).translate(0, 0.35, 0), brass, 0.04)];
-  const ringY = 6;
+/** Justice's pan: where its chains meet over the dish (the hook on the post's arm). */
+export const PAN_RING = 6.5;
+
+/** The pan's post and arm (it stays put), the arm reaching over the dish's middle at the origin. */
+export function panPostGeo(radius: number, stone: number) {
   const post = radius + 0.8;
-  parts.push(place(block(0.5, ringY + 0.8, 0.5, stone, 0.05), post, 0, 0));
-  parts.push(place(block(post + 0.3, 0.3, 0.3, stone, 0.05), post / 2, ringY + 0.5, 0));
+  return merge([place(block(0.5, PAN_RING + 0.3, 0.5, stone, 0.05), post, 0, 0), place(block(post + 0.3, 0.3, 0.3, stone, 0.05), post / 2, PAN_RING, 0)]);
+}
+
+/** The pan itself: the brass dish and the three chains up to the hook (it rides; its origin is the dish's foot). */
+export function panDishGeo(radius: number, brass: number, metal: number) {
+  const parts: THREE.BufferGeometry[] = [facet(new THREE.CylinderGeometry(radius, radius * 0.86, 0.3, 10).translate(0, 0.35, 0), brass, 0.04)];
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2;
-    parts.push(bar(new THREE.Vector3(Math.cos(a) * radius * 0.9, 0.5, Math.sin(a) * radius * 0.9), new THREE.Vector3(0, ringY + 0.5, 0), 0.07, metal));
+    parts.push(bar(new THREE.Vector3(Math.cos(a) * radius * 0.9, 0.5, Math.sin(a) * radius * 0.9), new THREE.Vector3(0, PAN_RING, 0), 0.07, metal));
   }
   return merge(parts);
 }
