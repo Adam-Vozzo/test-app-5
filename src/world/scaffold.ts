@@ -1,7 +1,8 @@
 // The Tower's rule, collapse (DESIGN.md → The Tower × Wands: "ground is temporary"). Pure logic, no Three/DOM:
 // a scaffold room's floor is a grid of timber decks. A rotten deck cracks when you step on it (glowing magenta) and
 // falls after `crackTime`; a burning deck hurts while you stand on it, spreads fire to its neighbours, and falls
-// after `burnTime`. Lightning sets decks alight. A fallen deck is built back after `regrowTime` (the stage keeps
+// after `burnTime`. Lightning sets decks alight. Fire spreads one step only: a deck lit by its neighbour doesn't pass
+// it on (spreading on and on, any spark used to take the whole floor). A fallen deck is built back after `regrowTime` (the stage keeps
 // changing under the fight instead of only emptying), and everything comes back when you rest.
 
 export type DeckState = 'sound' | 'cracking' | 'burning' | 'gone';
@@ -26,6 +27,8 @@ export class ScaffoldGrid {
   readonly state: DeckState[];
   /** Seconds in the current state. */
   readonly t: number[];
+  /** Burning decks lit directly (lightning, a torch) pass fire to their neighbours; ones those lit don't. */
+  private spreads: boolean[];
   constructor(
     readonly cols: number,
     readonly rows: number,
@@ -36,6 +39,7 @@ export class ScaffoldGrid {
   ) {
     this.state = new Array(cols * rows).fill('sound');
     this.t = new Array(cols * rows).fill(0);
+    this.spreads = new Array(cols * rows).fill(false);
     for (const i of holes) this.state[i] = 'gone';
   }
 
@@ -66,11 +70,15 @@ export class ScaffoldGrid {
     return { i, kind: 'crack' };
   }
 
-  /** Set deck `i` alight (lightning, a Firebrand). Gone or burning decks don't light again. */
-  ignite(i: number): DeckEvent | null {
+  /**
+   * Set deck `i` alight (lightning, a Firebrand). Gone or burning decks don't light again. `spreads`: it passes the
+   * fire to its neighbours (a deck caught from a neighbour doesn't).
+   */
+  ignite(i: number, spreads = true): DeckEvent | null {
     if (i < 0 || this.state[i] === 'gone' || this.state[i] === 'burning') return null;
     this.state[i] = 'burning';
     this.t[i] = 0;
+    this.spreads[i] = spreads;
     return { i, kind: 'ignite' };
   }
 
@@ -104,9 +112,11 @@ export class ScaffoldGrid {
         const c = i % this.cols;
         const r = Math.floor(i / this.cols);
         const p = 1 - Math.exp(-tune.spreadPerSec * dt);
-        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const j = this.index(c + dc, r + dr);
-          if (j >= 0 && this.state[j] === 'sound' && roll() < p) spread.push(j);
+        if (this.spreads[i]) {
+          for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const j = this.index(c + dc, r + dr);
+            if (j >= 0 && this.state[j] === 'sound' && roll() < p) spread.push(j);
+          }
         }
         if (this.t[i] >= tune.burnTime) {
           this.state[i] = 'gone';
@@ -116,7 +126,7 @@ export class ScaffoldGrid {
       }
     }
     for (const j of spread) {
-      const e = this.ignite(j);
+      const e = this.ignite(j, false);
       if (e) out.push(e);
     }
     return out;
@@ -126,6 +136,7 @@ export class ScaffoldGrid {
   reset() {
     this.state.fill('sound');
     this.t.fill(0);
+    this.spreads.fill(false);
     for (const i of this.holes) this.state[i] = 'gone';
   }
 }

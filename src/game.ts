@@ -130,6 +130,8 @@ export class Game {
   private collapseRng = makeRng(1).fork('collapse');
   private readonly lastSafe = new THREE.Vector3();
   private burnAcc = 0;
+  /** Spacing between deck-fall sounds (s left). */
+  private timberT = 0;
   /** The bolt that flashes down where lightning strikes. */
   private readonly bolt = new THREE.Mesh(new THREE.BoxGeometry(0.35, 60, 0.35).translate(0, 30, 0), new THREE.MeshBasicMaterial({ color: 0xf2f0ff, fog: false }));
   private boltT = 0;
@@ -385,7 +387,7 @@ export class Game {
       noises: this.noises,
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
       bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
-      summon: (id, pos, yaw, illusion) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion),
+      summon: (id, pos, yaw, illusion, maker) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion, maker),
       safeGround: (near) => this.decks?.nearestStanding(near) ?? null,
       healPlayer: (amount) => {
         if (this.vitals.dead) return;
@@ -778,9 +780,17 @@ export class Game {
     if (decks) {
       const occupants = [c.pos];
       for (const e of this.enemies.enemies) if (e.alive && e instanceof Foe) occupants.push(e.ground);
+      // One fall sound at a time (the nearest deck that went), where it went: a ring of the floor giving way used to
+      // play dozens at once, all at her feet.
+      this.timberT = Math.max(0, this.timberT - dt);
+      let nearest: THREE.Vector3 | null = null;
       for (const e of decks.update(dt, this.collapseRng, occupants)) {
-        if (e.kind === 'fall') this.sfxAt('timberFall', c.pos);
+        if (e.kind === 'fall' && (!nearest || e.at.distanceToSquared(c.pos) < nearest.distanceToSquared(c.pos))) nearest = e.at;
         else if (e.kind === 'ignite') this.stats.decksBurnt++;
+      }
+      if (nearest && this.timberT <= 0) {
+        this.sfxAt('timberFall', nearest);
+        this.timberT = 0.35;
       }
       if (c.grounded && decks.step(c.pos)) {
         this.sfxAt('creak', c.pos);
@@ -830,7 +840,9 @@ export class Game {
     const fallY = lv ? Math.min(...lv.generated.space.rooms.map((r) => r.y)) - 12 : -12;
     if (c.pos.y < fallY) {
       this.stats.falls++;
-      const back = (!lv && decks?.nearestStanding(c.pos)) || this.lastSafe;
+      // Never back onto timber that has gone (or is going) since she stood there: the nearest sound deck instead.
+      let back = (!lv && decks?.nearestStanding(c.pos)) || this.lastSafe;
+      if (decks && !decks.holds(back)) back = decks.nearestStanding(back) ?? back;
       c.teleport(_o.copy(back).setY(back.y + 0.05), c.yaw);
       this.camera.snap(c.pos, c.yaw);
       if (this.save.unbound.includes('fall')) {
@@ -994,6 +1006,12 @@ export class Game {
   }
 
   private onEnemyKilled(e: Hostile) {
+    // Gone with its maker: it fades, for nothing.
+    if (e instanceof Foe && e.dismissed) {
+      this.sfxAt('shimmer', e.center);
+      this.fx.sparksAt(e.center, new THREE.Vector3(0, 1, 0), this.area.dust, 10, 2.5);
+      return;
+    }
     // A reflection: dispelled, with a shimmer, for nothing.
     if (e instanceof Foe && e.illusion) {
       this.sfxAt('shimmer', e.center);

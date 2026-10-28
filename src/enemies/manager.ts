@@ -73,7 +73,7 @@ export class EnemyManager {
   spawnAll(specs: SpawnSpec[], physics: EnemyWorld['physics']) {
     for (const s of specs) {
       const e = new Enemy(s.kind, this.scene, physics, s.pos, s.yaw);
-      e.onKilled = (x) => this.onKilled(x);
+      e.onKilled = (x) => this.killed(x);
       this.enemies.push(e);
     }
   }
@@ -109,7 +109,7 @@ export class EnemyManager {
                           : new Foe(ARCHETYPES[s.id] ?? PLANS.bailiff, this.scene, physics, s.pos, s.yaw, s.idle, r),
             ];
       for (const e of made) {
-        e.onKilled = (x) => this.onKilled(x);
+        e.onKilled = (x) => this.killed(x);
         if (s.illusion || e.plan.phantom) e.makeIllusion();
         this.enemies.push(e);
       }
@@ -117,12 +117,22 @@ export class EnemyManager {
     });
   }
 
-  /** A summoned enemy joins the fight now; it's gone (not respawned) when the player rests or dies. */
-  summon(id: string, pos: THREE.Vector3, yaw: number, at: THREE.Vector3, physics: EnemyWorld['physics'], rng: Rng, illusion = false): Hostile {
+  /**
+   * A summoned enemy joins the fight now; it's gone (not respawned) when the player rests or dies, and when its maker
+   * falls (a court card's squad, a reflection's original).
+   */
+  summon(id: string, pos: THREE.Vector3, yaw: number, at: THREE.Vector3, physics: EnemyWorld['physics'], rng: Rng, illusion = false, maker?: Hostile): Hostile {
     const [e] = this.spawnFoes([{ id, pos: pos.clone(), yaw, idle: 'stand', illusion }], physics, rng);
     e.summoned = true;
+    e.maker = maker ?? null;
     e.alert(at);
     return e;
+  }
+
+  /** Someone fell: whatever they called up goes with them (and whatever that called up). */
+  private killed(x: Hostile) {
+    this.onKilled(x);
+    for (const e of this.enemies) if (e instanceof Foe && e.maker === x && e.alive) e.dismiss();
   }
 
   /** Wake every enemy within `radius` of `from` (a Page's whistle). */

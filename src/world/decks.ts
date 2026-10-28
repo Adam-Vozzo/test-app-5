@@ -108,6 +108,21 @@ export class Decks {
     return null;
   }
 
+  /**
+   * Would a deck hold her at `pos`? False over a deck that has fallen, is cracking or burning, or is rotten; true off
+   * the decks altogether (stone).
+   */
+  holds(pos: THREE.Vector3): boolean {
+    for (const room of this.rooms) {
+      if (Math.abs(pos.y - room.s.y) > 0.6) continue;
+      const [c, r] = deckCell(room.s, pos.x, pos.z);
+      if (c < 0) continue;
+      const i = r * room.s.cols + c;
+      return room.grid.state[i] === 'sound' && !room.grid.isRotten(i);
+    }
+    return true;
+  }
+
   /** What she's standing on: 'sound' | 'cracking' | 'burning' (or null off the decks). */
   standing(pos: THREE.Vector3) {
     const hit = this.at(pos);
@@ -148,11 +163,11 @@ export class Decks {
 
   /**
    * Advance fire and cracks; fallen decks lose their colliders, and are built back once nothing (in `occupants`, feet
-   * positions) stands in their space. Returns what happened (for sounds).
+   * positions) stands in their space. Returns what happened, and where (for sounds).
    */
-  update(dt: number, rng: Rng, occupants: readonly THREE.Vector3[] = []): DeckEvent[] {
+  update(dt: number, rng: Rng, occupants: readonly THREE.Vector3[] = []): (DeckEvent & { at: THREE.Vector3 })[] {
     this.time += dt;
-    const out: DeckEvent[] = [];
+    const out: (DeckEvent & { at: THREE.Vector3 })[] = [];
     const tune = tuning.tower;
     for (const room of this.rooms) {
       const s = room.s;
@@ -167,7 +182,7 @@ export class Decks {
           if (c) this.physics.removeCollider(c);
           room.cols[e.i] = null;
         } else if (e.kind === 'regrow' && !room.cols[e.i]) room.cols[e.i] = this.addCollider(s, e.i);
-        out.push(e);
+        out.push({ ...e, at: this.centre(s, e.i, new THREE.Vector3()) });
       }
       // Only rooms with something happening need repainting.
       if (ev.length || room.grid.state.some((s) => s === 'cracking' || s === 'burning')) this.paint(room);
@@ -175,15 +190,26 @@ export class Decks {
     return out;
   }
 
-  /** The centre of the standing (not cracking) deck nearest to `pos`, if any: where a fall in the arena puts her. */
+  /**
+   * The centre of the sound deck nearest to `pos`, if any: where a fall puts her. Rotten decks, and decks standing
+   * alone with little sound timber around them, count as further away (she'd only fall again).
+   */
   nearestStanding(pos: THREE.Vector3): THREE.Vector3 | null {
     let best: THREE.Vector3 | null = null;
     let bestD = Infinity;
     for (const room of this.rooms) {
+      const g = room.grid;
       for (let i = 0; i < room.s.cols * room.s.rows; i++) {
-        if (room.grid.state[i] !== 'sound') continue;
+        if (g.state[i] !== 'sound') continue;
+        const c = i % room.s.cols;
+        const r = Math.floor(i / room.s.cols);
+        let around = 0;
+        for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const j = g.index(c + dc, r + dr);
+          if (j >= 0 && g.state[j] === 'sound') around++;
+        }
         this.centre(room.s, i, _p);
-        const d = Math.hypot(_p.x - pos.x, _p.z - pos.z);
+        const d = Math.hypot(_p.x - pos.x, _p.z - pos.z, (_p.y - pos.y) * 2) + (g.isRotten(i) ? 20 : 0) + (4 - around) * 3;
         if (d < bestD) {
           bestD = d;
           best = (best ?? new THREE.Vector3()).set(_p.x, room.s.y, _p.z);

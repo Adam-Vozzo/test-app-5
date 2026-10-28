@@ -57,7 +57,8 @@ export const tuning = {
   },
   /**
    * The Tower's collapse (V2-11): rotten decks hold `crackTime` once stepped on; burning decks hurt `burnDps` while you
-   * stand on them, spread fire to sound neighbours (`spreadPerSec` each), and fall after `burnTime`. Lightning
+   * stand on them, spread fire to sound neighbours (`spreadPerSec` each; one step only: a deck caught from a
+   * neighbour doesn't pass it on), and fall after `burnTime`. Lightning
    * marks where you stand every `lightning[level]` seconds (min, max), strikes `lightningDelay` later, and sets the
    * decks within `igniteRadius` alight. Falling into the drop costs `fallDamage` and puts you back on solid ground.
    */
@@ -68,7 +69,9 @@ export const tuning = {
     /** A fallen deck is built back after this long (s): the stage keeps changing instead of emptying. 0 = never. */
     regrowTime: 6,
     /** The Crowned Tower's top floor: once it's in a phase, that phase's ring gives way again this often (s). */
-    ringEvery: 14,
+    ringEvery: 22,
+    /** ...and how much of it stays (radius from the middle, m) in its first and second phase. The floor is 28 m across. */
+    ringKeep: [18, 12] as [number, number],
     burnDps: 14,
     lightning: [
       [10, 14],
@@ -343,7 +346,7 @@ export const tuning = {
       accel: 24,
       turnRate: 7,
       /** It doesn't see. It hears noises within these radii (m) and feels you when you're this close. */
-      senseRange: 2.4,
+      senseRange: 3.6,
       searchTime: 2.5,
       leash: 40,
       staggerTime: 0.8,
@@ -815,10 +818,10 @@ export const tuning = {
       reward: 750,
       phases: [0.66, 0.33],
       attacks: {
-        smash: { range: 10, windup: 1.15, active: 0.15, recover: 1.5, cooldown: 1.6, damage: 44, knockback: 11, arcDeg: 360, lunge: 1.0, weight: 1, radius: 3.4, reach: 5, ignite: 3 },
-        lightning: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, radius: 2.6, delay: 1.4, count: 1, ignite: 2.6 },
-        storm: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.1, cooldown: 4, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.6, delay: 1.4, count: 3, ignite: 2.6, minPhase: 1 },
-        topple: { range: 30, windup: 0.85, active: 0.1, recover: 1.0, cooldown: 3, damage: 26, knockback: 6, arcDeg: 360, lunge: 0, weight: 0.9, radius: 2.2, lob: 1.2, ignite: 2.2, hits: 3, comboWindup: 0.4 },
+        smash: { range: 10, windup: 1.15, active: 0.15, recover: 1.5, cooldown: 1.6, damage: 44, knockback: 11, arcDeg: 360, lunge: 1.0, weight: 1, radius: 3.4, reach: 5, ignite: 1.8 },
+        lightning: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.0, cooldown: 3.5, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1, radius: 2.6, delay: 1.4, count: 1, ignite: 1.8 },
+        storm: { kind: 'verdict', range: 40, windup: 0.9, active: 0.1, recover: 1.1, cooldown: 4, damage: 34, knockback: 8, arcDeg: 360, lunge: 0, weight: 1.3, radius: 2.6, delay: 1.4, count: 3, ignite: 1.8, minPhase: 1 },
+        topple: { range: 30, windup: 0.85, active: 0.1, recover: 1.0, cooldown: 3, damage: 26, knockback: 6, arcDeg: 360, lunge: 0, weight: 0.9, radius: 2.2, lob: 1.2, ignite: 1.6, hits: 3, comboWindup: 0.4 },
         sweep: { range: 7, windup: 0.8, active: 0.22, recover: 1.1, cooldown: 1.2, damage: 30, knockback: 8, arcDeg: 160, lunge: 1.4, weight: 1, hits: 2, comboWindup: 0.5 },
       },
     },
@@ -950,7 +953,7 @@ export const tuning = {
     /**
      * The Cups court (V2-14). The Knight sets down a cup that heals or poisons (the tell: the true cup is full of
      * moonlight, the poisoned one is dark); the Queen makes two copies of herself and takes one's place (only she
-     * casts a shadow); the King sends tidal waves across the room, with a gap to step into.
+     * casts a shadow); the King sends tidal waves across the room, wall to wall: roll through them.
      */
     knightCups: {
       health: 980,
@@ -1012,7 +1015,7 @@ export const tuning = {
       phases: [0.66, 0.33],
       squad: 2,
       attacks: {
-        /** A tidal wave down the room toward you, the full width but for one gap: step into it, or roll through. */
+        /** A tidal wave down the room toward you, wall to wall: roll through it (the i-frames carry you). */
         wave: { kind: 'wave', range: 30, windup: 1.3, active: 2.2, recover: 1.0, cooldown: 4.5, damage: 30, knockback: 10, arcDeg: 360, lunge: 0, weight: 1, speed: 12, lanes: 9, spacing: 2.2 },
         flood: { kind: 'wave', range: 30, windup: 1.1, active: 2.0, recover: 1.2, cooldown: 5, damage: 30, knockback: 10, arcDeg: 360, lunge: 0, weight: 1.3, speed: 14, lanes: 11, spacing: 2.2, hits: 2, comboWindup: 0.9, minPhase: 1 },
         trident: { range: 3.4, windup: 0.9, active: 0.14, recover: 1.2, cooldown: 1.2, damage: 34, knockback: 8, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.2, reach: 2.4 },

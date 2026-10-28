@@ -69,6 +69,8 @@ export class Foe implements Damageable, Hostile {
   protected lostT = 0;
   readonly lastKnown = new THREE.Vector3();
   readonly searchTarget = new THREE.Vector3();
+  /** A Blindfold cuts once at the spot it heard you, when it gets there (a new noise sends it to cut again). */
+  private cutThere = false;
   protected provoked = false;
   protected strafeSign = 1;
   protected strafeT = 0;
@@ -192,7 +194,7 @@ export class Foe implements Damageable, Hostile {
     return this.cfg.health;
   }
   get reward() {
-    return this.illusion ? 0 : this.cfg.reward;
+    return this.illusion || this.dismissed ? 0 : this.cfg.reward;
   }
   /** Common enemies (even elites like the Page) don't take over the boss bar. */
   get bar() {
@@ -202,6 +204,10 @@ export class Foe implements Damageable, Hostile {
   phaseIdx = 0;
   /** Summoned by a court card (gone, not respawned, when you rest). */
   summoned = false;
+  /** Who summoned it (a squad's King, a reflection's original): when they fall, it goes too. */
+  maker: Hostile | null = null;
+  /** Gone with its maker: it fades for nothing. */
+  dismissed = false;
   get armorMul() {
     return 0.25;
   }
@@ -276,6 +282,7 @@ export class Foe implements Damageable, Hostile {
     if (!this.alive || this.state === 'attack' || this.state === 'stagger') return;
     this.lastKnown.copy(at);
     this.searchTarget.copy(at);
+    this.cutThere = false;
     if (this.state === 'idle' || this.state === 'return' || this.state === 'search') this.set(this.plan.senses === 'sound' ? 'search' : 'approach');
   }
 
@@ -349,6 +356,14 @@ export class Foe implements Damageable, Hostile {
     if (this.state !== 'dead') return 0;
     const T = tuning.foes.corpseTime;
     return smoothstep(T - 1.2, T, this.deadT);
+  }
+
+  /** Its maker fell: it goes with them (no reward). */
+  dismiss() {
+    if (!this.alive) return;
+    this.dismissed = true;
+    this.health = 0;
+    this.die();
   }
 
   protected die() {
@@ -431,6 +446,13 @@ export class Foe implements Damageable, Hostile {
       case 'search': {
         _v.subVectors(this.searchTarget, this.ground).setY(0);
         const d = _v.length();
+        // A Blindfold comes to where it heard you and cuts there (it used to walk up beside a quiet player and wait).
+        const cut = this.plan.senses === 'sound' && !this.cutThere ? Object.keys(c.attacks)[0] : null;
+        if (cut && d <= c.attacks[cut].range * 0.8) {
+          this.cutThere = true;
+          this.begin(cut, w);
+          break;
+        }
         if (d > 1.2) {
           this.steer(_v.x / d, _v.z / d, c.runSpeed, w, dt);
           turnTo = Math.atan2(-_v.x, -_v.z);
@@ -502,6 +524,7 @@ export class Foe implements Damageable, Hostile {
     if (heard) {
       this.searchTarget.set(heard.x, heard.y, heard.z);
       this.lastKnown.copy(this.searchTarget);
+      this.cutThere = false;
     }
     if (this.provoked) {
       this.provoked = false;

@@ -365,8 +365,8 @@ const SFX = {
     split: L({ kind: 'noise', filter: 'bandpass', f0: 900, f1: 500, q: 4, dur: 0.25, gain: 0.35, delay: 0.25 }),
   },
   timberFall: {
-    crack: L({ kind: 'noise', filter: 'lowpass', f0: 1800, f1: 200, dur: 0.5, gain: 0.7 }),
-    thud: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.4, gain: 0.5, delay: 0.1 }),
+    crack: L({ kind: 'noise', filter: 'lowpass', f0: 1400, f1: 200, dur: 0.4, gain: 0.28 }),
+    thud: L({ kind: 'osc', wave: 'sine', f0: 90, f1: 40, dur: 0.35, gain: 0.22, delay: 0.1 }),
   },
   fireCatch: {
     whoosh: L({ kind: 'noise', filter: 'bandpass', f0: 400, f1: 1600, q: 1, dur: 0.5, gain: 0.4, attack: 0.08 }),

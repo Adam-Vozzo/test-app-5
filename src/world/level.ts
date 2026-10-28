@@ -643,6 +643,15 @@ function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.Bu
     solid.push(place(facet(new THREE.CylinderGeometry(F, F, 1.0, 12).translate(0, -0.5, 0), S.mid, 0.05), b.x, y, b.z));
     solid.push(place(paint(new THREE.CircleGeometry(F - 0.05, 12).rotateX(-Math.PI / 2), S.light), b.x, y + 0.025, b.z));
     cylinder(b.x, y - 0.5, b.z, 0.5, F);
+    // Each run's deck carried in to the middle: the disc is round and the runs end square, which left a notch with
+    // no floor beside the parapet where they met (she caught in it, cutting the corner).
+    for (const g of [a, o]) {
+      const gy = Math.atan2(g.bx - g.ax, g.bz - g.az);
+      const mx = (g.ax + g.bx) / 2;
+      const mz = (g.az + g.bz) / 2;
+      solid.push(place(block(c.width, 1.0, g.len, S.mid, 0.05), mx, y - 1.0, mz, 0, gy, 0));
+      staticBox(mx, y - 0.5, mz, c.width / 2, 0.5, g.len / 2, yawQ(gy));
+    }
     far.push(place(block(R * 1.2, FOUNDATION, R * 1.2, S.dark, 0.06), b.x, y - 1 - FOUNDATION, b.z));
     // The openings: back along the run in, and along the run out (angles round the landing, in x/z).
     const opens = [Math.atan2(a.az - a.bz, a.ax - a.bx), Math.atan2(o.bz - o.az, o.bx - o.ax)];

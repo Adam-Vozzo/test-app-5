@@ -4,6 +4,8 @@ import { damp, dampAngle, DEG } from '../core/math';
 import { GROUPS, Physics, RAPIER } from '../physics/world';
 import { tuning } from '../tuning';
 
+/** The character controller's skin: she rests this far above the floor. */
+const SKIN = 0.032;
 const _down = { origin: new THREE.Vector3(), dir: new THREE.Vector3(0, -1, 0) };
 
 export type MoveState = 'move' | 'roll' | 'rollRecover';
@@ -68,7 +70,7 @@ export class Controller {
       RAPIER.ColliderDesc.capsule(this.halfH, this.radius).setCollisionGroups(GROUPS.player),
       this.body,
     );
-    this.kcc = w.createCharacterController(0.032);
+    this.kcc = w.createCharacterController(SKIN);
     this.kcc.setUp({ x: 0, y: 1, z: 0 });
     this.kcc.setSlideEnabled(true);
     this.kcc.setApplyImpulsesToDynamicBodies(false);
@@ -210,11 +212,12 @@ export class Controller {
     this.center.z += mv.z;
     // The character controller now and then misses the floor for a frame and lets her sink a few centimetres into
     // it, and once inside she can't move (walking a long causeway at a slant into its parapet did it). If the floor is
-    // above her feet, stand her back on top (as enemies are, in Foe.move).
+    // above her feet, stand her back on top (as enemies are, in Foe.move). She rests a skin's width above the floor:
+    // sunk into that skin (not yet through the floor) she was already stuck fast, so that counts as sunk too.
     if (this.grounded) {
       const feet = this.radius + this.halfH;
-      const hit = this.physics.raycast(_down.origin.set(this.center.x, this.center.y, this.center.z), _down.dir, feet, GROUPS.qWorld);
-      if (hit && feet - hit.distance > 0.005) this.center.y += feet - hit.distance;
+      const hit = this.physics.raycast(_down.origin.set(this.center.x, this.center.y, this.center.z), _down.dir, feet + SKIN, GROUPS.qWorld);
+      if (hit && hit.distance < feet + SKIN * 0.5) this.center.y += feet + SKIN - hit.distance;
     }
     this.body.setNextKinematicTranslation(this.center);
     // Actual horizontal velocity after collision (so the walk cycle doesn't moonwalk into walls).

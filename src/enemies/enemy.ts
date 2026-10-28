@@ -57,8 +57,11 @@ export interface EnemyWorld {
   noises: readonly Noise[];
   /** A boss stepped into a new phase (the arena may change: Justice's scales come down). */
   bossPhase?(phase: number): void;
-  /** Bring a new enemy into the fight (a King's squad); it arrives alerted. `illusion`: as a reflection (the Queen of Cups' copies). */
-  summon(id: string, pos: THREE.Vector3, yaw: number, illusion?: boolean): Hostile | null;
+  /**
+   * Bring a new enemy into the fight (a King's squad); it arrives alerted. `illusion`: as a reflection (the Queen of
+   * Cups' copies). `maker`: who called it up; it goes when its maker falls.
+   */
+  summon(id: string, pos: THREE.Vector3, yaw: number, illusion?: boolean, maker?: Hostile): Hostile | null;
   /** Solid ground for a court card or boss that fell off the stage: the standing deck nearest `near`, if any. */
   safeGround?(near: THREE.Vector3): THREE.Vector3 | null;
   /** The Knight of Cups' true cup: restore this much health. */

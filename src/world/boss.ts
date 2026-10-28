@@ -247,7 +247,8 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
   let towerPhase = 0;
   let towerT = 0;
   const towerRing = () => {
-    const keep = towerPhase === 1 ? 18 : 9;
+    const [first, second] = tuning.tower.ringKeep;
+    const keep = towerPhase === 1 ? first : second;
     decks?.crackWhere((x, z) => Math.hypot(x, z - cz) > keep, 1.6);
   };
   let panT = 0;

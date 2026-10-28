@@ -2012,7 +2012,7 @@ export async function moonFoesScenario({ g, wait, shot }) {
   console.log(`  queen of cups: mirrored ${mirrored}, ${JSON.stringify(copies)}`);
   if (!mirrored || copies.filter((c) => c.bar).length !== 1) throw new Error('the Queen of Cups should make copies of herself, and only she holds the bar');
 
-  // 6. The King of Cups: tidal waves with a gap; his wolves at each phase.
+  // 6. The King of Cups: tidal waves wall to wall; his wolves at each phase.
   await fresh();
   await put(0, Z + 10, 0);
   await spawn('kingCups', 0, Z - 6, Math.PI, 'throne');

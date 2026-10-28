@@ -204,8 +204,12 @@ export function segmentsOf(c: Connector): Seg[] {
     const uz = (bz - az) / len;
     const fromBend = i > 0;
     const toBend = i + 1 < pts.length - 1;
-    const a = fromBend ? Math.min(F, len / 2) : 0;
-    const b = toBend ? Math.max(a, len - Math.min(F, len / 2)) : len;
+    // A landing keeps its whole disc flat: between two landings they share a short run; from a door (kept STUB from a
+    // bend) the climb takes what's left. (Halving a door's run as well cut a landing short of its disc, and the disc's
+    // rim stood proud of the stairs' top: a lip she caught on.)
+    const flat = fromBend && toBend ? Math.min(F, len / 2) : Math.min(F, len);
+    const a = fromBend ? flat : 0;
+    const b = toBend ? Math.max(a, len - flat) : len;
     if (fromBend) pieces.push([ax, az, ax + ux * a, az + uz * a, true, 'start']);
     pieces.push([ax + ux * a, az + uz * a, ax + ux * b, az + uz * b, false, null]);
     if (toBend) pieces.push([ax + ux * b, az + uz * b, bx, bz, true, 'end']);
