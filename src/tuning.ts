@@ -97,6 +97,16 @@ export const tuning = {
     staminaCost: 14,
     cooldown: 0.9,
   },
+  /**
+   * Justice's weighing: set the weight in a pan and the pan carries her back across the drop to the mid lantern
+   * (the beam), so a wing is walked once. The ride is committed: no control, no harm, until she's set down.
+   */
+  justice: {
+    /** Seconds from the pan to the lantern. */
+    rideTime: 2.6,
+    /** How high the arc rises over the straight line between them (m). */
+    rideRise: 9,
+  },
   biped: {
     stepThreshold: 0.785,
     stepDuration: 0.1116,

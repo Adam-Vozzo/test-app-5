@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MOON_DIMENSION as DIM } from '../src/world/dimensions';
 import { generateLevel } from '../src/world/gen-level';
 import { landmarkVisible, type LevelParts } from '../src/world/gen-validate';
+import { toLocal } from '../src/world/gen-space';
 
 const seeds = Array.from({ length: 50 }, (_, i) => i * 7919 + 13);
 const levels = [0, 1, 2].flatMap((level) => seeds.map((seed) => ({ level, seed, ...generateLevel(DIM, level, seed, { rangedMin: 14 }) })));
@@ -52,7 +53,11 @@ describe("the Moon's marsh (illusion, but fair)", () => {
         for (let a = 0; a <= len; a += 0.05) {
           const x = c.ax + ux * a;
           const z = c.az + uz * a;
-          const held = L.dressing.stones.some((s) => Math.max(0, Math.abs(s.x - x) - s.size / 2) ** 2 + Math.max(0, Math.abs(s.z - z) - s.size / 2) ** 2 < 0.3 ** 2);
+          // Each stone is turned square to its path: measure in its own frame.
+          const held = L.dressing.stones.some((s) => {
+            const [u, v] = toLocal({ x: s.x, z: s.z, yaw: s.yaw }, x, z);
+            return Math.max(0, Math.abs(u) - s.size / 2) ** 2 + Math.max(0, Math.abs(v) - s.size / 2) ** 2 < 0.3 ** 2;
+          });
           hole = held ? 0 : hole + 0.05;
           longest = Math.max(longest, hole);
         }

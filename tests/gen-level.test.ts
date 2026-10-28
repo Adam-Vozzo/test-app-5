@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEVIL_DIMENSION, JUSTICE_DIMENSION as DIM } from '../src/world/dimensions';
 import { isCombat } from '../src/world/gen-graph';
 import { attemptLevel, generateLevel, type LevelLayout } from '../src/world/gen-level';
-import { DX, DZ, connLength, overlaps, roomRect, toLocal } from '../src/world/gen-space';
+import { connLength, obbOverlap, roomObb, segmentsOf, toLocal, wrapAngle } from '../src/world/gen-space';
 import { rangedMinDistance } from '../src/enemies/foe-ai';
 import { tuning } from '../src/tuning';
 import { checkGraph, checkSockets, checkSpace, landmarkVisible, segmentHitsBox, validate, type LevelParts } from '../src/world/gen-validate';
@@ -59,27 +59,26 @@ describe('level generator: mission graph', () => {
     }
   });
 
-  it('has ≥ 2 vistas, a middle-third set-piece and 1–2 branches', () => {
+  it('has ≥ 2 vistas, the set-piece past the axis gate, and a mirrored pair of branches off the wings', () => {
     for (const { layout: L } of levels) {
       const crit = L.graph.critical.map((id) => L.graph.nodes[id]);
       const n = crit.length;
       expect(crit.filter((nd) => nd.vista).length).toBeGreaterThanOrEqual(2);
       const sp = crit.findIndex((nd) => nd.kind === 'setpiece');
+      expect(crit[sp - 1].kind).toBe('gate');
       expect(sp).toBeGreaterThanOrEqual(Math.floor(n / 3));
-      expect(sp).toBeLessThan(Math.ceil((2 * n) / 3));
+      expect(sp).toBeLessThan(Math.ceil(0.8 * n));
       const branches = L.graph.nodes.filter((nd) => nd.kind === 'branch');
-      expect(branches.length).toBeGreaterThanOrEqual(1);
-      expect(branches.length).toBeLessThanOrEqual(2);
-      for (const b of branches) expect(isCombat(L.graph.nodes[b.host]) || L.graph.nodes[b.host].kind === 'traverse').toBe(true);
+      expect(branches).toHaveLength(2);
+      const [left, right] = L.graph.wings!;
+      expect(branches.map((b) => b.host).sort()).toEqual([left[0], right[0]].sort());
     }
   });
 
-  it('never puts two fights back to back, except in the twist level', () => {
+  it('never puts two fights back to back along a way, except in the twist level', () => {
     let twistAdjacent = 0;
     for (const { layout: L, level } of levels) {
-      const crit = L.graph.critical.map((id) => L.graph.nodes[id]);
-      let adjacent = false;
-      for (let i = 1; i < crit.length; i++) if (isCombat(crit[i]) && isCombat(crit[i - 1])) adjacent = true;
+      const adjacent = L.graph.edges.some(([a, b]) => isCombat(L.graph.nodes[a]) && isCombat(L.graph.nodes[b]));
       if (level < 2) expect(adjacent).toBe(false);
       else if (adjacent) twistAdjacent++;
     }
@@ -96,46 +95,80 @@ describe('level generator: mission graph', () => {
     }
   });
 
-  it('loops a later gate back to an earlier lantern, at least two rooms around', () => {
+  it('weighs: two mirrored wings off the mid lantern, a key room at the end of each, then the axis gate', () => {
     for (const { layout: L } of levels) {
       const { gate, lantern } = L.graph.shortcut;
+      const [left, right] = L.graph.wings!;
       expect(L.graph.nodes[lantern].kind).toBe('lantern');
       expect(L.graph.nodes[gate].kind).toBe('gate');
-      expect(L.graph.nodes[gate].index - L.graph.nodes[lantern].index).toBeGreaterThanOrEqual(3);
-      // The shortcut isn't a graph edge: it exists only once opened.
-      expect(L.graph.edges.some(([a, b]) => (a === gate && b === lantern) || (a === lantern && b === gate))).toBe(false);
+      expect(left).toHaveLength(right.length);
+      expect(L.graph.nodes[left[left.length - 1]].kind).toBe('key');
+      expect(L.graph.nodes[right[right.length - 1]].kind).toBe('key');
+      // The wings mirror: the same kinds, kits and templates.
+      left.forEach((id, i) => {
+        const a = L.graph.nodes[id];
+        const b = L.graph.nodes[right[i]];
+        expect([b.kind, b.kit, b.template]).toEqual([a.kind, a.kit, a.template]);
+      });
+      // Both wings fork from the lantern; the gate follows it on the axis.
+      expect(L.graph.edges).toContainEqual([lantern, left[0]]);
+      expect(L.graph.edges).toContainEqual([lantern, right[0]]);
+      expect(L.graph.edges).toContainEqual([lantern, gate]);
+      // Played left wing, right wing, then on through the gate.
+      expect(L.graph.nodes[gate].index).toBe(L.graph.nodes[right[right.length - 1]].index + 1);
+      expect(L.graph.loop).toEqual([]);
     }
   });
 });
 
 describe('level generator: space', () => {
-  it('lays rooms and connectors on the grid without overlaps', () => {
+  it('lays rooms and connectors at any heading without overlaps, every way square to its doors and climbable', () => {
+    let turned = 0;
+    let landings = 0;
     for (const { layout: L } of levels) {
       const rooms = L.space.rooms;
-      for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) expect(overlaps(roomRect(rooms[i]), roomRect(rooms[j]))).toBe(false);
-      for (const c of L.space.connectors) {
-        // Axis-aligned: Justice is right angles.
-        expect(Math.min(Math.abs(c.bx - c.ax), Math.abs(c.bz - c.az))).toBeLessThan(1e-6);
-        expect(Math.abs(c.y1 - c.y0) / connLength(c)).toBeLessThanOrEqual(DIM.connector.maxSlope + 1e-9);
-      }
+      for (let i = 0; i < rooms.length; i++) for (let j = i + 1; j < rooms.length; j++) expect(obbOverlap(roomObb(rooms[i], 1), roomObb(rooms[j], 1))).toBe(false);
+      turned += rooms.filter((r) => Math.abs(Math.sin(2 * r.yaw)) > 0.05).length;
+      L.space.connectors.forEach((c, i) => {
+        const segs = segmentsOf(c);
+        landings += c.bends.length;
+        for (const g of segs) expect(Math.abs(g.by - g.ay) / g.len).toBeLessThanOrEqual(DIM.connector.maxSlope + 1e-9);
+        // Square to both doorways (so its parapets run on flush).
+        const a = rooms.find((r) => r.node === c.from)!.doors.find((d) => d.connector === i)!;
+        const b = rooms.find((r) => r.node === c.to)!.doors.find((d) => d.connector === i)!;
+        expect(Math.abs(wrapAngle(segs[0].yaw - a.yaw))).toBeLessThan(1e-6);
+        expect(Math.abs(wrapAngle(segs[segs.length - 1].yaw - b.yaw - Math.PI))).toBeLessThan(1e-6);
+      });
     }
+    // The wings bend off the grid, turning on landings.
+    expect(turned).toBeGreaterThan(levels.length);
+    expect(landings).toBeGreaterThan(levels.length);
   });
 
-  it('puts the shortcut on the main axis, opening from the gate side', () => {
+  it('bars the axis at the mid lantern until both keys are set; the wings mirror about it', () => {
     for (const { layout: L } of levels) {
       const sc = L.space.connectors[L.space.shortcut];
-      const lantern = L.space.rooms.find((r) => r.node === L.graph.shortcut.lantern)!;
+      const hub = L.space.rooms.find((r) => r.node === L.graph.shortcut.lantern)!;
       const gate = L.space.rooms.find((r) => r.node === L.graph.shortcut.gate)!;
-      expect(sc.ax).toBeCloseTo(lantern.x, 6);
+      expect(sc.ax).toBeCloseTo(hub.x, 6);
       expect(sc.bx).toBeCloseTo(gate.x, 6);
       const len = connLength(sc);
       expect(len).toBeGreaterThanOrEqual(DIM.loop.shortcut[0]);
       expect(len).toBeLessThanOrEqual(DIM.loop.shortcut[1]);
-      const door = L.dressing.door;
-      // Stepping from the door in its opening direction lands in the gate room.
-      const sx = door.x + DX[door.opensFrom] * 3;
-      const sz = door.z + DZ[door.opensFrom] * 3;
-      expect(Math.abs(sx - gate.x) <= gate.sx / 2 && Math.abs(sz - gate.z) <= gate.sz / 2).toBe(true);
+      expect(L.dressing.door.opens).toBe('keys');
+      expect(Math.hypot(L.dressing.door.x - sc.ax, L.dressing.door.z - sc.az)).toBeLessThan(1e-6);
+      expect(L.dressing.keys.map((k) => k.wing).sort()).toEqual([0, 1]);
+      // Each pan rides back to the mid lantern's rest spot.
+      const rest = L.dressing.lanterns.find((l) => l.node === hub.node)!.rest;
+      for (const k of L.dressing.keys) expect([k.ride.x, k.ride.z]).toEqual([rest.x, rest.z]);
+      const [left, right] = L.graph.wings!;
+      left.forEach((id, i) => {
+        const a = L.space.rooms.find((r) => r.node === id)!;
+        const b = L.space.rooms.find((r) => r.node === right[i])!;
+        expect(a.x + b.x).toBeCloseTo(2 * hub.x, 6);
+        expect(b.z).toBeCloseTo(a.z, 6);
+        expect(wrapAngle(a.yaw + b.yaw)).toBeCloseTo(0, 6);
+      });
     }
   });
 
@@ -238,7 +271,7 @@ describe('level validation catches bad levels', () => {
     const p = clone();
     const s = p.dressing.spawn;
     expect(landmarkVisible(p, s.x, s.y, s.z)).toBe(true);
-    p.furn.boxes.push({ x: s.x, z: s.z - 4, y: s.y, sx: 400, sz: 1, h: 400, kind: 'wall', node: -1 });
+    p.furn.boxes.push({ x: s.x, z: s.z - 4, y: s.y, sx: 400, sz: 1, h: 400, yaw: 0, kind: 'wall', node: -1 });
     expect(landmarkVisible(p, s.x, s.y, s.z)).toBe(false);
   });
 
@@ -256,7 +289,7 @@ describe('level validation catches bad levels', () => {
       const a = attemptLevel(DIM, 2, s, OPTS);
       if (a.fail.length) {
         found = true;
-        for (const f of a.fail) expect(f).toMatch(/^(graph|space|sockets|landmark|budget):/);
+        for (const f of a.fail) expect(f).toMatch(/^(graph|space|sockets|landmark|shape|budget):/);
       }
     }
     expect(found).toBe(true);

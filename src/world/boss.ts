@@ -118,7 +118,7 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
         if (!inside) holes.push(r * n + c);
       }
     }
-    decks = new Decks([{ node: -1, x0: -R, z0: cz - R, y: 0, cols: n, rows: n, tx: t, tz: t, rotten: [], holes }], physics, P0);
+    decks = new Decks([{ node: -1, x: 0, z: cz, yaw: 0, y: 0, cols: n, rows: n, tx: t, tz: t, rotten: [], holes }], physics, P0);
     group.add(decks.group);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;

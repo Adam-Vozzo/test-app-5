@@ -117,6 +117,24 @@ export interface LevelBeatDef {
   roster: Record<SocketRole, string[]>;
 }
 
+/**
+ * How a dimension lays its rooms out (LEVELS.md → Space): Justice weighs (an axis with two mirrored wings), the
+ * Devil and the Tower spiral (down a pit, up round the tower), the Moon meanders. Angles in radians.
+ */
+export interface LayoutDef {
+  kind: 'weighing' | 'spiral' | 'meander';
+  /** The sharpest turn a connector makes on its landing. */
+  bend: number;
+  /** The sharpest turn in the shortcut loop. */
+  loopBend: number;
+  /** A spiral's radius round its centre at the start and at the end (m). */
+  radius?: [number, number];
+  /** The Moon: how far each swing turns off the heading toward the Moon. */
+  swing?: [number, number];
+  /** Justice: how far the wings bend forward at each room. */
+  wingBend?: [number, number];
+}
+
 export interface DimensionDef {
   id: string;
   name: string;
@@ -126,6 +144,8 @@ export interface DimensionDef {
   setPieces: SetPieceDef[];
   /** Rooms and their enemies mirror about the room's own axis (Justice: symmetric, formal, ordered). */
   symmetric: boolean;
+  /** How the level's rooms are laid out: the card's shape. */
+  layout: LayoutDef;
   kits: Record<RoomKitId, RoomKitDef>;
   /** Kits per node kind; a combat node's kit comes from its encounter template. */
   nodeKits: { start: RoomKitId; traverse: RoomKitId[]; vista: RoomKitId; lantern: RoomKitId; gate: RoomKitId; miniboss: RoomKitId; exit: RoomKitId; branch: RoomKitId };
@@ -169,6 +189,11 @@ export interface DimensionDef {
   illusion?: IllusionDef;
   /** Islands in a marsh (the Moon): a water plane under the level instead of the fog-filled drop. */
   water?: boolean;
+  /**
+   * What frames the far end of a compression connector: an arch, or (the Moon) a pair of towers. The Moon's true way
+   * always passes between two towers; its false paths never do.
+   */
+  gateway?: 'arch' | 'towers';
 }
 
 export const JUSTICE_DIMENSION: DimensionDef = {
@@ -218,6 +243,8 @@ export const JUSTICE_DIMENSION: DimensionDef = {
     { id: 'windBridge', name: 'the wind bridge', kit: 'windBridge', combat: false, vista: true },
   ],
   symmetric: true,
+  // The weighing: two mirrored wings off the mid lantern, bending forward like the arms of the scales.
+  layout: { kind: 'weighing', bend: 0.8, loopBend: 1.2, wingBend: [0.35, 0.65] },
   kits: {
     start: { w: [20, 24], d: [22, 26], edge: 'parapet', turns: false, floor: 0, ground: 'flag', grass: 40 },
     court: { w: [24, 30], d: [26, 32], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [3, 4] },
@@ -239,9 +266,11 @@ export const JUSTICE_DIMENSION: DimensionDef = {
   nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
   connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
-  criticalNodes: [9, 10],
+  // The fork adds rooms: start, the axis, two wings of a room and a key, the gate and the set-piece past it.
+  criticalNodes: [11, 13],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
-  branches: [1, 2],
+  // A mirrored pair, one off each wing.
+  branches: [2, 2],
   descent: 0,
   landmark: {
     kind: 'scales',
@@ -314,6 +343,8 @@ export const DEVIL_DIMENSION: DimensionDef = {
     { id: 'collapsingMine', name: 'the collapsing mine', kit: 'collapsingMine', combat: false, vista: true },
   ],
   symmetric: false,
+  // The descent: a spiral down the walls of the pit, tightening round the pedestal at its centre.
+  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [120, 70] },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
     court: { w: [22, 28], d: [24, 30], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [4, 5] },
@@ -338,13 +369,14 @@ export const DEVIL_DIMENSION: DimensionDef = {
   criticalNodes: [9, 10],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   branches: [1, 2],
-  descent: 3,
+  descent: 4,
   landmark: {
     kind: 'pedestal',
     beyondExit: 110,
     fromStart: 380,
     height: 175,
-    baseY: -150,
+    // At the pit's centre, its brazier a little below where the descent begins: down toward it all the way.
+    baseY: -185,
     // The brazier, the throne's horns and the upper drum (it rises out of the pit; its base is lost far below).
     targets: [[0, 1.08], [0, 1.0], [-0.1, 0.96], [0.1, 0.96], [0, 0.9]],
   },
@@ -416,6 +448,8 @@ export const TOWER_DIMENSION: DimensionDef = {
     { id: 'towerLeap', name: 'the leap between towers', kit: 'towerLeap', combat: false, vista: true },
   ],
   symmetric: false,
+  // The climb: a spiral up round the tower itself, never over a floor already climbed.
+  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [110, 80] },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
     court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'flag', cover: [2, 3], scaffold: true },
@@ -442,7 +476,7 @@ export const TOWER_DIMENSION: DimensionDef = {
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   branches: [1, 2],
   // Always going up.
-  descent: -3,
+  descent: -4,
   landmark: {
     kind: 'tower',
     beyondExit: 110,
@@ -516,6 +550,8 @@ export const MOON_DIMENSION: DimensionDef = {
     { id: 'drownedPath', name: 'the drowned path', kit: 'drownedPath', combat: false, vista: true },
   ],
   symmetric: false,
+  // The meander: swinging from side to side toward the Moon, so it never sits dead ahead for long.
+  layout: { kind: 'meander', bend: 0.95, loopBend: 1.6, swing: [0.35, 0.8] },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 50 },
     court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'earth', cover: [2, 3], swords: 6, grass: 70 },
@@ -557,6 +593,7 @@ export const MOON_DIMENSION: DimensionDef = {
   rangedFoes: ['pageCups'],
   illusion: { share: [0.2, 0.3, 0.4], falseBranches: 1 },
   water: true,
+  gateway: 'towers',
 };
 
 export const DIMENSIONS: Record<string, DimensionDef> = { justice: JUSTICE_DIMENSION, devil: DEVIL_DIMENSION, tower: TOWER_DIMENSION, moon: MOON_DIMENSION };

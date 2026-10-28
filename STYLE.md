@@ -119,6 +119,18 @@ A single-lane volley (the Shadow's rifle) fires a **heavy bolt** with its line f
 *Landmarks* take only `tuning.look.landmarkFog` (35%) of the fog, so the shape you walk toward reads as a silhouette
 from every vista, not only its unfogged glow (the Devil's throne vanished, its brazier didn't).
 
+*Levels off the grid (V2-16, Proposed until played):* rooms stand at any heading, and causeways turn on **round
+landings** (a level stone disc with a parapet ring, open where the runs meet it). The layouts are composed by the card:
+- **Justice:** the beam and its two pans. The wings bend forward off the axis; each key room holds a **brass weight**
+  (the scales' accent) on a stone plinth with a warm glow, and beside it a **pan**: a shallow brass dish slung by
+  three chains from a stone post. Weighted, the weight sits in the pan.
+- **The Devil:** galleries round a pit, open on the side facing the pedestal, which stands at the pit's centre, its
+  brazier a little below where the descent begins. **Five great chains** (dark iron links, far scenery) hang from the
+  pedestal's crown out to the rim, sagging into the fog under the galleries.
+- **The Tower:** the same galleries round the Tower itself, climbing, the crown always overhead.
+- **The Moon:** every true way's far end stands between **two small towers** (slim square shafts in the island
+  stone, a dark band and a pointed cap, 9 m), the card's two towers in miniature; false paths have none.
+
 *As built in V2-13 (`MOON`, Proposed until played):*
 - **Surfaces:** pale silt `#B9C2BD`, marsh teal `#4F7470`, indigo `#3E4466`, shadow `#1B1E2E` and reeds `#8D9A7A`.
 - **Fog and sky:** a pale moon-fog `#E2E6E0` (the table's `#C9CEC8` was too dark for telegraph contrast) over dark

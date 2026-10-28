@@ -2,6 +2,7 @@
 // node kind, connectors, the shortcut), the player and enemies. Toggle with M.
 import type { ZoneLayout } from '../world/gen';
 import type { LevelWorld } from '../world/level';
+import { segmentsOf, toWorld } from '../world/gen-space';
 
 /** Node kinds (LEVELS.md → Mission graph). Signal colours mark only the miniboss and the dummies. */
 const KIND_COLOR: Record<string, string> = {
@@ -15,6 +16,7 @@ const KIND_COLOR: Record<string, string> = {
   gate: '#e8806a',
   miniboss: '#ff2e9a',
   exit: '#ffffff',
+  key: '#e8d27a',
 };
 
 const ROLE_COLOR: Record<string, string> = { start: '#ffffff', encounter: '#d9b35c', boss: '#ff2e9a', cache: '#ffe14d' };
@@ -64,17 +66,29 @@ export class Minimap {
       g.lineWidth = Math.max(1.5, c.width * scale);
       g.beginPath();
       g.moveTo(X(c.ax), Z(c.az));
-      g.lineTo(X(c.bx), Z(c.bz));
+      for (const s of segmentsOf(c)) g.lineTo(X(s.bx), Z(s.bz));
       g.stroke();
     });
     g.setLineDash([]);
     for (const r of L.space.rooms) {
       const nd = L.graph.nodes[r.node];
+      // Rooms stand at any heading: draw each as its own quad.
+      g.beginPath();
+      for (const [u, v] of [
+        [-r.w / 2, -r.d / 2],
+        [r.w / 2, -r.d / 2],
+        [r.w / 2, r.d / 2],
+        [-r.w / 2, r.d / 2],
+      ]) {
+        const [x, z] = toWorld(r, u, v);
+        g.lineTo(X(x), Z(z));
+      }
+      g.closePath();
       g.fillStyle = 'rgba(254,238,197,0.25)';
-      g.fillRect(X(r.x - r.sx / 2), Z(r.z - r.sz / 2), r.sx * scale, r.sz * scale);
+      g.fill();
       g.strokeStyle = KIND_COLOR[nd.kind];
       g.lineWidth = 2;
-      g.strokeRect(X(r.x - r.sx / 2), Z(r.z - r.sz / 2), r.sx * scale, r.sz * scale);
+      g.stroke();
       g.fillStyle = '#fff';
       g.font = 'bold 9px monospace';
       g.textAlign = 'center';

@@ -566,6 +566,42 @@ before it was drawn, so the single-lane "rifle" bolt never fired.
   - Smoke: the pact's pause, the false path's stones and the sword cutting a cat at her feet (`--moonfoes`), and the
     weapon carrying through a scene change (main run).
 
+### V2-16: Levels shaped by their cards ✅ (waiting on your playtest)
+From the level-generation discovery: every level was the same north-running spine of rectangles in a different
+palette (straightness 0.79, exactly four turns, in all four dimensions). The user chose: all four dimensions at once;
+Justice's gate on **both** keys, with a way to **zoom back to the centre** to save the walk; **angled rooms anywhere**;
+and **no fall shortcuts** in the Tower yet.
+- **Done as:**
+  - **Rooms at any heading, connectors that turn** (`gen-space.ts`): rooms are oriented rectangles (entered by the
+    back edge); connectors run square out of and into their doorways and turn on round level landings, once or
+    twice. Overlaps are tested as oriented boxes. A per-dimension `layout` steers placement; joins between placed
+    rooms are solved (straight, one landing, or two).
+  - **Justice weighs:** an axis with two mirrored wings off the mid lantern, a key room at the end of each (a weight,
+    guarded). The axis gate opens when both pans are weighted; each weighted pan **carries her back to the mid
+    lantern** (`Game.carry`, `tuning.justice.rideTime`/`rideRise`; committed and untouchable). Branches come in a
+    mirrored pair.
+  - **The Devil descends** in a spiral round the pit, the pedestal at its centre (fitted to the rooms), each room 4 m
+    lower, the galleries open toward it; five great chains hang from its crown to the rim.
+  - **The Tower climbs** in a spiral round the Tower itself, 4 m a room, open toward it; no floor over another.
+  - **The Moon meanders** toward the Moon, which stands straight ahead of the spawn; every true way passes between
+    two towers, false paths never.
+  - **Validation** gains the card's shape (`checkShape`), square doors, sight lines through turned occluders
+    (`gen-sight.ts`), and the landmark in sight from the pit's rooms (60%) or every Tower room. Vistas stand where the
+    landmark can be seen. First-attempt success is 93–99% per dimension.
+  - **Measured:** `gen-metrics.ts` and `tests/gen-metrics.test.ts` (the table is in `LEVELS.md → Measuring the
+    generator`). Straightness 0.79 → 0.47–0.64; turns 4 → 5–7.4; Devil and Tower height 18 → 24 m.
+  - **Fixed on the way:** the player could sink a few centimetres into a floor and stick fast (Rapier's character
+    controller missing the floor for a frame, the same as enemies in V2-15); she's stood back on top now. The walk
+    test found it by grinding diagonally into a long causeway's parapet.
+  - **Not done (next):** the cycle library for the mission graph (the room sequences are still one template per
+    layout: 8–11 distinct of 60), the Devil's vaults that drop in and climb out another way, district landmarks and
+    one megastructure per level, rooms with interiors, a detail pass on edges, the palette ramp by beat, and the
+    Tower's falls as routes (held back at the user's request).
+  - Tests: `gen-metrics`; `gen-level`, `level-walk` (now every connector's runs and landings, both ways, all four
+    dimensions, including a diagonal approach), `moon` updated.
+  - Smoke: `--level` plays the weighing (the axis barred, the left weight set, the pan ride back, the right weight,
+    the axis lifts, walk through).
+
 ### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel
   mode stays).

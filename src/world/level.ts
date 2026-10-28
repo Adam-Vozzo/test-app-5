@@ -9,13 +9,14 @@ import { AREAS, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
-import { COVER, EDGE, type Box, type Hoard } from './gen-dress';
+import { COVER, EDGE, type Box, type Hoard, type Key } from './gen-dress';
+import { TOWER, towerOffset } from './gen-sight';
 import { Decks } from './decks';
 import { tuning } from '../tuning';
 import { DEVIL_FOES } from '../render/palette';
 import type { LevelLayout, LevelReport } from './gen-level';
-import { connLength, DX, DZ, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, flameGeo, gateGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, MOON_R, moonTowersGeo, reedGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
+import { fwdOf, landingFlat, landingRadius, rightOf, segmentsOf, toWorld, type Connector, type Room } from './gen-space';
+import { block, columnGeo, facet, flameGeo, gateGeo, gateTowerGeo, hungChainGeo, panGeo, weightGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, MOON_R, moonTowersGeo, reedGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
 /** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
 let S = JUSTICE.surfaces;
@@ -27,6 +28,9 @@ const _e = new THREE.Euler();
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
+const _Y = new THREE.Vector3(0, 1, 0);
+/** A turn about the vertical (as a Three object's rotation.y). */
+const yawQ = (yaw: number) => new THREE.Quaternion().setFromAxisAngle(_Y, yaw);
 
 export interface LevelWorld extends BuiltWorld {
   generated: LevelLayout;
@@ -46,6 +50,12 @@ export interface LevelWorld extends BuiltWorld {
   exitOpen?: () => boolean;
   /** The Tower's timber decks (collapse), if this level has scaffold rooms. */
   decks: Decks | null;
+  /** Justice: which pans are weighted (left, right). The axis gate opens when both are. */
+  weighted: [boolean, boolean];
+  /** A weight set (set by the game): the toast. */
+  onWeight?: (k: Key, count: number) => string;
+  /** The pan ridden back to the mid lantern (set by the game, which carries her). */
+  onRide?: (k: Key) => string | null;
 }
 
 export function buildLevel(layout: LevelLayout, report: LevelReport, dim: DimensionDef, physics: Physics): LevelWorld {
@@ -71,27 +81,32 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     const d = RAPIER.ColliderDesc.convexHull(pts);
     if (d) physics.addStatic(d);
   };
-  /** A world-aligned box standing on y, with a collider. */
-  const box = (x: number, z: number, y: number, sx: number, sz: number, h: number, color: number, list = solid) => {
-    list.push(place(block(sx, h, sz, color, 0.05, x * 7 + z), x, y, z));
-    staticBox(x, y + h / 2, z, sx / 2, h / 2, sz / 2);
+  /** A box standing on y, turned `yaw`, with a collider. */
+  const box = (x: number, z: number, y: number, sx: number, sz: number, h: number, color: number, list = solid, yaw = 0) => {
+    list.push(place(block(sx, h, sz, color, 0.05, x * 7 + z), x, y, z, 0, yaw, 0));
+    staticBox(x, y + h / 2, z, sx / 2, h / 2, sz / 2, yawQ(yaw));
   };
 
-  // ---- rooms: a platform (stone foundation into the fog) with a paved or earth top
+  // ---- rooms: a platform (stone foundation into the fog) with a paved or earth top, turned to the room's heading
   for (const r of space.rooms) {
     const kit = dim.kits[r.kit];
     if (kit.scaffold) {
       // Timber decks over the drop (the decks themselves are built below): a frame of beams and stilts into the fog.
-      for (const [dx, dz, sx, sz] of [[0, -r.sz / 2, r.sx + 0.6, 0.5], [0, r.sz / 2, r.sx + 0.6, 0.5], [-r.sx / 2, 0, 0.5, r.sz], [r.sx / 2, 0, 0.5, r.sz]] as const) {
-        solid.push(place(block(sx, 0.5, sz, S.dark, 0.05), r.x + dx, r.y - 0.8, r.z + dz));
+      for (const [u, v, sx, sz] of [[0, -r.d / 2, r.w + 0.6, 0.5], [0, r.d / 2, r.w + 0.6, 0.5], [-r.w / 2, 0, 0.5, r.d], [r.w / 2, 0, 0.5, r.d]] as const) {
+        const [x, z] = toWorld(r, u, v);
+        solid.push(place(block(sx, 0.5, sz, S.dark, 0.05), x, r.y - 0.8, z, 0, r.yaw, 0));
       }
-      for (let i = 0; i <= 2; i++) for (let j = 0; j <= 2; j++) far.push(place(block(0.5, FOUNDATION, 0.5, S.dark, 0.06), r.x - r.sx / 2 + (r.sx * i) / 2, r.y - 0.8 - FOUNDATION, r.z - r.sz / 2 + (r.sz * j) / 2));
+      for (let i = 0; i <= 2; i++)
+        for (let j = 0; j <= 2; j++) {
+          const [x, z] = toWorld(r, -r.w / 2 + (r.w * i) / 2, -r.d / 2 + (r.d * j) / 2);
+          far.push(place(block(0.5, FOUNDATION, 0.5, S.dark, 0.06), x, r.y - 0.8 - FOUNDATION, z, 0, r.yaw, 0));
+        }
       continue;
     }
-    far.push(place(facet(new THREE.BoxGeometry(r.sx + 1.2, FOUNDATION, r.sz + 1.2).translate(0, -FOUNDATION / 2, 0), S.dark, 0.06, r.node), r.x, r.y - 0.02, r.z));
-    staticBox(r.x, r.y - 1, r.z, r.sx / 2, 1, r.sz / 2);
-    if (kit.ground === 'earth') flat.push(earthTop(r));
-    else flat.push(...flagTop(r, rng));
+    far.push(place(facet(new THREE.BoxGeometry(r.w + 1.2, FOUNDATION, r.d + 1.2).translate(0, -FOUNDATION / 2, 0), S.dark, 0.06, r.node), r.x, r.y - 0.02, r.z, 0, r.yaw, 0));
+    staticBox(r.x, r.y - 1, r.z, r.w / 2, 1, r.d / 2, yawQ(r.yaw));
+    const top = kit.ground === 'earth' ? [earthTop(r)] : flagTop(r, rng);
+    for (const g of top) flat.push(place(g, r.x, r.y, r.z, 0, r.yaw, 0));
   }
   // The Tower's decks: one instanced draw per scaffold room, a collider per deck.
   const decks = dr.scaffolds.length ? new Decks(dr.scaffolds, physics, P) : null;
@@ -101,11 +116,13 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   // The Moon's false paths: the boardwalk is drawn, but it casts no shadow on the water and nothing holds you up.
   const noBox: StaticBox = () => {};
   const noHull: StaticHull = () => {};
-  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox, noHull) : connectorGeo(c, solid, far, staticBox, staticHull)));
+  const staticCylinder: StaticCylinder = (x, y, z, hh, r) => physics.addStatic(RAPIER.ColliderDesc.cylinder(hh, r).setTranslation(x, y, z));
+  const noCylinder: StaticCylinder = () => {};
+  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox, noHull, noCylinder) : connectorGeo(c, solid, far, staticBox, staticHull, staticCylinder)));
   // ...and under it, the way that is there: stepping stones no one can see, which cast their shadows on the water.
   if (dr.stones.length) {
-    const casters = dr.stones.map((st) => place(new THREE.BoxGeometry(st.size, 0.4, st.size), st.x, st.y - 0.2, st.z));
-    for (const st of dr.stones) staticBox(st.x, st.y - 0.2, st.z, st.size / 2, 0.2, st.size / 2);
+    const casters = dr.stones.map((st) => place(new THREE.BoxGeometry(st.size, 0.4, st.size), st.x, st.y - 0.2, st.z, 0, st.yaw, 0));
+    for (const st of dr.stones) staticBox(st.x, st.y - 0.2, st.z, st.size / 2, 0.2, st.size / 2, yawQ(st.yaw));
     // Drawn into the shadow map only: no colour, no depth in the view.
     const hidden = new THREE.Mesh(merge(casters), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
     hidden.castShadow = true;
@@ -116,7 +133,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   // ---- kit structure: edges, cover, tiers, dividers, connector walls
   for (const b of furn.boxes) {
     if (b.kind === 'edge') edgeGeo(b, solid, staticBox);
-    else box(b.x, b.z, b.y, b.sx, b.sz, b.h, boxColor(b));
+    else box(b.x, b.z, b.y, b.sx, b.sz, b.h, boxColor(b), solid, b.yaw);
     if (b.kind === 'plinth') {
       if (hoards) solid.push(place(hoardGeo(1.1, P.accent, P.accentShade, S.dark, b.x), b.x, b.y + b.h, b.z, 0, rng.range(0, Math.PI), 0));
       else solid.push(place(swordGeo(3.2, S.light, S.shadow), b.x, b.y + b.h, b.z, 0.06, rng.range(0, Math.PI), 0.05));
@@ -128,31 +145,34 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     solid.push(place(columnGeo(1.0, c.h, S.mid, S.light), c.x, c.y, c.z));
     staticBox(c.x, c.y + c.h / 2, c.z, 0.62, c.h / 2, 0.62);
   }
+  // Lintels join each column to the next along its colonnade.
   const cols = furn.columns;
   for (let i = 0; i < cols.length; i++) {
-    for (let j = i + 1; j < cols.length; j++) {
-      const a = cols[i];
-      const b = cols[j];
-      if (a.node !== b.node) continue;
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      const d = Math.hypot(dx, dz);
-      // Only the next column along the same row (shared x or z), close enough to span.
-      if (d > 9 || (Math.abs(dx) > 0.01 && Math.abs(dz) > 0.01)) continue;
-      const between = cols.some((k, n) => n !== i && n !== j && k.node === a.node && Math.hypot(k.x - a.x, k.z - a.z) < d && Math.hypot(k.x - b.x, k.z - b.z) < d && (Math.abs(k.x - a.x) < 0.01 || Math.abs(k.z - a.z) < 0.01));
-      if (between) continue;
-      const along = Math.abs(dx) > 0.01;
-      solid.push(place(block(along ? d + 1.3 : 1.3, 0.7, along ? 1.3 : d + 1.3, S.light), (a.x + b.x) / 2, a.y + a.h, (a.z + b.z) / 2));
-    }
+    const a = cols[i];
+    const b = cols.find((k) => k.node === a.node && k.row === a.row && k.seq > a.seq && !cols.some((m) => m.node === a.node && m.row === a.row && m.seq > a.seq && m.seq < k.seq));
+    if (!b) continue;
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    if (d > 9) continue;
+    solid.push(place(block(1.3, 0.7, d + 1.3, S.light), (a.x + b.x) / 2, a.y + a.h, (a.z + b.z) / 2, 0, Math.atan2(b.x - a.x, b.z - a.z), 0));
   }
 
-  // ---- arches: the dark foreground frames of compression connectors
+  // ---- arches: the dark foreground frames of compression connectors (turned to face along the way)
   for (const a of dr.arches) {
-    const rotY = a.dir % 2 === 0 ? 0 : Math.PI / 2;
-    solid.push(place(gateGeo(a.width, a.height, 1.6, 2, S.shadow, shade(S.shadow, 1.3)), a.x, a.y, a.z, 0, rotY, 0));
+    solid.push(place(gateGeo(a.width, a.height, 1.6, 2, S.shadow, shade(S.shadow, 1.3)), a.x, a.y, a.z, 0, a.yaw, 0));
+    const [rx, rz] = rightOf(a.yaw);
     for (const s of [-1, 1]) {
       const off = a.width / 2 + 1;
-      staticBox(a.x + (a.dir % 2 === 0 ? s * off : 0), a.y + a.height / 2, a.z + (a.dir % 2 === 0 ? 0 : s * off), a.dir % 2 === 0 ? 1 : 0.8, a.height / 2, a.dir % 2 === 0 ? 0.8 : 1);
+      staticBox(a.x + rx * s * off, a.y + a.height / 2, a.z + rz * s * off, 1, a.height / 2, 0.8, yawQ(a.yaw));
+    }
+  }
+  // ---- the Moon's gateways: two towers either side of every true way (the card's), never a false one
+  for (const t of dr.towers) {
+    const [rx, rz] = rightOf(t.yaw);
+    for (const s of [-1, 1]) {
+      const x = t.x + rx * s * towerOffset(t);
+      const z = t.z + rz * s * towerOffset(t);
+      solid.push(place(gateTowerGeo(t.height, TOWER.base, TOWER.cap, S.mid, S.dark), x, t.y, z, 0, t.yaw, 0));
+      staticBox(x, t.y + t.height / 2, z, TOWER.base / 2, t.height / 2, TOWER.base / 2, yawQ(t.yaw));
     }
   }
 
@@ -203,35 +223,45 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
 
   const interactables: Interactable[] = [];
 
-  // ---- the shortcut: a portcullis in the gate-side arch, lifted only from the gate's side
+  // ---- the shortcut: a portcullis in the gate-side arch, lifted only from the gate's side. Justice's is the axis
+  // gate at the mid lantern's far edge, lifted when both pans of the scales are weighted.
   const door = dr.door;
-  const dirX = DX[door.opensFrom];
-  const dirZ = DZ[door.opensFrom];
-  const ns = door.dir % 2 === 0;
+  const [fdx, fdz] = fwdOf(door.yaw);
   const bars = new THREE.Group();
   const barGeo: THREE.BufferGeometry[] = [];
   const doorH = 6;
-  for (let t = -door.width / 2 + 0.35; t < door.width / 2; t += 0.7) barGeo.push(place(block(0.14, doorH, 0.14, GEAR.metalDark, 0.04), ns ? t : 0, 0, ns ? 0 : t));
-  for (const y of [1.2, 3.4, 5.4]) barGeo.push(place(block(ns ? door.width : 0.16, 0.16, ns ? 0.16 : door.width, GEAR.metalDark, 0.04), 0, y, 0));
+  for (let t = -door.width / 2 + 0.35; t < door.width / 2; t += 0.7) barGeo.push(place(block(0.14, doorH, 0.14, GEAR.metalDark, 0.04), t, 0, 0));
+  for (const y of [1.2, 3.4, 5.4]) barGeo.push(place(block(door.width, 0.16, 0.16, GEAR.metalDark, 0.04), 0, y, 0));
   bars.add(meshOf(merge(barGeo), mat));
   bars.position.set(door.x, door.y, door.z);
+  bars.rotation.y = door.yaw;
   group.add(bars);
-  const doorCol = physics.addStatic(RAPIER.ColliderDesc.cuboid(ns ? door.width / 2 : 0.3, doorH / 2, ns ? 0.3 : door.width / 2).setTranslation(door.x, door.y + doorH / 2, door.z));
+  const doorCol = physics.addStatic(RAPIER.ColliderDesc.cuboid(door.width / 2, doorH / 2, 0.3).setTranslation(door.x, door.y + doorH / 2, door.z).setRotation(yawQ(door.yaw)));
   let open = false;
   let lift = 0;
   const doorPos = new THREE.Vector3(door.x, door.y, door.z);
-  const gateSide = (p: THREE.Vector3) => (p.x - door.x) * dirX + (p.z - door.z) * dirZ > 0.2;
+  const gateSide = (p: THREE.Vector3) => (p.x - door.x) * fdx + (p.z - door.z) * fdz > 0.2;
+  const weighted: [boolean, boolean] = [false, false];
+  const keyed = door.opens === 'keys';
+  const lifted = () => {
+    open = true;
+    physics.removeCollider(doorCol);
+  };
   interactables.push({
     pos: doorPos,
     radius: 3.6,
-    prompt: (p) => (open ? null : gateSide(p) ? 'E: lift the bars (a shortcut)' : 'Barred from the other side'),
-    usable: (p) => !open && gateSide(p),
+    prompt: (p) => {
+      if (open) return null;
+      if (keyed) return `Barred until the scales are weighed (${weighted.filter(Boolean).length} of 2 pans)`;
+      return gateSide(p) ? 'E: lift the bars (a shortcut)' : 'Barred from the other side';
+    },
+    usable: (p) => !open && !keyed && gateSide(p),
     use: () => {
-      open = true;
-      physics.removeCollider(doorCol);
+      lifted();
       return 'The bars lift. A way back to the lantern.';
     },
     update: (dt) => {
+      if (keyed && !open && weighted[0] && weighted[1]) lifted();
       if (!open || lift >= 1) return;
       lift = Math.min(1, lift + dt / 1.4);
       bars.position.y = door.y + (1 - (1 - lift) ** 3) * (doorH - 0.6);
@@ -241,20 +271,20 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
 
   // ---- the exit: a tall gate in the far edge, veiled in warm light, toward the landmark
   const ex = dr.exit;
-  const exRot = ex.dir % 2 === 0 ? 0 : Math.PI / 2;
-  solid.push(place(gateGeo(ex.width, 8, 1.8, 2.2, S.dark, shade(S.dark, 1.3)), ex.x, ex.y, ex.z, 0, exRot, 0));
+  solid.push(place(gateGeo(ex.width, 8, 1.8, 2.2, S.dark, shade(S.dark, 1.3)), ex.x, ex.y, ex.z, 0, ex.yaw, 0));
+  const [erx, erz] = rightOf(ex.yaw);
   for (const s of [-1, 1]) {
     const off = ex.width / 2 + 1.1;
-    staticBox(ex.x + (ex.dir % 2 === 0 ? s * off : 0), ex.y + 4, ex.z + (ex.dir % 2 === 0 ? 0 : s * off), ex.dir % 2 === 0 ? 1.1 : 0.9, 4, ex.dir % 2 === 0 ? 0.9 : 1.1);
+    staticBox(ex.x + erx * s * off, ex.y + 4, ex.z + erz * s * off, 1.1, 4, 0.9, yawQ(ex.yaw));
   }
   const veil = new THREE.Mesh(
     new THREE.PlaneGeometry(ex.width, 8),
     new THREE.MeshBasicMaterial({ color: GEAR.lantern, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }),
   );
   veil.position.set(ex.x, ex.y + 4, ex.z);
-  veil.rotation.y = exRot;
+  veil.rotation.y = ex.yaw;
   group.add(veil);
-  staticBox(ex.x, ex.y + 4, ex.z, ex.dir % 2 === 0 ? ex.width / 2 : 0.3, 4, ex.dir % 2 === 0 ? 0.3 : ex.width / 2);
+  staticBox(ex.x, ex.y + 4, ex.z, ex.width / 2, 4, 0.3, yawQ(ex.yaw));
   const exitPos = new THREE.Vector3(ex.x, ex.y, ex.z);
   const world: Partial<LevelWorld> = { exited: false };
   interactables.push({
@@ -291,6 +321,43 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
         if (c.reflection) return world.onReflection?.(new THREE.Vector3(c.x, c.y, c.z)) ?? 'It was a reflection.';
         return world.onCache?.() ?? null;
       },
+    });
+  }
+
+  // ---- Justice's weights and pans: set the weight in its pan, and the pan carries her back to the mid lantern
+  const PAN_R = 1.7;
+  const panLabel = ['left', 'right'];
+  for (const k of dr.keys) {
+    const at = new THREE.Vector3(k.x, k.y + 1.0, k.z);
+    const weight = meshOf(weightGeo(P.accent, S.dark), mat);
+    weight.position.copy(at);
+    group.add(weight);
+    // The pan faces the room's middle, its post on the outside.
+    const toMid = Math.atan2(k.x - k.pan.x, k.z - k.pan.z);
+    solid.push(place(panGeo(PAN_R, P.accent, GEAR.metalDark, S.mid), k.pan.x, k.pan.y, k.pan.z, 0, toMid + Math.PI / 2, 0));
+    staticCylinder(k.pan.x, k.pan.y + 0.35, k.pan.z, 0.15, PAN_R);
+    const glow = glowPool(new THREE.Vector3(k.x, k.y, k.z), 2.6, P.accent);
+    glow.position.y = k.y + 0.06;
+    group.add(glow);
+    interactables.push({
+      pos: at,
+      radius: 2.8,
+      prompt: () => (weighted[k.wing] ? null : `E: set the weight in the ${panLabel[k.wing]} pan`),
+      usable: () => !weighted[k.wing],
+      use: () => {
+        weighted[k.wing] = true;
+        weight.position.set(k.pan.x, k.pan.y + 0.5, k.pan.z);
+        glow.visible = false;
+        const n = weighted.filter(Boolean).length;
+        return world.onWeight?.(k, n) ?? (n === 2 ? 'Both pans are weighted: the axis gate lifts.' : `The ${panLabel[k.wing]} pan is weighted (${n} of 2).`);
+      },
+    });
+    interactables.push({
+      pos: new THREE.Vector3(k.pan.x, k.pan.y, k.pan.z),
+      radius: PAN_R + 1.2,
+      prompt: () => (weighted[k.wing] ? 'E: ride the pan back to the beam' : null),
+      usable: () => weighted[k.wing],
+      use: () => world.onRide?.(k) ?? null,
     });
   }
 
@@ -391,6 +458,15 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   } else if (dim.landmark.kind === 'pedestal') {
     // The Devil's pedestal rises out of the pit; its brazier burns with the lantern's warm light, the way down.
     mark.push(place(pedestalGeo(lm.h, S.mid, S.dark, P.accent, P.accentShade), lm.x, lm.y, lm.z));
+    // The card's chains: great chains from the pedestal's crown out to the pit's rim beyond the rooms, sagging
+    // into the fog. Every gallery of the descent is tethered to it.
+    const rim = Math.max(...space.rooms.map((r) => Math.hypot(r.x - lm.x, r.z - lm.z))) + 70;
+    const top = new THREE.Vector3(lm.x, lm.y + lm.h * 0.86, lm.z);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + rng.range(-0.25, 0.25);
+      const end = new THREE.Vector3(lm.x + Math.cos(a) * rim, lm.y + lm.h * rng.range(0.95, 1.1), lm.z + Math.sin(a) * rim);
+      far.push(hungChainGeo(top, end, 7, 0.12, S.dark));
+    }
     // The flame is a glow (FX), so it opts out of the fog: the warm point that leads down reads from every vista.
     const flame = new THREE.Mesh(flameGeo(lm.h * 0.07, GEAR.lantern), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
     flame.position.set(lm.x, lm.y + lm.h * PEDESTAL_FLAME, lm.z + lm.h * PEDESTAL_BRAZIER_Z);
@@ -433,6 +509,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     bounds: b,
     decks,
     shortcutOpen: () => open,
+    weighted,
   });
   return world as LevelWorld;
 }
@@ -443,6 +520,7 @@ function boxColor(b: Box) {
       return S.light;
     case 'full':
     case 'plinth':
+    case 'weight':
       return S.mid;
     case 'tier':
       return shade(S.light, 0.95);
@@ -451,40 +529,40 @@ function boxColor(b: Box) {
   }
 }
 
-/** A parapet (stone with a pale cap) or a wall (dark slate). */
-function edgeGeo(b: Box, out: THREE.BufferGeometry[], staticBox: (x: number, y: number, z: number, hx: number, hy: number, hz: number) => void) {
+/** A parapet (stone with a pale cap) or a wall (dark slate), turned to its room. */
+function edgeGeo(b: Box, out: THREE.BufferGeometry[], staticBox: StaticBox) {
   if (b.h > COVER.full) {
-    out.push(place(block(b.sx, b.h, b.sz, S.dark, 0.06, b.x + b.z), b.x, b.y, b.z));
+    out.push(place(block(b.sx, b.h, b.sz, S.dark, 0.06, b.x + b.z), b.x, b.y, b.z, 0, b.yaw, 0));
   } else {
-    out.push(place(block(b.sx, b.h - 0.16, b.sz, S.mid, 0.05, b.x + b.z), b.x, b.y, b.z));
-    out.push(place(block(b.sx + 0.12, 0.16, b.sz + 0.12, S.light, 0.03), b.x, b.y + b.h - 0.16, b.z));
+    out.push(place(block(b.sx, b.h - 0.16, b.sz, S.mid, 0.05, b.x + b.z), b.x, b.y, b.z, 0, b.yaw, 0));
+    out.push(place(block(b.sx + 0.12, 0.16, b.sz + 0.12, S.light, 0.03), b.x, b.y + b.h - 0.16, b.z, 0, b.yaw, 0));
   }
-  staticBox(b.x, b.y + b.h / 2, b.z, b.sx / 2, b.h / 2, b.sz / 2);
+  staticBox(b.x, b.y + b.h / 2, b.z, b.sx / 2, b.h / 2, b.sz / 2, yawQ(b.yaw));
 }
 
-/** Paved top: a slate bed with chalk flagstones (3 m), a few darker. */
+/** Paved top: a slate bed with chalk flagstones (3 m), a few darker. In the room's own frame (centred, floor at 0). */
 function flagTop(r: Room, rng: ReturnType<typeof makeRng>) {
-  const out: THREE.BufferGeometry[] = [place(paint(new THREE.PlaneGeometry(r.sx, r.sz).rotateX(-Math.PI / 2), S.dark), r.x, r.y + 0.015, r.z)];
+  const out: THREE.BufferGeometry[] = [place(paint(new THREE.PlaneGeometry(r.w, r.d).rotateX(-Math.PI / 2), S.dark), 0, 0.015, 0)];
   const T = 3;
-  const nx = Math.max(1, Math.round(r.sx / T));
-  const nz = Math.max(1, Math.round(r.sz / T));
-  const tx = r.sx / nx;
-  const tz = r.sz / nz;
+  const nx = Math.max(1, Math.round(r.w / T));
+  const nz = Math.max(1, Math.round(r.d / T));
+  const tx = r.w / nx;
+  const tz = r.d / nz;
   const light = new THREE.Color();
   const mid = new THREE.Color(S.mid);
   for (let i = 0; i < nx; i++) {
     for (let j = 0; j < nz; j++) {
       const k = 0.92 + rng() * 0.1;
       const c = light.setHex(S.light).lerp(mid, rng() < 0.12 ? 0.35 : 0).multiplyScalar(k).getHex();
-      out.push(place(paint(new THREE.PlaneGeometry(tx - 0.14, tz - 0.14).rotateX(-Math.PI / 2), c), r.x - r.sx / 2 + (i + 0.5) * tx, r.y + 0.03, r.z - r.sz / 2 + (j + 0.5) * tz));
+      out.push(place(paint(new THREE.PlaneGeometry(tx - 0.14, tz - 0.14).rotateX(-Math.PI / 2), c), -r.w / 2 + (i + 0.5) * tx, 0.03, -r.d / 2 + (j + 0.5) * tz));
     }
   }
   return out;
 }
 
-/** Earth top: wind-flattened grass in blotchy patches. */
+/** Earth top: wind-flattened grass in blotchy patches. In the room's own frame. */
 function earthTop(r: Room) {
-  const g = new THREE.PlaneGeometry(r.sx, r.sz, Math.max(1, Math.round(r.sx / 3)), Math.max(1, Math.round(r.sz / 3))).rotateX(-Math.PI / 2);
+  const g = new THREE.PlaneGeometry(r.w, r.d, Math.max(1, Math.round(r.w / 3)), Math.max(1, Math.round(r.d / 3))).rotateX(-Math.PI / 2);
   return place(
     paintBy(prep(g, true), (p, out) => {
       const x = p.x + r.x;
@@ -492,46 +570,97 @@ function earthTop(r: Room) {
       const n = Math.sin(x * 0.21) * Math.cos(z * 0.17) + Math.sin((x + z) * 0.061);
       out.setHex(n > 0.5 ? S.light : S.growth).multiplyScalar(0.94 + (Math.abs(x * 13 + z * 7) % 1) * 0.08);
     }),
-    r.x,
-    r.y + 0.02,
-    r.z,
+    0,
+    0.02,
+    0,
   );
 }
 
 type StaticBox = (x: number, y: number, z: number, hx: number, hy: number, hz: number, q?: THREE.Quaternion) => void;
 type StaticHull = (points: Float32Array) => void;
 
-function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.BufferGeometry[], staticBox: StaticBox, hull: StaticHull) {
-  const len = connLength(c);
-  const ns = c.dir % 2 === 0;
-  const mx = (c.ax + c.bx) / 2;
-  const mz = (c.az + c.bz) / 2;
-  if (Math.abs(c.y1 - c.y0) > 0.05) {
-    rampGeo(c.ax, c.az, c.y0, c.bx, c.bz, c.y1, c.width, S.light, solid, staticBox, !c.walled, hull);
-    far.push(place(block(ns ? c.width : len, FOUNDATION, ns ? len : c.width, S.dark, 0.06), mx, Math.min(c.y0, c.y1) - FOUNDATION, mz));
-    return;
-  }
-  // Causeway: a deck with a slate rim, on piers that fade down into the fog.
-  const y = c.y0;
-  solid.push(place(block(ns ? c.width + 1.2 : len, 1.0, ns ? len : c.width + 1.2, S.mid, 0.05), mx, y - 1.0, mz));
-  solid.push(place(paint(new THREE.PlaneGeometry(ns ? c.width : len, ns ? len : c.width).rotateX(-Math.PI / 2), S.light), mx, y + 0.02, mz));
-  staticBox(mx, y - 0.5, mz, ns ? c.width / 2 + 0.6 : len / 2, 0.5, ns ? len / 2 : c.width / 2 + 0.6);
-  const piers = Math.max(1, Math.floor(len / 12));
-  for (let i = 0; i < piers; i++) {
-    const t = (i + 0.5) / piers - 0.5;
-    far.push(place(block(ns ? c.width * 0.7 : 1.8, FOUNDATION, ns ? 1.8 : c.width * 0.7, S.dark, 0.06), mx + (ns ? 0 : t * len), y - 1 - FOUNDATION, mz + (ns ? t * len : 0)));
-  }
-  if (c.walled) return;
-  for (const s of [-1, 1]) {
-    const off = c.width / 2 + EDGE.thick / 2;
-    const px = mx + (ns ? s * off : 0);
-    const pz = mz + (ns ? 0 : s * off);
-    const sx = ns ? EDGE.thick : len;
-    const sz = ns ? len : EDGE.thick;
-    solid.push(place(block(sx, EDGE.parapet - 0.16, sz, S.mid, 0.05), px, y, pz));
-    solid.push(place(block(sx + 0.12, 0.16, sz + 0.12, S.light, 0.03), px, y + EDGE.parapet - 0.16, pz));
-    staticBox(px, y + EDGE.parapet / 2, pz, sx / 2, EDGE.parapet / 2, sz / 2);
-  }
+type StaticCylinder = (x: number, y: number, z: number, halfH: number, r: number) => void;
+
+/**
+ * A connector: each straight run a causeway (a deck with a slate rim on piers fading into the fog) or stairs, with
+ * parapets both sides unless walled; where it turns, a round landing with a parapet ring broken where the runs meet
+ * it.
+ */
+function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.BufferGeometry[], staticBox: StaticBox, hull: StaticHull, cylinder: StaticCylinder) {
+  const segs = segmentsOf(c);
+  const R = landingRadius(c);
+  const off = c.width / 2 + EDGE.thick / 2;
+  // Where a run's parapet line meets the landing's ring: trim it back to there.
+  const trim = Math.sqrt(Math.max(0, R * R - off * off));
+  segs.forEach((g) => {
+    const yaw = Math.atan2(g.bx - g.ax, g.bz - g.az);
+    const q = yawQ(yaw);
+    const mx = (g.ax + g.bx) / 2;
+    const mz = (g.az + g.bz) / 2;
+    const [ux, uz] = [(g.bx - g.ax) / g.len, (g.bz - g.az) / g.len];
+    // The level stretch on a landing's disc: only its parapets, up to where they meet the ring.
+    const t0 = g.landing === 'start' ? trim : 0;
+    const t1 = g.landing === 'end' ? trim : 0;
+    if (!g.landing && Math.abs(g.by - g.ay) > 0.05) {
+      rampGeo(g.ax, g.az, g.ay, g.bx, g.bz, g.by, c.width, S.light, solid, staticBox, !c.walled, hull);
+      far.push(place(block(c.width, FOUNDATION, g.len, S.dark, 0.06), mx, Math.min(g.ay, g.by) - FOUNDATION, mz, 0, yaw, 0));
+      return;
+    }
+    const y = g.ay;
+    if (!g.landing) {
+      // Causeway: a deck with a slate rim, on piers that fade down into the fog.
+      solid.push(place(block(c.width + 1.2, 1.0, g.len, S.mid, 0.05), mx, y - 1.0, mz, 0, yaw, 0));
+      solid.push(place(paint(new THREE.PlaneGeometry(c.width, g.len).rotateX(-Math.PI / 2), S.light), mx, y + 0.02, mz, 0, yaw, 0));
+      staticBox(mx, y - 0.5, mz, c.width / 2 + 0.6, 0.5, g.len / 2, q);
+      const piers = Math.max(1, Math.floor(g.len / 12));
+      for (let i = 0; i < piers; i++) {
+        const t = (i + 0.5) / piers - 0.5;
+        far.push(place(block(c.width * 0.7, FOUNDATION, 1.8, S.dark, 0.06), mx + ux * t * g.len, y - 1 - FOUNDATION, mz + uz * t * g.len, 0, yaw, 0));
+      }
+    }
+    if (c.walled) return;
+    const len = g.len - t0 - t1;
+    if (len < 0.1) return;
+    const cx = mx + (ux * (t0 - t1)) / 2;
+    const cz = mz + (uz * (t0 - t1)) / 2;
+    for (const s of [-1, 1]) {
+      // Right of the run is (uz, -ux) in this frame (yaw from +Z).
+      const px = cx + uz * s * off;
+      const pz = cz - ux * s * off;
+      solid.push(place(block(EDGE.thick, EDGE.parapet - 0.16, len, S.mid, 0.05), px, y, pz, 0, yaw, 0));
+      solid.push(place(block(EDGE.thick + 0.12, 0.16, len + 0.12, S.light, 0.03), px, y + EDGE.parapet - 0.16, pz, 0, yaw, 0));
+      staticBox(px, y + EDGE.parapet / 2, pz, EDGE.thick / 2, EDGE.parapet / 2, len / 2, q);
+    }
+  });
+  // Landings: a round level platform where the way turns, its parapet ring open toward the runs either side.
+  const F = landingFlat(c);
+  const into = segs.filter((g) => g.landing === 'end');
+  const outOf = segs.filter((g) => g.landing === 'start');
+  c.bends.forEach((b, k) => {
+    const a = into[k];
+    const o = outOf[k];
+    const y = a.by;
+    solid.push(place(facet(new THREE.CylinderGeometry(F, F, 1.0, 12).translate(0, -0.5, 0), S.mid, 0.05), b.x, y, b.z));
+    solid.push(place(paint(new THREE.CircleGeometry(F - 0.05, 12).rotateX(-Math.PI / 2), S.light), b.x, y + 0.025, b.z));
+    cylinder(b.x, y - 0.5, b.z, 0.5, F);
+    far.push(place(block(R * 1.2, FOUNDATION, R * 1.2, S.dark, 0.06), b.x, y - 1 - FOUNDATION, b.z));
+    // The openings: back along the run in, and along the run out (angles round the landing, in x/z).
+    const opens = [Math.atan2(a.az - a.bz, a.ax - a.bx), Math.atan2(o.bz - o.az, o.bx - o.ax)];
+    const gap = Math.asin(Math.min(1, (c.width / 2 + EDGE.thick) / R));
+    const N = 14;
+    for (let i = 0; i < N; i++) {
+      const th = ((i + 0.5) / N) * Math.PI * 2;
+      if (opens.some((op) => Math.abs(Math.atan2(Math.sin(th - op), Math.cos(th - op))) < gap + Math.PI / N)) continue;
+      const rr = R - EDGE.thick / 2;
+      const px = b.x + Math.cos(th) * rr;
+      const pz = b.z + Math.sin(th) * rr;
+      const chord = 2 * R * Math.sin(Math.PI / N) + 0.1;
+      const ry = -th - Math.PI / 2;
+      solid.push(place(block(chord, EDGE.parapet - 0.16, EDGE.thick, S.mid, 0.05), px, y, pz, 0, ry, 0));
+      solid.push(place(block(chord + 0.12, 0.16, EDGE.thick + 0.12, S.light, 0.03), px, y + EDGE.parapet - 0.16, pz, 0, ry, 0));
+      staticBox(px, y + EDGE.parapet / 2, pz, chord / 2, EDGE.parapet / 2, EDGE.thick / 2, yawQ(ry));
+    }
+  });
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -559,13 +688,12 @@ export function rampWedge(x0: number, z0: number, y0: number, x1: number, z1: nu
   return new Float32Array(pts);
 }
 
-/** Stairs: a smooth ramp collider under stepped treads, with sloped parapets. */
-function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1: number, width: number, color: number, solid: THREE.BufferGeometry[], staticBox: StaticBox, parapets: boolean, hull: StaticHull) {
+/** Stairs: a smooth ramp collider under stepped treads, with sloped parapets (trimmed `t0`/`t1` short of landings). */
+function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1: number, width: number, color: number, solid: THREE.BufferGeometry[], staticBox: StaticBox, parapets: boolean, hull: StaticHull, t0 = 0, t1 = 0) {
   const dx = x1 - x0;
   const dz = z1 - z0;
   const dy = y1 - y0;
   const run = Math.hypot(dx, dz);
-  const len = Math.hypot(run, dy);
   const yaw = Math.atan2(dx, dz);
   const pitch = Math.atan2(dy, run);
   const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-pitch, yaw, 0, 'YXZ'));
@@ -580,16 +708,21 @@ function rampGeo(x0: number, z0: number, y0: number, x1: number, z1: number, y1:
     const t = (i + 0.5) / steps;
     const top = y0 + dy * t;
     const h = top - lo + 0.6;
-    const ns = Math.abs(uz) > Math.abs(ux);
-    solid.push(place(block(ns ? width : tread + 0.02, h, ns ? tread + 0.02 : width, shade(color, i % 2 ? 0.97 : 1), 0.03), x0 + ux * run * t, lo - 0.6, z0 + uz * run * t));
+    solid.push(place(block(width, h, tread + 0.02, shade(color, i % 2 ? 0.97 : 1), 0.03), x0 + ux * run * t, lo - 0.6, z0 + uz * run * t, 0, yaw, 0));
   }
   if (!parapets) return;
+  // Trimmed along the run at either end (where it meets a landing's ring).
+  const a = t0 / run;
+  const b = 1 - t1 / run;
+  if (b - a <= 0.01) return;
+  const len = Math.hypot(run * (b - a), dy * (b - a));
   for (const s of [-1, 1]) {
     const off = width / 2 + EDGE.thick / 2;
-    const px = (x0 + x1) / 2 + uz * s * off;
-    const pz = (z0 + z1) / 2 - ux * s * off;
+    const m = (a + b) / 2;
+    const px = x0 + dx * m + uz * s * off;
+    const pz = z0 + dz * m - ux * s * off;
     const g = facet(new THREE.BoxGeometry(EDGE.thick, EDGE.parapet, len).translate(0, EDGE.parapet / 2, 0), S.mid, 0.05);
-    const py = (y0 + y1) / 2;
+    const py = y0 + dy * m;
     _m.compose(_p.set(px, py, pz), q, _s.set(1, 1, 1));
     solid.push(place(g.applyMatrix4(_m), 0, 0, 0));
     const cc = new THREE.Vector3(px, py, pz).addScaledVector(up, EDGE.parapet / 2);

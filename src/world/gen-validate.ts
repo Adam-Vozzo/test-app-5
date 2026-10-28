@@ -1,10 +1,11 @@
 // Level generation, layer 6 (LEVELS.md → Validation): a generated level must pass every check, or the caller
 // re-rolls it. Pure: no Three/DOM. Each check returns the reasons it failed (empty = pass).
 import type { DimensionDef } from './dimensions';
-import { doorCells, EDGE, EYE, inRoom, type Dressing, type Furnishing, type Socket } from './gen-dress';
+import { doorCells, EDGE, inRoom, type Dressing, type Furnishing, type Socket } from './gen-dress';
+import { landmarkPoints, occludersOf, seesFrom, spotsIn, type Occluder } from './gen-sight';
 import { connected } from './scaffold';
 import { isCombat, type LevelScript, type MissionGraph } from './gen-graph';
-import { connLength, connRect, overlaps, roomRect, toLocal, type Space } from './gen-space';
+import { anyOverlap, connLength, connObbs, obbOverlap, roomObb, segmentsOf, toLocal, wrapAngle, type Space } from './gen-space';
 
 export interface LevelParts {
   dim: DimensionDef;
@@ -19,10 +20,23 @@ export interface LevelParts {
 }
 
 /** Fog makes everything beyond this invisible anyway; the props budget is what's built. */
-export const BUDGET = { rooms: 14, props: 700, lanternClear: 15, entryClear: 6 };
+export const BUDGET = { rooms: 16, props: 760, lanternClear: 15, entryClear: 6 };
+
+/** The Devil's pedestal stays in sight from at least this share of the critical rooms (the pit is always there). */
+export const PIT_IN_SIGHT = 0.6;
 
 export function validate(p: LevelParts): string[] {
-  return [...checkGraph(p), ...checkSpace(p), ...checkSockets(p), ...checkHoards(p), ...checkScaffolds(p), ...checkIllusions(p), ...checkLandmark(p), ...checkBudget(p)];
+  return [
+    ...checkGraph(p),
+    ...checkSpace(p),
+    ...checkSockets(p),
+    ...checkHoards(p),
+    ...checkScaffolds(p),
+    ...checkIllusions(p),
+    ...checkLandmark(p),
+    ...checkShape(p),
+    ...checkBudget(p),
+  ];
 }
 
 /** The Moon: false paths are only ever branches (never the way on), and no room is all reflections. */
@@ -38,7 +52,9 @@ export function checkIllusions({ dim, space, sockets, dressing }: LevelParts): s
     for (let k = 1; k < mine.length; k++) {
       const a = mine[k - 1];
       const b = mine[k];
-      const gap = Math.max(0, Math.abs(a.x - b.x) - a.size) ** 2 + Math.max(0, Math.abs(a.z - b.z) - a.size) ** 2;
+      // In the stones' own frame (they're turned square to their path).
+      const [u, v] = toLocal({ x: a.x, z: a.z, yaw: a.yaw }, b.x, b.z);
+      const gap = Math.max(0, Math.abs(u) - a.size) ** 2 + Math.max(0, Math.abs(v) - a.size) ** 2;
       if (Math.sqrt(gap) > 1.0) out.push(`illusions: false path ${i}'s stones ${k - 1}-${k} are too far apart`);
     }
   }
@@ -93,12 +109,16 @@ export function checkGraph({ dim, script, graph }: LevelParts): string[] {
   if (mb < 1 || crit[mb - 1].kind !== 'lantern') out.push('graph: no lantern right before the miniboss');
   if (crit.filter((nd) => nd.vista).length < 2) out.push('graph: fewer than two vistas');
   const sp = crit.findIndex((nd) => nd.kind === 'setpiece');
-  if (sp < Math.floor(n / 3) || sp >= Math.ceil((2 * n) / 3)) out.push('graph: set-piece outside the middle third');
-  if (!script.allowAdjacentCombats) for (let i = 1; i < n; i++) if (isCombat(crit[i]) && isCombat(crit[i - 1])) out.push(`graph: combats back to back at ${i - 1}–${i}`);
-  for (const t of script.mustInclude) if (!crit.some((nd) => nd.template === t)) out.push(`graph: no ${t} encounter`);
+  // The set-piece sits in the middle third (Justice: the reward past the axis gate, before the last fifth).
+  const [lo, hi] = graph.wings ? [Math.floor(n / 3), Math.ceil(0.8 * n)] : [Math.floor(n / 3), Math.ceil((2 * n) / 3)];
+  if (sp < lo || sp >= hi) out.push('graph: set-piece outside the middle third');
+  // Fights never sit back to back along a way (but in the twist).
+  if (!script.allowAdjacentCombats) for (const [a, b] of graph.edges) if (isCombat(graph.nodes[a]) && isCombat(graph.nodes[b])) out.push(`graph: combats back to back at ${a}–${b}`);
+  for (const t of script.mustInclude) if (!graph.nodes.some((nd) => nd.template === t)) out.push(`graph: no ${t} encounter`);
   const branches = graph.nodes.filter((nd) => nd.kind === 'branch').length;
   if (branches < dim.branches[0] || branches > dim.branches[1]) out.push(`graph: ${branches} branches`);
-  // Reachability without the shortcut, and the shortcut joins a later gate back to an earlier lantern.
+  // Reachability (the shortcut and the axis gate included: they open in play), and the shortcut joins a later
+  // gate back to an earlier lantern.
   const seen = new Set([graph.critical[0]]);
   const queue = [graph.critical[0]];
   while (queue.length) {
@@ -122,22 +142,29 @@ export function checkSpace({ dim, space }: LevelParts): string[] {
   const { rooms, connectors } = space;
   for (let i = 0; i < rooms.length; i++) {
     for (let j = i + 1; j < rooms.length; j++) {
-      if (overlaps(roomRect(rooms[i], 2), roomRect(rooms[j]))) out.push(`space: rooms ${rooms[i].node} and ${rooms[j].node} overlap`);
+      if (obbOverlap(roomObb(rooms[i], 1), roomObb(rooms[j], 1))) out.push(`space: rooms ${rooms[i].node} and ${rooms[j].node} overlap`);
     }
   }
   connectors.forEach((c, i) => {
+    const mine = connObbs(c, 1);
     for (const r of rooms) {
       if (r.node === c.from || r.node === c.to) continue;
-      if (overlaps(connRect(c, 1), roomRect(r))) out.push(`space: connector ${c.from}→${c.to} cuts room ${r.node}`);
+      if (anyOverlap(mine, [roomObb(r)])) out.push(`space: connector ${c.from}→${c.to} cuts room ${r.node}`);
     }
     for (let j = i + 1; j < connectors.length; j++) {
       const d = connectors[j];
       if (d.from === c.from || d.from === c.to || d.to === c.from || d.to === c.to) continue;
-      if (overlaps(connRect(c, 1), connRect(d))) out.push(`space: connectors ${c.from}→${c.to} and ${d.from}→${d.to} cross`);
+      if (anyOverlap(mine, connObbs(d))) out.push(`space: connectors ${c.from}→${c.to} and ${d.from}→${d.to} cross`);
     }
     const len = connLength(c);
     if (len < 4) out.push(`space: connector ${c.from}→${c.to} too short`);
-    if (Math.abs(c.y1 - c.y0) / Math.max(len, 0.01) > dim.connector.maxSlope + 1e-6) out.push(`space: connector ${c.from}→${c.to} too steep`);
+    for (const s of segmentsOf(c)) if (s.len > 0.01 && Math.abs(s.by - s.ay) / s.len > dim.connector.maxSlope + 1e-6) out.push(`space: connector ${c.from}→${c.to} too steep`);
+    // Square to both doorways: its parapets run on flush.
+    const segs = segmentsOf(c);
+    const a = rooms.find((r) => r.node === c.from)?.doors.find((d) => d.connector === i);
+    const b = rooms.find((r) => r.node === c.to)?.doors.find((d) => d.connector === i);
+    if (a && Math.abs(wrapAngle(segs[0].yaw - a.yaw)) > 1e-3) out.push(`space: connector ${c.from}→${c.to} leaves its door askew`);
+    if (b && Math.abs(wrapAngle(segs[segs.length - 1].yaw - b.yaw - Math.PI)) > 1e-3) out.push(`space: connector ${c.from}→${c.to} enters its door askew`);
   });
   const sc = connLength(connectors[space.shortcut]);
   if (sc < dim.loop.shortcut[0] || sc > dim.loop.shortcut[1]) out.push(`space: shortcut ${sc.toFixed(1)} m`);
@@ -150,7 +177,7 @@ export function checkSockets({ dim, graph, space, furn, sockets, dressing, range
     const r = space.rooms.find((x) => x.node === s.node)!;
     // Fair range: every throw can be read and dodged from the moment you walk in.
     if (rangedMin > 0 && dim.rangedFoes.includes(s.foe)) {
-      const entry = r.doors.find((d) => d.dir === (r.inDir + 2) % 4) ?? r.doors[0];
+      const entry = r.doors.find((d) => d.side === 'back') ?? r.doors[0];
       if (Math.hypot(s.x - entry.x, s.z - entry.z) < rangedMin) out.push(`sockets: ${s.foe} within ${rangedMin.toFixed(1)} m of room ${s.node}'s entry`);
     }
     if (!inRoom(r, s.x, s.z, EDGE.thick + 0.4)) out.push(`sockets: ${s.kind} outside room ${s.node}`);
@@ -160,7 +187,7 @@ export function checkSockets({ dim, graph, space, furn, sockets, dressing, range
     for (const l of dressing.lanterns) if (Math.hypot(l.x - s.x, l.z - s.z) < BUDGET.lanternClear) out.push(`sockets: ${s.kind} within ${BUDGET.lanternClear} m of a lantern`);
     // Verticality: at most one raised tier, ≤ 4 m.
     if (s.y - r.y > 4) out.push(`sockets: ${s.kind} too high`);
-    const inside = furn.boxes.some((b) => b.kind !== 'edge' && b.y + b.h > s.y + 0.05 && Math.abs(s.x - b.x) < b.sx / 2 && Math.abs(s.z - b.z) < b.sz / 2);
+    const inside = furn.boxes.some((b) => b.kind !== 'edge' && b.y + b.h > s.y + 0.05 && boxContains(b, s.x, s.z));
     if (inside) out.push(`sockets: ${s.kind} inside cover in room ${s.node}`);
   }
   for (const nd of graph.nodes) {
@@ -173,67 +200,36 @@ export function checkSockets({ dim, graph, space, furn, sockets, dressing, range
   return out;
 }
 
-/** An axis-aligned occluder for the landmark sight test. */
-interface Occluder {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  minZ: number;
-  maxZ: number;
+function boxContains(b: { x: number; z: number; sx: number; sz: number; yaw: number }, x: number, z: number) {
+  const dx = x - b.x;
+  const dz = z - b.z;
+  const c = Math.cos(b.yaw);
+  const s = Math.sin(b.yaw);
+  return Math.abs(dx * c - dz * s) < b.sx / 2 && Math.abs(dx * s + dz * c) < b.sz / 2;
 }
+
+export { segmentHitsBox, segmentHitsOccluder, type Occluder } from './gen-sight';
 
 export function occluders({ space, furn, dressing }: LevelParts): Occluder[] {
-  const out: Occluder[] = [];
-  const box = (x: number, z: number, sx: number, sz: number, y0: number, y1: number) =>
-    out.push({ minX: x - sx / 2, maxX: x + sx / 2, minZ: z - sz / 2, maxZ: z + sz / 2, minY: y0, maxY: y1 });
-  for (const b of furn.boxes) box(b.x, b.z, b.sx, b.sz, b.y, b.y + b.h);
-  for (const c of furn.columns) box(c.x, c.z, 1.3, 1.3, c.y, c.y + c.h + 0.3);
-  // Room slabs (their tops) and arches (piers and lintel; the opening is clear).
-  for (const r of space.rooms) box(r.x, r.z, r.sx, r.sz, r.y - 30, r.y);
-  for (const a of dressing.arches) {
-    const ns = a.dir % 2 === 0;
-    for (const s of [-1, 1]) {
-      const off = a.width / 2 + 1;
-      box(a.x + (ns ? s * off : 0), a.z + (ns ? 0 : s * off), ns ? 2 : 2.4, ns ? 2.4 : 2, a.y, a.y + a.height);
-    }
-    box(a.x, a.z, ns ? a.width + 4.6 : 2.8, ns ? 2.8 : a.width + 4.6, a.y + a.height, a.y + a.height + 1.9);
-  }
-  for (const h of dressing.heroSwords) box(h.x, h.z, h.len * 0.12, h.len * 0.12, h.y, h.y + h.len * 0.85);
-  return out;
-}
-
-/** Slab test: does the segment from a to b pass through the box? */
-export function segmentHitsBox(a: [number, number, number], b: [number, number, number], o: Occluder): boolean {
-  let t0 = 0;
-  let t1 = 1;
-  const lo = [o.minX, o.minY, o.minZ];
-  const hi = [o.maxX, o.maxY, o.maxZ];
-  for (let k = 0; k < 3; k++) {
-    const d = b[k] - a[k];
-    if (Math.abs(d) < 1e-9) {
-      if (a[k] < lo[k] || a[k] > hi[k]) return false;
-      continue;
-    }
-    let ta = (lo[k] - a[k]) / d;
-    let tb = (hi[k] - a[k]) / d;
-    if (ta > tb) [ta, tb] = [tb, ta];
-    t0 = Math.max(t0, ta);
-    t1 = Math.min(t1, tb);
-    if (t0 > t1) return false;
-  }
-  return true;
+  return occludersOf({ rooms: space.rooms, boxes: furn.boxes, columns: furn.columns, arches: dressing.arches, towers: dressing.towers, heroSwords: dressing.heroSwords });
 }
 
 /** The landmark's telling parts (Justice: beam, pans and pillar; the Devil: brazier and horns): it reads if any is in plain sight. */
 export function landmarkTargets(d: Dressing, targets: [number, number][]): [number, number, number][] {
-  const { x, z, y, h } = d.landmark;
-  return targets.map(([u, v]) => [x + u * h, y + v * h, z]);
+  return landmarkPoints(d.landmark, targets);
 }
 
 export function landmarkVisible(p: LevelParts, x: number, y: number, z: number, occ = occluders(p)): boolean {
-  const eye: [number, number, number] = [x, y + EYE, z];
-  return landmarkTargets(p.dressing, p.dim.landmark.targets).some((t) => !occ.some((o) => segmentHitsBox(eye, t, o)));
+  return seesFrom(landmarkTargets(p.dressing, p.dim.landmark.targets), occ, x, y, z);
+}
+
+/** The share of critical rooms the landmark can be seen from (from some spot in each). */
+export function landmarkShare(p: LevelParts, occ = occluders(p)): number {
+  const lm = p.dressing.landmark;
+  const pts = landmarkTargets(p.dressing, p.dim.landmark.targets);
+  const crit = p.graph.critical.map((id) => p.space.rooms.find((r) => r.node === id)!);
+  const seen = crit.filter((r) => spotsIn(r, lm.x, lm.z).some(([x, z]) => seesFrom(pts, occ, x, r.y, z))).length;
+  return seen / crit.length;
 }
 
 export function checkLandmark(p: LevelParts): string[] {
@@ -242,13 +238,63 @@ export function checkLandmark(p: LevelParts): string[] {
   const s = p.dressing.spawn;
   if (!landmarkVisible(p, s.x, s.y, s.z, occ)) out.push('landmark: hidden from the spawn');
   for (const v of p.dressing.vistas) if (!landmarkVisible(p, v.x, v.y, v.z, occ)) out.push(`landmark: hidden from vista ${v.node}`);
+  // The Devil's pit and the Tower's crown are always there: from most rooms (the pit), or every one (the crown).
+  if (p.dim.layout.kind === 'spiral') {
+    const share = landmarkShare(p, occ);
+    const need = p.dim.descent > 0 ? PIT_IN_SIGHT : 1;
+    if (share < need - 1e-9) out.push(`landmark: in sight from only ${Math.round(share * 100)}% of the rooms`);
+  }
+  return out;
+}
+
+/**
+ * The card's shape (LEVELS.md → Space): the meaning, checked. Justice weighs two mirrored wings, a key at the end of
+ * each, and the axis gate opens on both; the Devil only goes down and the Tower only up; the Moon's true ways pass
+ * between two towers and its false paths never do.
+ */
+export function checkShape({ dim, graph, space, dressing }: LevelParts): string[] {
+  const out: string[] = [];
+  const byNode = (id: number) => space.rooms.find((r) => r.node === id)!;
+  if (dim.layout.kind === 'weighing') {
+    const w = graph.wings;
+    if (!w) return ['shape: no wings to weigh'];
+    if (w[0].length !== w[1].length) out.push('shape: the wings are unequal');
+    for (const ids of w) if (graph.nodes[ids[ids.length - 1]].kind !== 'key') out.push('shape: a wing without its key');
+    const hub = byNode(graph.shortcut.lantern);
+    w[0].forEach((id, i) => {
+      const a = byNode(id);
+      const b = byNode(w[1][i]);
+      if (Math.abs(2 * hub.x - a.x - b.x) > 1e-6 || Math.abs(a.z - b.z) > 1e-6 || Math.abs(wrapAngle(a.yaw + b.yaw)) > 1e-6 || a.w !== b.w || a.d !== b.d || a.kit !== b.kit) out.push(`shape: wing rooms ${id} and ${w[1][i]} don't mirror`);
+    });
+    if (dressing.keys.length !== 2 || dressing.keys[0].wing === dressing.keys[1].wing) out.push('shape: not one key in each pan');
+    if (dressing.door.opens !== 'keys') out.push('shape: the axis gate must open on the keys');
+  } else if (dressing.keys.length) out.push('shape: keys outside Justice');
+  if (dim.layout.kind === 'spiral') {
+    // Only down (the Devil) or only up (the Tower), outside the level loop.
+    const crit = graph.critical.map((id) => graph.nodes[id]);
+    const inLoop = (id: number) => graph.loop.includes(id) || id === graph.shortcut.gate;
+    const datum = (id: number) => byNode(id).y - dim.kits[byNode(id).kit].floor;
+    for (let i = 1; i < crit.length; i++) {
+      if (inLoop(crit[i].id)) continue;
+      const prev = inLoop(crit[i - 1].id) ? graph.shortcut.gate : crit[i - 1].id;
+      const step = datum(crit[i].id) - datum(prev);
+      if (Math.abs(step + dim.descent) > 1e-6) out.push(`shape: room ${crit[i].id} doesn't step ${dim.descent > 0 ? 'down' : 'up'}`);
+    }
+  }
+  if (dim.gateway === 'towers') {
+    const ways = space.connectors.filter((c) => c.kind !== 'branch').length;
+    if (dressing.towers.length !== ways) out.push(`shape: ${dressing.towers.length} of ${ways} true ways stand between towers`);
+    for (const c of space.connectors.filter((c) => c.kind === 'branch')) {
+      if (dressing.towers.some((t) => Math.hypot(t.x - c.bx, t.z - c.bz) < 0.5)) out.push('shape: towers at a branch (a false way must not have them)');
+    }
+  } else if (dressing.towers.length) out.push('shape: towers outside the Moon');
   return out;
 }
 
 export function checkBudget({ space, furn, dressing }: LevelParts): string[] {
   const out: string[] = [];
   if (space.rooms.length > BUDGET.rooms) out.push(`budget: ${space.rooms.length} rooms`);
-  const props = furn.boxes.length + furn.columns.length + dressing.swords.length + dressing.arches.length;
+  const props = furn.boxes.length + furn.columns.length + dressing.swords.length + dressing.arches.length + dressing.towers.length;
   if (props > BUDGET.props) out.push(`budget: ${props} props`);
   return out;
 }

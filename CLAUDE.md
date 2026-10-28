@@ -36,7 +36,9 @@ four thin ones.
 > **V2-14** adds its own (`src/enemies/moon-foes.ts`: Dog and Wolf, the Crayfish, Phantoms, the Page of Cups), the
 > Cups court and the Shadow (`court-cups.ts`, its island arena via `boss.ts`), and the ending: the blindfold comes off
 > and the Sun (`Menus.showSun`). **V2-15** fixes the first full playtest's notes, among them the animals' own body
-> (`src/enemies/beast.ts`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> (`src/enemies/beast.ts`). **V2-16** lays each dimension out by its card (`DimensionDef.layout`): rooms at any heading,
+> connectors that turn on landings, Justice's weighing (keys, the pan ride `Game.carry`), the Devil's and the Tower's
+> spirals, the Moon's meander and its gateway towers; sight lines in `gen-sight.ts`, measures in `gen-metrics.ts`. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -146,8 +148,9 @@ src/
                    (court-cups.ts: CupsCard, ShadowBoss). Shared: hazards (slam rings, thrown blades, globs, charge
                    lanes, waves, cups) and the manager (any Hostile). v1: multi-legged IK rig, bug body plans and AI (enemy.ts)
   world/           v2: dimension data + room kits (dimensions.ts), the pure level generator (gen-graph: script +
-                   mission graph; gen-space: rooms, loop, shortcut; gen-dress: kit structure, sockets, dressing;
-                   gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), the boss arena
+                   mission graph; gen-space: rooms at any heading, landings, each card's layout; gen-dress: kit structure, sockets, dressing;
+                   gen-validate; gen-sight: occluders and sight lines; gen-metrics: the generator's measures;
+                   gen-level: pipeline + reseed), the level builder (level.ts), the boss arena
                    (boss.ts), the hub (hub.ts + hub-data.ts: shop items, lines), faceted prop kit,
                    Justice courtyard, training dummies. v1: arenas, props, pollen drop, zone generator.
 tests/             vitest unit tests; tests/support has a headless fight (real Rapier, a stand-in EnemyWorld) and a

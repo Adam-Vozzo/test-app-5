@@ -261,6 +261,74 @@ export function moonTowersGeo(h: number, stone: number, dark: number) {
   return merge(parts);
 }
 
+/**
+ * One of the Moon's gateway towers (the card's two towers, small): a slim square shaft on a plinth, a band, and a
+ * pointed cap. `base` across, `h` to the band; the cap rises `cap` more. Base at y = 0.
+ */
+export function gateTowerGeo(h: number, base: number, cap: number, stone: number, dark: number) {
+  return merge([
+    block(base * 1.25, 0.6, base * 1.25, dark, 0.05),
+    place(block(base, h - 0.6, base, stone, 0.05, h), 0, 0.6, 0),
+    place(block(base * 1.2, 0.35, base * 1.2, dark, 0.04), 0, h - 0.35, 0),
+    place(facet(new THREE.ConeGeometry(base * 0.78, cap, 4).rotateY(Math.PI / 4).translate(0, cap / 2, 0), dark, 0.05), 0, h, 0),
+  ]);
+}
+
+/**
+ * Justice's weight: a brass weight (a squat, stepped block with a ring on top) for one pan of the scales. Base at
+ * y = 0 (it sits on its plinth).
+ */
+export function weightGeo(brass: number, dark: number) {
+  return merge([
+    block(1.0, 0.55, 1.0, brass, 0.04),
+    place(block(0.7, 0.3, 0.7, brass, 0.04, 1), 0, 0.55, 0),
+    place(facet(new THREE.TorusGeometry(0.2, 0.06, 4, 8), dark, 0.03), 0, 1.05, 0),
+  ]);
+}
+
+/**
+ * Justice's pan: a shallow brass dish (the scales' pan, man-sized) slung by three chains from a ring on a tall post
+ * beside it. Origin at the dish's centre on the floor; the post stands `postAt` along +X.
+ */
+export function panGeo(radius: number, brass: number, metal: number, stone: number) {
+  const parts: THREE.BufferGeometry[] = [facet(new THREE.CylinderGeometry(radius, radius * 0.86, 0.3, 10).translate(0, 0.35, 0), brass, 0.04)];
+  const ringY = 6;
+  const post = radius + 0.8;
+  parts.push(place(block(0.5, ringY + 0.8, 0.5, stone, 0.05), post, 0, 0));
+  parts.push(place(block(post + 0.3, 0.3, 0.3, stone, 0.05), post / 2, ringY + 0.5, 0));
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    parts.push(bar(new THREE.Vector3(Math.cos(a) * radius * 0.9, 0.5, Math.sin(a) * radius * 0.9), new THREE.Vector3(0, ringY + 0.5, 0), 0.07, metal));
+  }
+  return merge(parts);
+}
+
+/**
+ * A great chain hung between two points, sagging: alternate links (open boxes turned a quarter about the chain's
+ * line). `link` is a link's length; the sag is a fraction of the span. World coordinates (no transform needed).
+ */
+export function hungChainGeo(from: THREE.Vector3, to: THREE.Vector3, link: number, sag: number, color: number) {
+  const span = from.distanceTo(to);
+  const n = Math.max(2, Math.round(span / link));
+  const parts: THREE.BufferGeometry[] = [];
+  const at = (t: number) => new THREE.Vector3().lerpVectors(from, to, t).setY(from.y + (to.y - from.y) * t - 4 * sag * span * t * (1 - t));
+  for (let i = 0; i < n; i++) {
+    const a = at(i / n);
+    const b = at((i + 1) / n);
+    const d = new THREE.Vector3().subVectors(b, a);
+    const len = d.length();
+    _q.setFromUnitVectors(_up, d.normalize());
+    if (i % 2) _q.multiply(new THREE.Quaternion().setFromAxisAngle(_up, Math.PI / 2));
+    _m.compose(a, _q, _one);
+    const w = link * 0.45;
+    const t = link * 0.12;
+    // An open link: two side bars and two ends.
+    const linkGeo = merge([place(block(t, len, t, color, 0.05), -w / 2, 0, 0), place(block(t, len, t, color, 0.05), w / 2, 0, 0), place(block(w + t, t, t, color, 0.05), 0, 0, 0), place(block(w + t, t, t, color, 0.05), 0, len - t, 0)]);
+    parts.push(transformed(linkGeo, _m));
+  }
+  return merge(parts);
+}
+
 /** A reed bed: a clump of tall thin blades (marsh cover). Base at y = 0. */
 export function reedGeo(size: number, reed: number, dark: number, seed = 0) {
   const parts: THREE.BufferGeometry[] = [];

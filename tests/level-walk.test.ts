@@ -7,13 +7,14 @@ import { Physics } from '../src/physics/world';
 import { Controller } from '../src/player/controller';
 import { DIMENSIONS } from '../src/world/dimensions';
 import { generateLevel } from '../src/world/gen-level';
+import { inRoom, segmentsOf } from '../src/world/gen-space';
 import { buildLevel } from '../src/world/level';
 import { tuning } from '../src/tuning';
 
 let ready: Promise<void> | null = null;
 
 describe('walking the stairs of generated levels', () => {
-  for (const dim of ['justice', 'devil', 'tower']) {
+  for (const dim of ['justice', 'devil', 'tower', 'moon']) {
     it(`${dim}: every stair and causeway can be walked both ways without catching or falling`, async () => {
       ready ??= Physics.init();
       await ready;
@@ -27,39 +28,62 @@ describe('walking the stairs of generated levels', () => {
           physics.step();
           const c = new Controller(physics, new THREE.Vector3(), 0);
           layout.space.connectors.forEach((k, i) => {
-            // Every way between rooms (stairs and causeways), but not the Moon's lies nor a barred shortcut.
+            // Every way between rooms (stairs, causeways and their landings), but not the Moon's lies nor a barred
+            // shortcut.
             if (layout.dressing.falsePaths.includes(i) || k.kind === 'shortcut') return;
-            const ux = Math.sign(k.bx - k.ax);
-            const uz = Math.sign(k.bz - k.az);
-            // Lateral offset `o` (metres right of the connector's axis) at `back` metres before point (x, z).
-            const at = (x: number, z: number, back: number, o: number): [number, number] => [x - ux * back - uz * o, z - uz * back + ux * o];
+            const segs = segmentsOf(k);
             const hug = k.width / 2 - tuning.player.capsuleRadius - 0.05;
-            // Down the middle and hugging either parapet, steering for the far end as a player would.
-            for (const [o, side] of [[0, 0], [hug, 0], [-hug, 0]])
+            // Down the middle and hugging either parapet, through every landing, steering as a player would; on a
+            // straight one, also coming at the foot from the side.
+            const lanes: [number, number][] = [[0, 0], [hug, 0], [-hug, 0]];
+            if (!k.bends.length) lanes.push([hug, 1], [-hug, 1]);
+            for (const [o, side] of lanes)
               for (const up of [true, false]) {
-                const [sx, sz, ex, ez, ya, yb, s] = up ? [k.ax, k.az, k.bx, k.bz, k.y0, k.y1, 1] : [k.bx, k.bz, k.ax, k.az, k.y1, k.y0, -1];
-                const start = at(sx, sz, 4 * s, o + side * s);
-                const foot = at(sx, sz, -0.8 * s, o);
-                const goal = at(ex, ez, -3 * s, o);
-                c.teleport(new THREE.Vector3(start[0], ya + 0.1, start[1]), 0);
-                let target = side ? foot : goal;
-                const dist = Math.hypot(goal[0] - start[0], goal[1] - start[1]) + 6;
+                const runs = up ? segs : [...segs].reverse().map((g) => ({ ...g, ax: g.bx, az: g.bz, ay: g.by, bx: g.ax, bz: g.az, by: g.ay }));
+                // Lateral offset `o` metres right of each run.
+                // Along each run in its lane; across a landing by its middle (as you'd cross one).
+                const pts: [number, number][] = [];
+                for (const g of runs) {
+                  const ux = (g.bx - g.ax) / g.len;
+                  const uz = (g.bz - g.az) / g.len;
+                  const into = g.landing === (up ? 'end' : 'start');
+                  const outOf = g.landing === (up ? 'start' : 'end');
+                  pts.push(outOf ? [g.ax, g.az] : [g.ax - uz * o, g.az + ux * o], into ? [g.bx, g.bz] : [g.bx - uz * o, g.bz + ux * o]);
+                }
+                const f = runs[0];
+                const l = runs[runs.length - 1];
+                const fu = [(f.bx - f.ax) / f.len, (f.bz - f.az) / f.len];
+                const lu = [(l.bx - l.ax) / l.len, (l.bz - l.az) / l.len];
+                const start: [number, number] = [f.ax - fu[0] * 4 - fu[1] * side * (o + 1), f.az - fu[1] * 4 + fu[0] * side * (o + 1)];
+                const goal: [number, number] = [l.bx + lu[0] * 3 - lu[1] * o, l.bz + lu[1] * 3 + lu[0] * o];
+                // Coming from the side: first onto the foot of the way, then along it.
+                const foot: [number, number] = [pts[0][0] + fu[0] * 0.8, pts[0][1] + fu[1] * 0.8];
+                const route: [number, number][] = [...(side ? [foot] : []), ...pts.slice(1, -1), goal];
+                const roomA = layout.space.rooms.find((r) => r.node === (up ? k.from : k.to))!;
+                if (!inRoom(roomA, start[0], start[1], 0.5)) continue;
+                c.teleport(new THREE.Vector3(start[0], f.ay + 0.1, start[1]), 0);
+                const dist = segs.reduce((a, g) => a + g.len, 0) + 10;
+                let n = 0;
                 for (let t = 0; t < dist / 3 + 4; t += 1 / 30) {
-                  if (target === foot && Math.hypot(c.pos.x - foot[0], c.pos.z - foot[1]) < 0.6) target = goal;
-                  const yaw = Math.atan2(-(target[0] - c.pos.x), -(target[1] - c.pos.z));
+                  const target = route[n];
+                  if (n < route.length - 1 && Math.hypot(c.pos.x - target[0], c.pos.z - target[1]) < 0.8) n++;
+                  const yaw = Math.atan2(-(route[n][0] - c.pos.x), -(route[n][1] - c.pos.z));
                   c.update(1 / 30, { x: 0, y: 1, sprint: true, rollPressed: false, combat: false, speedMul: 1, camYaw: yaw });
                   physics.step();
-                  if (Math.hypot(c.pos.x - goal[0], c.pos.z - goal[1]) < 0.8) break;
+                  if (n === route.length - 1 && Math.hypot(c.pos.x - goal[0], c.pos.z - goal[1]) < 0.8) break;
                 }
                 walked++;
                 const left = Math.hypot(c.pos.x - goal[0], c.pos.z - goal[1]);
-                if (left > 1.2 || Math.abs(c.pos.y - yb) > 0.6) stuck.push(`${dim} seed ${seed} L${level + 1} conn ${i} lane ${o.toFixed(1)} from ${side} ${up ? 'up' : 'down'}: ${left.toFixed(1)} m short at (${c.pos.x.toFixed(1)}, ${c.pos.y.toFixed(2)}, ${c.pos.z.toFixed(1)})`);
+                const yb = up ? k.y1 : k.y0;
+                if (left > 1.2 || Math.abs(c.pos.y - yb) > 0.6) stuck.push(`${dim} seed ${seed} L${level + 1} conn ${i} (${k.bends.length} landings) lane ${o.toFixed(1)} from ${side} ${up ? 'up' : 'down'}: ${left.toFixed(1)} m short at (${c.pos.x.toFixed(1)}, ${c.pos.y.toFixed(2)}, ${c.pos.z.toFixed(1)})`);
               }
           });
           // The ramps up to a nest's raised tier, in and out.
           for (const r of layout.furn.ramps) {
-            const ux = Math.sign(r.x1 - r.x0);
-            const uz = Math.sign(r.z1 - r.z0);
+            // Rooms (and their tiers) stand at any heading.
+            const rl = Math.hypot(r.x1 - r.x0, r.z1 - r.z0);
+            const ux = (r.x1 - r.x0) / rl;
+            const uz = (r.z1 - r.z0) / rl;
             for (const [from, to, ya, yb] of [
               [[r.x0 - ux * 2, r.z0 - uz * 2], [r.x1 + ux * 2, r.z1 + uz * 2], r.y0, r.y1],
               [[r.x1 + ux * 2, r.z1 + uz * 2], [r.x0 - ux * 2, r.z0 - uz * 2], r.y1, r.y0],
