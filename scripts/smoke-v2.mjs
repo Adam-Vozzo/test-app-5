@@ -41,6 +41,8 @@ export async function pistolScenario({ g, hold, release, wait, shot }) {
     const gm = window.__game;
     gm.player.controller.teleport({ x: 0, y: 0.05, z: 1 }, 0);
     gm.camera.snap(gm.player.pos, 0);
+    // She carries her weapon between scenes, and the hub scenario's page reload drops smoke.mjs's start wrapper.
+    gm.arsenal.restore({ index: 0, mode: 'rifle' });
     gm.arsenal.refillAll();
   });
   await wait(600);
