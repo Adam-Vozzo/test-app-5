@@ -1786,16 +1786,20 @@ export async function moonScenario({ g, wait, shot, look }) {
           return sfx(name, at);
         };
         window.__steps = steps;
+        // Nine metres ahead of the spawn, two either side (rooms stand at any heading).
+        const fx = -Math.sin(s.yaw);
+        const fz = -Math.cos(s.yaw);
+        const at = (side) => ({ x: s.x + fx * 9 - fz * side * 2, y: s.y, z: s.z + fz * 9 + fx * side * 2 });
         gm.enemies.spawnFoes(
           [
-            { id: 'bailiff', pos: { x: s.x - 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol' },
-            { id: 'bailiff', pos: { x: s.x + 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol', illusion: true },
+            { id: 'bailiff', pos: at(-1), yaw: s.yaw + Math.PI, idle: 'patrol' },
+            { id: 'bailiff', pos: at(1), yaw: s.yaw + Math.PI, idle: 'patrol', illusion: true },
           ],
           gm.physics,
           gm.rng.fork('moon-pair'),
         );
-        gm.player.controller.teleport({ x: s.x, y: s.y + 0.05, z: s.z }, 0);
-        gm.camera.snap(gm.player.pos, 0);
+        gm.player.controller.teleport({ x: s.x, y: s.y + 0.05, z: s.z }, s.yaw);
+        gm.camera.snap(gm.player.pos, s.yaw);
         gm.camera.pitch = -0.1;
         window.__tuning.debug.showAI = true;
         const [real, ghost] = gm.enemies.enemies;
@@ -1815,7 +1819,9 @@ export async function moonScenario({ g, wait, shot, look }) {
         gm.vitals.restore();
         gm.enemies.enemies[0].despawn();
         const ghost = gm.enemies.enemies[1];
-        gm.player.controller.teleport({ x: ghost.ground.x, y: ghost.ground.y + 0.05, z: ghost.ground.z + 2.2 }, 0);
+        const s = gm.level.generated.dressing.spawn;
+        // Between it and the spawn, 2.2 m off.
+        gm.player.controller.teleport({ x: ghost.ground.x + Math.sin(s.yaw) * 2.2, y: ghost.ground.y + 0.05, z: ghost.ground.z + Math.cos(s.yaw) * 2.2 }, s.yaw);
         ghost.alert(gm.player.pos);
         return gm.vitals.health;
       });
