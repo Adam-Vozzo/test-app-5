@@ -294,7 +294,7 @@ export class CourtCard extends Foe {
       const side = i % 2 === 0 ? 1 : -1;
       const a = this.yaw + side * (Math.PI / 2 + 0.35 * Math.floor(i / 2));
       const at = _p.set(this.ground.x - Math.sin(a) * 5, this.ground.y, this.ground.z - Math.cos(a) * 5);
-      w.summon(this.plan.squadId ?? 'bailiff', at, this.yaw);
+      w.summon(this.plan.squadId ?? 'bailiff', at, this.yaw, false, this);
     }
   }
 
@@ -475,7 +475,7 @@ export class CourtCard extends Foe {
             w.hazards.verdict(_p.set(x, p.y, z), a.radius ?? 1.4, a.delay ?? 2.6, 0, 0, {
               kind: 'seed',
               onDone: (crushed, at) => {
-                if (!crushed && this.alive) w.summon(spawn, at, yaw);
+                if (!crushed && this.alive) w.summon(spawn, at, yaw, false, this);
               },
             });
           }

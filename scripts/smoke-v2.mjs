@@ -409,7 +409,20 @@ export async function levelScenario({ g, hold, release, press, wait, shot }) {
   const riding = await until(() => !!window.__game.ride, 4000);
   await wait(700);
   await shot('35b-level-pan-ride');
+  // The pan carries her: its dish is off its post, under her feet.
+  const carried = await g(() => {
+    const gm = window.__game;
+    const p = gm.level.pans[0];
+    return { off: p.dish.position.distanceTo(p.home), under: Math.hypot(p.dish.position.x - gm.player.pos.x, p.dish.position.z - gm.player.pos.z) };
+  });
   const landed = await until(([x, z]) => !window.__game.ride && Math.hypot(window.__game.player.pos.x - x, window.__game.player.pos.z - z) < 1.5, 15000, [lk.ride.x, lk.ride.z]);
+  // ...and swings home, empty, once she's down.
+  const panHome = await until(() => {
+    const p = window.__game.level.pans[0];
+    return p.dish.position.distanceTo(p.home) < 0.05;
+  }, 15000);
+  console.log(`  pan ride: carried ${JSON.stringify({ off: +carried.off.toFixed(1), under: +carried.under.toFixed(2) })}, home again ${panHome}`);
+  if (carried.off < 2 || carried.under > 0.5 || !panHome) throw new Error('the pan should carry her (its dish under her feet) and swing home after');
   const right = await weigh(keys.find((k) => k.wing === 1));
   const lifted = await until(() => window.__game.level.shortcutOpen(), 5000);
   await put(door.x - fwd[0] * 2.2, door.y, door.z - fwd[1] * 2.2, door.yaw);
@@ -1701,7 +1714,7 @@ export async function towerFoesScenario({ g, wait, shot }) {
 
 /** V2-13: the Moon's marsh. Through the eagle's gate; reflections cast no shadow, make no footsteps, can't hurt, and
  * one hit dispels them; a false path drops you into the water; a reflected cache holds nothing. */
-export async function moonScenario({ g, wait, shot }) {
+export async function moonScenario({ g, wait, shot, look }) {
   const until = async (fn, timeout = 20000, arg) => {
     const t0 = Date.now();
     while (Date.now() - t0 < timeout) {
@@ -1773,16 +1786,20 @@ export async function moonScenario({ g, wait, shot }) {
           return sfx(name, at);
         };
         window.__steps = steps;
+        // Nine metres ahead of the spawn, two either side (rooms stand at any heading).
+        const fx = -Math.sin(s.yaw);
+        const fz = -Math.cos(s.yaw);
+        const at = (side) => ({ x: s.x + fx * 9 - fz * side * 2, y: s.y, z: s.z + fz * 9 + fx * side * 2 });
         gm.enemies.spawnFoes(
           [
-            { id: 'bailiff', pos: { x: s.x - 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol' },
-            { id: 'bailiff', pos: { x: s.x + 2, y: s.y, z: s.z - 9 }, yaw: Math.PI, idle: 'patrol', illusion: true },
+            { id: 'bailiff', pos: at(-1), yaw: s.yaw + Math.PI, idle: 'patrol' },
+            { id: 'bailiff', pos: at(1), yaw: s.yaw + Math.PI, idle: 'patrol', illusion: true },
           ],
           gm.physics,
           gm.rng.fork('moon-pair'),
         );
-        gm.player.controller.teleport({ x: s.x, y: s.y + 0.05, z: s.z }, 0);
-        gm.camera.snap(gm.player.pos, 0);
+        gm.player.controller.teleport({ x: s.x, y: s.y + 0.05, z: s.z }, s.yaw);
+        gm.camera.snap(gm.player.pos, s.yaw);
         gm.camera.pitch = -0.1;
         window.__tuning.debug.showAI = true;
         const [real, ghost] = gm.enemies.enemies;
@@ -1802,7 +1819,9 @@ export async function moonScenario({ g, wait, shot }) {
         gm.vitals.restore();
         gm.enemies.enemies[0].despawn();
         const ghost = gm.enemies.enemies[1];
-        gm.player.controller.teleport({ x: ghost.ground.x, y: ghost.ground.y + 0.05, z: ghost.ground.z + 2.2 }, 0);
+        const s = gm.level.generated.dressing.spawn;
+        // Between it and the spawn, 2.2 m off.
+        gm.player.controller.teleport({ x: ghost.ground.x + Math.sin(s.yaw) * 2.2, y: ghost.ground.y + 0.05, z: ghost.ground.z + Math.cos(s.yaw) * 2.2 }, s.yaw);
         ghost.alert(gm.player.pos);
         return gm.vitals.health;
       });
@@ -1818,6 +1837,29 @@ export async function moonScenario({ g, wait, shot }) {
       });
       console.log(`  reflection: shadow real ${seen.realShadow} / reflection ${seen.ghostShadow}, footsteps heard ${steps}, it swung ${swung} and health ${harmless} → ${after}, one hit dispels ${JSON.stringify(dispelled)}`);
       if (!seen.realShadow || seen.ghostShadow || steps < 1 || !swung || after !== harmless || !dispelled.gone || dispelled.paid !== 0) throw new Error('a reflection should cast no shadow, make no footsteps, touch nothing, and go at one hit for nothing');
+
+      // A false path from its foot: the hidden stones' shadows lie across the drawn boardwalk (the way over), and no
+      // towers stand at its far end.
+      const foot = await g(() => {
+        const gm = window.__game;
+        const L = gm.level.generated;
+        const i = L.dressing.falsePaths[0];
+        if (i === undefined) return false;
+        const c = L.space.connectors[i];
+        const len = Math.hypot(c.bx - c.ax, c.bz - c.az);
+        const ux = (c.bx - c.ax) / len;
+        const uz = (c.bz - c.az) / len;
+        const yaw = Math.atan2(-ux, -uz);
+        gm.player.controller.teleport({ x: c.ax - ux * 2, y: c.y0 + 0.1, z: c.az - uz * 2 }, yaw);
+        gm.camera.snap(gm.player.pos, yaw);
+        return true;
+      });
+      if (foot) {
+        await look(0, 160);
+        await wait(700);
+        await shot('107c-moon-false-path');
+        await look(0, -160);
+      }
 
       // A false path: the boardwalk is drawn but nothing holds you; you sink and come up on the last stone.
       const fp = await g(() => {
@@ -2012,7 +2054,7 @@ export async function moonFoesScenario({ g, wait, shot }) {
   console.log(`  queen of cups: mirrored ${mirrored}, ${JSON.stringify(copies)}`);
   if (!mirrored || copies.filter((c) => c.bar).length !== 1) throw new Error('the Queen of Cups should make copies of herself, and only she holds the bar');
 
-  // 6. The King of Cups: tidal waves with a gap; his wolves at each phase.
+  // 6. The King of Cups: tidal waves wall to wall; his wolves at each phase.
   await fresh();
   await put(0, Z + 10, 0);
   await spawn('kingCups', 0, Z - 6, Math.PI, 'throne');

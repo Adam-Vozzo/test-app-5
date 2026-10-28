@@ -20,13 +20,23 @@ describe("the Tower's decks (collapse, pure)", () => {
     expect(g.state[4]).toBe('gone');
     expect(g.state[0]).toBe('sound');
   });
-  it('fire spreads to sound neighbours over time, and burnt decks fall', () => {
+  it('fire spreads to sound neighbours, one step only, and burnt decks fall', () => {
     const g = new ScaffoldGrid(5, 1, []);
     g.ignite(2);
+    for (let t = 0; t < 12; t += 0.1) g.update(0.1, T, () => 0);
+    // Its neighbours caught and burnt through; theirs didn't (any spark used to take the whole floor).
+    expect(g.state).toEqual(['sound', 'gone', 'gone', 'gone', 'sound']);
+  });
+  it("a lightning strike in the open floor leaves most of the floor standing (fire doesn't run away)", () => {
+    const g = new ScaffoldGrid(12, 12, []);
     const rng = makeRng(7);
-    for (let t = 0; t < 12; t += 0.1) g.update(0.1, T, rng);
-    // With spread at 0.5/s, the whole row has caught and burnt through.
-    expect(g.state.every((s) => s === 'gone')).toBe(true);
+    for (const i of [26, 30, 77, 100]) g.ignite(i);
+    let worst = 0;
+    for (let t = 0; t < 20; t += 0.1) {
+      g.update(0.1, tuning.tower, rng);
+      worst = Math.max(worst, g.state.filter((s) => s !== 'sound').length);
+    }
+    expect(worst).toBeLessThanOrEqual(4 * 5);
   });
   it("fire doesn't jump gaps: a fallen deck stops it", () => {
     const g = new ScaffoldGrid(5, 1, []);

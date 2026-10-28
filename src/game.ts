@@ -130,6 +130,8 @@ export class Game {
   private collapseRng = makeRng(1).fork('collapse');
   private readonly lastSafe = new THREE.Vector3();
   private burnAcc = 0;
+  /** Spacing between deck-fall sounds (s left). */
+  private timberT = 0;
   /** The bolt that flashes down where lightning strikes. */
   private readonly bolt = new THREE.Mesh(new THREE.BoxGeometry(0.35, 60, 0.35).translate(0, 30, 0), new THREE.MeshBasicMaterial({ color: 0xf2f0ff, fog: false }));
   private boltT = 0;
@@ -156,7 +158,9 @@ export class Game {
   private fps = 60;
   private frameCount = 0;
   /** Justice: riding a pan back to the mid lantern. */
-  private ride: { from: THREE.Vector3; to: THREE.Vector3; yaw: number; t: number } | null = null;
+  private ride: { from: THREE.Vector3; to: THREE.Vector3; yaw: number; t: number; wing: 0 | 1 } | null = null;
+  /** Justice: a pan swinging home, empty, after setting her down (its wing, how far along, where from). */
+  private panBack: { wing: 0 | 1; t: number; from: THREE.Vector3 } | null = null;
   private fpsTime = 0;
 
   constructor(
@@ -295,7 +299,8 @@ export class Game {
       };
       lw.onRide = (k) => {
         const c = this.player.controller;
-        this.ride = { from: c.pos.clone(), to: new THREE.Vector3(k.ride.x, k.ride.y + 0.05, k.ride.z), yaw: k.ride.yaw, t: 0 };
+        this.ride = { from: c.pos.clone(), to: new THREE.Vector3(k.ride.x, k.ride.y + 0.05, k.ride.z), yaw: k.ride.yaw, t: 0, wing: k.wing };
+        this.panBack = null;
         this.synth.sfx('chainRattle', 0.8);
         return null;
       };
@@ -333,6 +338,7 @@ export class Game {
     this.player = new Player(this.renderer.scene, this.physics, this.world.spawn, this.world.spawnYaw);
     this.arsenal = new Arsenal(this.player, this.layout === 'range');
     this.ride = null;
+    this.panBack = null;
     if (carried) this.arsenal.restore(carried);
     this.applyUpgrades();
     this.parry.cancel();
@@ -385,7 +391,7 @@ export class Game {
       noises: this.noises,
       alertNear: (from, radius, at, caller) => this.enemies.alertNear(from, radius, at, caller),
       bossPhase: (phase) => this.bossWorld?.onBossPhase(phase),
-      summon: (id, pos, yaw, illusion) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion),
+      summon: (id, pos, yaw, illusion, maker) => this.enemies.summon(id, pos, yaw, this.player.pos, this.physics, this.rng.fork(`summon-${this.clock.elapsed.toFixed(3)}`), illusion, maker),
       safeGround: (near) => this.decks?.nearestStanding(near) ?? null,
       healPlayer: (amount) => {
         if (this.vitals.dead) return;
@@ -778,9 +784,17 @@ export class Game {
     if (decks) {
       const occupants = [c.pos];
       for (const e of this.enemies.enemies) if (e.alive && e instanceof Foe) occupants.push(e.ground);
+      // One fall sound at a time (the nearest deck that went), where it went: a ring of the floor giving way used to
+      // play dozens at once, all at her feet.
+      this.timberT = Math.max(0, this.timberT - dt);
+      let nearest: THREE.Vector3 | null = null;
       for (const e of decks.update(dt, this.collapseRng, occupants)) {
-        if (e.kind === 'fall') this.sfxAt('timberFall', c.pos);
+        if (e.kind === 'fall' && (!nearest || e.at.distanceToSquared(c.pos) < nearest.distanceToSquared(c.pos))) nearest = e.at;
         else if (e.kind === 'ignite') this.stats.decksBurnt++;
+      }
+      if (nearest && this.timberT <= 0) {
+        this.sfxAt('timberFall', nearest);
+        this.timberT = 0.35;
       }
       if (c.grounded && decks.step(c.pos)) {
         this.sfxAt('creak', c.pos);
@@ -830,7 +844,9 @@ export class Game {
     const fallY = lv ? Math.min(...lv.generated.space.rooms.map((r) => r.y)) - 12 : -12;
     if (c.pos.y < fallY) {
       this.stats.falls++;
-      const back = (!lv && decks?.nearestStanding(c.pos)) || this.lastSafe;
+      // Never back onto timber that has gone (or is going) since she stood there: the nearest sound deck instead.
+      let back = (!lv && decks?.nearestStanding(c.pos)) || this.lastSafe;
+      if (decks && !decks.holds(back)) back = decks.nearestStanding(back) ?? back;
       c.teleport(_o.copy(back).setY(back.y + 0.05), c.yaw);
       this.camera.snap(c.pos, c.yaw);
       if (this.save.unbound.includes('fall')) {
@@ -856,13 +872,49 @@ export class Game {
     _o.lerpVectors(r.from, r.to, k);
     _o.y += Math.sin(Math.PI * r.t) * j.rideRise;
     c.teleport(_o, c.yaw);
+    // She stands in the pan: it carries her, swinging a little on its chains (it used to stay put while she flew).
+    // Her feet stand on the dish's floor, half a metre over its foot.
+    this.placePan(r.wing, _o2.copy(_o).setY(_o.y - 0.5), Math.sin(r.t * Math.PI * 3) * 0.08 * Math.sin(Math.PI * r.t));
     if (r.t >= 1) {
       c.teleport(r.to, r.yaw);
       this.camera.snap(c.pos, r.yaw);
       this.ride = null;
       this.lastSafe.copy(r.to);
       this.hud.toast('Set down at the beam.', 2);
+      // Then it swings home, empty (it can carry her again).
+      this.panBack = { wing: r.wing, t: 0, from: r.to.clone().setY(r.to.y - 0.5) };
     }
+  }
+
+  /** The pan back to its post after a ride, along the same arc. */
+  private returnPan(dt: number) {
+    const b = this.panBack!;
+    const home = this.level?.pans[b.wing]?.home;
+    if (!home) {
+      this.panBack = null;
+      return;
+    }
+    const j = tuning.justice;
+    b.t = Math.min(1, b.t + dt / Math.max(0.2, j.rideTime));
+    const k = b.t * b.t * (3 - 2 * b.t);
+    _o.lerpVectors(b.from, home, k);
+    _o.y += Math.sin(Math.PI * b.t) * j.rideRise;
+    if (b.t >= 1) {
+      _o.copy(home);
+      this.panBack = null;
+    }
+    this.placePan(b.wing, _o, 0);
+  }
+
+  /** Stand a pan's dish (and its chains, and the weight in it) with its foot at `at`. */
+  private placePan(wing: 0 | 1, at: THREE.Vector3, sway: number) {
+    const dish = this.level?.pans[wing]?.dish;
+    if (!dish) return;
+    dish.position.copy(at);
+    dish.rotation.z = sway;
+    // The level's matrices are frozen after building: update this one by hand.
+    dish.updateMatrix();
+    dish.updateMatrixWorld(true);
   }
 
   /** The timber decks underfoot, in a Tower level or on its top floor. */
@@ -948,6 +1000,8 @@ export class Game {
   /** Respawn at the checkpoint: full heals and ammo, non-elite enemies return. */
   rise() {
     this.ride = null;
+    this.panBack = null;
+    for (const w of [0, 1] as const) if (this.level?.pans[w]) this.placePan(w, this.level.pans[w].home, 0);
     if (!this.world || this.deathT < 0) return;
     this.deathT = -1;
     this.menus.showDeath(false);
@@ -994,6 +1048,12 @@ export class Game {
   }
 
   private onEnemyKilled(e: Hostile) {
+    // Gone with its maker: it fades, for nothing.
+    if (e instanceof Foe && e.dismissed) {
+      this.sfxAt('shimmer', e.center);
+      this.fx.sparksAt(e.center, new THREE.Vector3(0, 1, 0), this.area.dust, 10, 2.5);
+      return;
+    }
     // A reflection: dispelled, with a shimmer, for nothing.
     if (e instanceof Foe && e.illusion) {
       this.sfxAt('shimmer', e.center);
@@ -1250,6 +1310,7 @@ export class Game {
     }
     this.dashFrom.copy(c.pos);
     if (this.ride && simDt > 0) this.carry(simDt);
+    if (this.panBack && simDt > 0) this.returnPan(simDt);
     if (simDt > 0 && alive) this.collapse(simDt);
     // The binding holds, then strikes.
     if (simDt > 0 && this.binding.update(simDt) === 'struck') this.hurtPlayer(this.binding.damage, this.bindFrom, this.binding.knockback);

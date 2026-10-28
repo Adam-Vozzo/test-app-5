@@ -94,7 +94,11 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   off the grid to a key room. In each key room a **brass weight** stands on a plinth, guarded. Set it in its pan and
   that pan of the scales is weighted; **the axis gate past the mid lantern stays barred until both are**. Once a pan
   is weighted it **carries her back to the mid lantern** across the drop (a short committed ride, untouchable), so a
-  wing is walked only once. Branches come in a mirrored pair, one off each wing.
+  wing is walked only once. Branches come in a mirrored pair, one off each wing. *Changed after the second playtest
+  (V2-17):* the axis gate stands in an arch of its own; she rides **in the pan** (its dish and chains swing over with
+  her and home again after); the wings hold none, one or two rooms before the key and sweep forward, out or back by
+  level; and past the gate, where nothing need mirror, the way swings off the axis. A fight always stands past the
+  gate before the next lantern.
 - **Landmark:** a vast set of scales hanging over the dimension, visible from every level.
 - **Enemies:**
   - *Bailiff*: a guard enemy with a front shield; flank it or bait its swing.
@@ -110,8 +114,9 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
       1.15 s wind-up and erupts there (42 damage), then leaves it open for 1.6 s. It also sweeps. A cyan seam on its
       back is the weak spot.
     - **Blindfold** (signature): blind. It hears gunfire (42–55 m), blades (16 m), sprinting (9 m) and rolls (7 m),
-      but walking carries only 2.5 m, and it feels you within 2.4 m. It goes to the last noise, searches, then gives
-      up. Its slash is a **mirrored combo**: the second swing comes from the other side, so learning one teaches the
+      but walking carries only 2.5 m, and it feels you within 3.6 m (2.4 m until V2-17). It goes to the last noise
+      and **cuts there** when it arrives (V2-17: it used to walk up beside a quiet player and wait), searches, then
+      gives up. Its slash is a **mirrored combo**: the second swing comes from the other side, so learning one teaches the
       other.
     - **Page of Swords** (elite, stays dead once slain): it holds about 15 m off, circles, and throws a blade
       (telegraph-magenta, 0.65 s wind-up). When it first sees you it whistles, and every enemy within 32 m comes.
@@ -257,7 +262,9 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   - **Lightning:** every 10–14 s (level 1) down to 6–9 s (level 3), lightning **marks where you stand** (a magenta
     ring, 1.4 s) and strikes (28 damage). The timber within 2.6 m **catches fire**. Never at a lantern.
   - **Fire:** a burning deck hurts while you stand on it (14/s) and spreads to its neighbours. After 4.5 s it falls.
-    Fire doesn't jump a gap.
+    Fire doesn't jump a gap. *Changed after the second playtest:* fire spreads **one step only** (a deck caught from a
+    neighbour doesn't pass it on): before, each burning deck lit about three more, so any spark took the whole floor.
+    A fall never puts her back on timber that has gone, is going or is rotten.
   - **Falling** into the drop costs 30 and puts you back on the last stone you stood on (well inside its room,
     not at the brink).
   - **Fallen decks are built back after 6 s** (*after the first playtest*: the stage emptied too fast to fight on),
@@ -291,7 +298,8 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
       falls (1.6 s warning plus the crack). At 33% it falls again, down to a **last platform** about 9 m across.
       Falling puts you on the nearest deck still standing. *After the first playtest:* the decks are built back behind
       the collapse, and in each phase that phase's ring gives way again every 14 s, so the top floor keeps changing
-      instead of emptying. Stone landings at its doors never fall. A court card or boss that falls off a stage is set
+      instead of emptying. Stone landings at its doors never fall. *After the second playtest:* the rings come round
+      every 22 s and leave 18 m then 12 m of floor (the last platform is about 24 m across), and its fire is smaller. A court card or boss that falls off a stage is set
       back down on the nearest deck; a common enemy dies of the fall.
     - **When it falls,** the storm passes and the floor holds again.
   - **Its unbinding: the safe fall** (Proposed). Once the Tower has fallen, a fall into the drop costs nothing, and
@@ -305,6 +313,8 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
   Illusion and trepidation.
 - **Rule: illusion, but fair.** Some enemies, paths and pickups are reflections. **Illusions cast no shadow and make no
   footsteps** (consistent, learnable tells). Hitting an illusion dispels it harmlessly but costs you time and position.
+  *Since V2-17,* reflections a court card made (and every squad or swarm any enemy called up) go when their maker
+  falls.
 - **Space:** marsh and shoreline in heavy fog (Brume is the reference here), with pools that reflect. Paths double
   back and look alike. Each level threads **between two towers**.
 - **Landmark:** the Moon, enormous and low, and the two towers beneath it.
@@ -324,7 +334,9 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     The rooms are near-duplicates on purpose: earth islands, reeds, low parapets. *Changed in V2-16:* the way
     **meanders** toward the Moon, swinging from side to side so the Moon never sits dead ahead for long (the first
     causeway runs straight at it from the spawn). **Every true way passes between two towers** (the card's): a pair of
-    small towers stands at the far end of every real causeway, never at a false path's.
+    small towers stands at the far end of every real causeway, never at a false path's. *After the second playtest
+    (V2-17):* true branches stand between towers too, so at a fork the way without towers is the lie (until then
+    every branch lacked them, and the tell told nothing); two or three branches a level, one or two false.
   - **Landmark:** the Moon, an enormous pale disc hung low and unfogged, with **two dark towers** beneath it.
   - **Set-pieces:** the two-tower gate, the crayfish shallows (reed beds), the reflecting pool crossing, and the
     drowned path (a long narrow causeway).
@@ -341,6 +353,8 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     first playtest:* under it runs a **secret way across**, stepping stones nobody can see that cast their shadows
     on the water (the rule turned around: what's real casts a shadow). They wind left, middle, right, so walking the
     drawn boardwalk straight still drops you; following the shadows gets you over, and the cache beyond is real.
+    *After the second playtest:* the stones lay their shadows across the drawn boardwalk itself (they fell only on
+    the water, under the boardwalk, where no one could see them).
   - **The eagle's gate** opens once the Tower is cleared.
   - **Placeholders (until V2-14):** the rooms held archetypes from the first three dimensions and the Swords court,
     and level 3 led home.
@@ -356,7 +370,7 @@ tells (see below). The Moon checks the player's reading instead of breaking it.
     dark draught poisons. Each cup is a coin flip; the tell is always true.
   - **Queen of Cups:** blade volleys, and two copies of herself (reflections). She trades places with one. Only she
     has a shadow, footsteps and the health bar.
-  - **King of Cups:** tidal waves down the room, the full width but one gap (drawn first; the follow-up mirrors it),
+  - **King of Cups:** tidal waves down the room, wall to wall (*V2-17:* the gap is gone; roll through it),
     a trident slam, and wolves at each phase.
   - **The Shadow:** her silhouette near black. It uses her moves:
     - the pistol's quick three shots and the rifle's single heavy lane

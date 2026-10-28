@@ -105,7 +105,19 @@ type Slot = { kind: NodeKind; setPiece?: boolean };
 
 /** Layer 2: the mission graph. Returns null if no order satisfies the constraints (the caller reseeds). */
 export function missionGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
-  return dim.layout.kind === 'weighing' ? weighingGraph(dim, script, rng) : loopGraph(dim, script, rng);
+  if (dim.layout.kind === 'weighing') return weighingGraph(dim, script, rng);
+  // Some scripts have no order at all under the rules (too few rooms to keep fights apart with one past the gate):
+  // give them a traverse more while the level has room for it.
+  for (let more = 0; 6 + loopSlots(script) + more <= dim.criticalNodes[1]; more++) {
+    const g = loopGraph(dim, { ...script, traverse: script.traverse + more }, rng);
+    if (g) return g;
+  }
+  return null;
+}
+
+/** The loop's free slots for a script: the set-piece, the vistas it doesn't give, the plain fights and the traverse. */
+function loopSlots(s: LevelScript) {
+  return 1 + (2 - (s.setPiece.vista ? 1 : 0)) + (s.combats - (s.setPiece.combat ? 1 : 0) - (s.gateGuarded ? 1 : 0)) + s.traverse;
 }
 
 function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
@@ -117,8 +129,8 @@ function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGra
   const m = middle.length;
   const side: 1 | -1 = rng.chance(0.5) ? 1 : -1;
 
-  for (let attempt = 0; attempt < 120; attempt++) {
-    const strict = attempt < 60;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    const strict = attempt < 200;
     const order = shuffle(middle, rng);
     const loopN = rng.int(dim.loop.rooms[0], Math.min(dim.loop.rooms[1], m - 1));
     const pN = rng.int(1, m - loopN);
@@ -156,6 +168,9 @@ function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGra
     if (spIdx < Math.floor(n / 3) || spIdx >= Math.ceil((2 * n) / 3)) continue;
     // The gate is a late node: in the second half.
     if (gateIdx < n / 2) continue;
+    // Past the gate, a fight before the next lantern: dying there sends you back to the mid lantern, and that's when
+    // the shortcut pays. (With the lantern right past the gate, nobody ever used it.)
+    if (!Q.some((s) => s.kind === 'combat' || (s.kind === 'setpiece' && sp.combat))) continue;
     // No two combats back to back, unless the beat is the twist.
     let adjacent = false;
     for (let i = 1; i < n; i++) if (combatAt(i) && combatAt(i - 1)) adjacent = true;
@@ -256,20 +271,28 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
   const sp = script.setPiece;
   const L = dim.levels[script.level];
   for (let attempt = 0; attempt < 120; attempt++) {
-    // What stands in each wing before its key: a vista over the drop most often; a fight in the twist.
-    const wingKinds: NodeKind[] = rng.chance(script.allowAdjacentCombats ? 0.35 : 0) ? ['combat'] : [rng.chance(0.65) ? 'vista' : 'traverse'];
+    // What stands in each wing before its key: none (the key off the lantern), one or two rooms: a vista over the drop
+    // most often, a fight in the twist. (Always one, after the first playtest: every level weighed alike.)
+    const r = rng();
+    const wingN = r < 0.2 ? 0 : r < 0.7 ? 1 : 2;
+    const wingKinds: NodeKind[] = Array.from({ length: wingN }, (_, k): NodeKind =>
+      k === 0 && rng.chance(script.allowAdjacentCombats ? 0.35 : 0) ? 'combat' : k === 0 && rng.chance(0.65) ? 'vista' : 'traverse',
+    );
     const wingVistas = wingKinds.filter((k) => k === 'vista').length * 2;
     const wingCombats = wingKinds.filter((k) => k === 'combat').length * 2;
     const combats = rng.int(L.combats[0], L.combats[1]);
     // The keys are fights (2); the rest of the level's fights stand on the axis.
-    const plain = Math.max(0, combats - 2 - wingCombats - (sp.combat ? 1 : 0));
+    // (At least one, for past the gate, unless the set-piece there is a fight.)
+    const plain = Math.max(sp.combat ? 0 : 1, combats - 2 - wingCombats - (sp.combat ? 1 : 0));
     const vistas = Math.max(0, 2 - wingVistas - (sp.vista ? 1 : 0));
     const axisSlots: NodeKind[] = [];
     for (let i = 0; i < vistas; i++) axisSlots.push('vista');
     for (let i = 0; i < plain; i++) axisSlots.push('combat');
     const [nMin, nMax] = dim.criticalNodes;
-    // Fixed: start, lantern, 2 × (wing + key), gate, set-piece, lantern, miniboss, exit.
-    const fixed = 10 + (wingKinds.length - 1) * 2;
+    // Fixed: start, lantern, 2 × (wing rooms + key), gate, set-piece, lantern, miniboss, exit; and P (before the
+    // fork) holds at least one room.
+    const fixed = 9 + wingKinds.length * 2;
+    if (!axisSlots.length) axisSlots.push('traverse');
     while (fixed + axisSlots.length < nMin) axisSlots.push('traverse');
     if (fixed + axisSlots.length > nMax) continue;
     const order = shuffle(axisSlots, rng);
@@ -278,6 +301,8 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
     const P = order.slice(0, pN);
     const Q = order.slice(pN);
     if (P.length === 0) P.push('traverse');
+    // Past the gate, a fight before the next lantern (as the loop dimensions have), when there's one to place.
+    if (plain > 0 && !Q.includes('combat') && !sp.combat) continue;
     const seq: { kind: NodeKind; setPiece?: boolean; wing?: 0 | 1 }[] = [{ kind: 'start' }, ...P.map((kind) => ({ kind })), { kind: 'lantern' }];
     for (const w of [0, 1] as const) {
       for (const kind of wingKinds) seq.push({ kind, wing: w });
@@ -336,9 +361,9 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
       nd.kit = nd.template && (nd.kind === 'combat' || nd.kind === 'key') ? dim.templateKits[nd.template] : rng.pick(kitsFor(dim, s, sp));
       if (s.wing === 0) nodes[wings[1][wings[0].indexOf(nd.id)]].kit = nd.kit;
     }
-    // Branches: a mirrored pair off the wing rooms before the keys.
+    // Branches: a mirrored pair off the wings' first rooms (the keys', when the keys stand off the lantern).
     const want = rng.int(dim.branches[0], dim.branches[1]);
-    if (want >= 2 && wingKinds.length) {
+    if (want >= 2) {
       for (const w of [0, 1] as const) {
         const id = nodes.length;
         nodes.push({ id, kind: 'branch', kit: dim.nodeKits.branch, index: -1, template: null, vista: false, lantern: false, host: wings[w][0] });

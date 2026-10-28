@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEVIL_DIMENSION, JUSTICE_DIMENSION as DIM } from '../src/world/dimensions';
 import { isCombat } from '../src/world/gen-graph';
 import { attemptLevel, generateLevel, type LevelLayout } from '../src/world/gen-level';
-import { connLength, obbOverlap, roomObb, segmentsOf, toLocal, wrapAngle } from '../src/world/gen-space';
+import { connLength, obbOverlap, roomObb, segmentsOf, sidePoint, toLocal, wrapAngle } from '../src/world/gen-space';
 import { rangedMinDistance } from '../src/enemies/foe-ai';
 import { tuning } from '../src/tuning';
 import { checkGraph, checkSockets, checkSpace, landmarkVisible, segmentHitsBox, validate, type LevelParts } from '../src/world/gen-validate';
@@ -175,7 +175,8 @@ describe('level generator: space', () => {
   it('places the landmark beyond the exit and keeps it in sight from the spawn and every vista', () => {
     for (const { layout: L } of levels) {
       const exit = L.space.rooms[L.space.rooms.findIndex((r) => r.node === L.graph.critical[L.graph.critical.length - 1])];
-      expect(L.dressing.landmark.z).toBeLessThan(exit.z - exit.sz / 2 - DIM.landmark.beyondExit + 1e-6);
+      // Up the axis from the exit's doorway (past the gate the way swings, so the exit may stand turned).
+      expect(L.dressing.landmark.z).toBeLessThan(sidePoint(exit, 'front').z - DIM.landmark.beyondExit + 1e-6);
       const p = parts(L);
       const s = L.dressing.spawn;
       expect(landmarkVisible(p, s.x, s.y, s.z)).toBe(true);

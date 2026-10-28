@@ -9,14 +9,14 @@ import { AREAS, GEAR, JUSTICE } from '../render/palette';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import type { DimensionDef } from './dimensions';
-import { COVER, EDGE, type Box, type Hoard, type Key } from './gen-dress';
+import { COVER, EDGE, PAN, type Box, type Hoard, type Key } from './gen-dress';
 import { TOWER, towerOffset } from './gen-sight';
 import { Decks } from './decks';
 import { tuning } from '../tuning';
 import { DEVIL_FOES } from '../render/palette';
 import type { LevelLayout, LevelReport } from './gen-level';
 import { fwdOf, landingFlat, landingRadius, rightOf, segmentsOf, toWorld, type Connector, type Room } from './gen-space';
-import { block, columnGeo, facet, flameGeo, gateGeo, gateTowerGeo, hungChainGeo, panGeo, weightGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, MOON_R, moonTowersGeo, reedGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
+import { block, columnGeo, facet, flameGeo, gateGeo, gateTowerGeo, hungChainGeo, panDishGeo, panPostGeo, weightGeo, grassTuftGeo, hillGeo, hoardGeo, hoardTellGeo, MOON_R, moonTowersGeo, reedGeo, rubbleGeo, TOWER_GLOW, towerGeo, LANTERN_GLASS, lanternGlassGeo, lanternPostGeo, PEDESTAL_BRAZIER_Z, PEDESTAL_FLAME, pedestalGeo, pitPillarGeo, scalesGeo, shade, swordGeo } from './kit';
 
 /** The surfaces of the dimension being built (set at the top of buildLevel; the helpers below read it). */
 let S = JUSTICE.surfaces;
@@ -25,6 +25,8 @@ const FOUNDATION = 34;
 
 const _q = new THREE.Quaternion();
 const _e = new THREE.Euler();
+/** How far a hidden stone's shadow caster stands above the drawn boardwalk (its shadow falls on the lie). */
+const STONE_SHADE = 0.35;
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
@@ -56,6 +58,8 @@ export interface LevelWorld extends BuiltWorld {
   onWeight?: (k: Key, count: number) => string;
   /** The pan ridden back to the mid lantern (set by the game, which carries her). */
   onRide?: (k: Key) => string | null;
+  /** Justice: each pan's dish and chains (left, right), carried with her on the ride; `home` is where it hangs. */
+  pans: { dish: THREE.Object3D; home: THREE.Vector3 }[];
 }
 
 export function buildLevel(layout: LevelLayout, report: LevelReport, dim: DimensionDef, physics: Physics): LevelWorld {
@@ -113,18 +117,23 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   if (decks) group.add(decks.group);
 
   // ---- connectors: causeway decks on piers, or stairs; parapets both sides unless walled
-  // The Moon's false paths: the boardwalk is drawn, but it casts no shadow on the water and nothing holds you up.
+  // The Moon's false paths: the boardwalk is drawn, but it casts no shadow on the water and nothing holds you up. It
+  // does take shadows: the stones under it lay theirs across it, so the way over shows on the lie itself.
   const noBox: StaticBox = () => {};
   const noHull: StaticHull = () => {};
   const staticCylinder: StaticCylinder = (x, y, z, hh, r) => physics.addStatic(RAPIER.ColliderDesc.cylinder(hh, r).setTranslation(x, y, z));
   const noCylinder: StaticCylinder = () => {};
-  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, far, far, noBox, noHull, noCylinder) : connectorGeo(c, solid, far, staticBox, staticHull, staticCylinder)));
-  // ...and under it, the way that is there: stepping stones no one can see, which cast their shadows on the water.
+  space.connectors.forEach((c, i) => (dr.falsePaths.includes(i) ? connectorGeo(c, flat, far, noBox, noHull, noCylinder) : connectorGeo(c, solid, far, staticBox, staticHull, staticCylinder)));
+  // ...and under it, the way that is there: stepping stones no one can see, which cast their shadows on the water and
+  // on the drawn boardwalk (their shadow casters stand a little proud of it; after the first playtest the shadows
+  // fell only on the water, under the boardwalk, where no one could see them).
   if (dr.stones.length) {
-    const casters = dr.stones.map((st) => place(new THREE.BoxGeometry(st.size, 0.4, st.size), st.x, st.y - 0.2, st.z, 0, st.yaw, 0));
+    const casters = dr.stones.map((st) => place(new THREE.BoxGeometry(st.size, 0.4 + STONE_SHADE, st.size), st.x, st.y - 0.2 + STONE_SHADE / 2, st.z, 0, st.yaw, 0));
     for (const st of dr.stones) staticBox(st.x, st.y - 0.2, st.z, st.size / 2, 0.2, st.size / 2, yawQ(st.yaw));
     // Drawn into the shadow map only: no colour, no depth in the view.
-    const hidden = new THREE.Mesh(merge(casters), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+    // Front faces into the shadow map: the default (back faces) put each stone's underside there, below the boardwalk,
+    // so the boardwalk took only the outlines of its sides.
+    const hidden = new THREE.Mesh(merge(casters), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, shadowSide: THREE.FrontSide }));
     hidden.castShadow = true;
     hidden.receiveShadow = false;
     group.add(hidden);
@@ -325,16 +334,23 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
   }
 
   // ---- Justice's weights and pans: set the weight in its pan, and the pan carries her back to the mid lantern
-  const PAN_R = 1.7;
+  const PAN_R = PAN.r;
   const panLabel = ['left', 'right'];
+  const pans: LevelWorld['pans'] = [];
   for (const k of dr.keys) {
     const at = new THREE.Vector3(k.x, k.y + 1.0, k.z);
     const weight = meshOf(weightGeo(P.accent, S.dark), mat);
     weight.position.copy(at);
     group.add(weight);
-    // The pan faces the room's middle, its post on the outside.
+    // The pan faces the room's middle, its post on the outside. The post stays; the dish and its chains ride.
     const toMid = Math.atan2(k.x - k.pan.x, k.z - k.pan.z);
-    solid.push(place(panGeo(PAN_R, P.accent, GEAR.metalDark, S.mid), k.pan.x, k.pan.y, k.pan.z, 0, toMid + Math.PI / 2, 0));
+    solid.push(place(panPostGeo(PAN_R, S.mid), k.pan.x, k.pan.y, k.pan.z, 0, toMid + Math.PI / 2, 0));
+    const dish = new THREE.Group();
+    dish.add(meshOf(panDishGeo(PAN_R, P.accent, GEAR.metalDark), mat));
+    dish.position.set(k.pan.x, k.pan.y, k.pan.z);
+    dish.rotation.y = toMid + Math.PI / 2;
+    group.add(dish);
+    pans[k.wing] = { dish, home: dish.position.clone() };
     staticCylinder(k.pan.x, k.pan.y + 0.35, k.pan.z, 0.15, PAN_R);
     const glow = glowPool(new THREE.Vector3(k.x, k.y, k.z), 2.6, P.accent);
     glow.position.y = k.y + 0.06;
@@ -346,7 +362,10 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
       usable: () => !weighted[k.wing],
       use: () => {
         weighted[k.wing] = true;
-        weight.position.set(k.pan.x, k.pan.y + 0.5, k.pan.z);
+        // Into the dish: it rides with it from now on.
+        dish.add(weight);
+        weight.position.set(0, 0.5, 0);
+        weight.updateMatrix();
         glow.visible = false;
         const n = weighted.filter(Boolean).length;
         return world.onWeight?.(k, n) ?? (n === 2 ? 'Both pans are weighted: the axis gate lifts.' : `The ${panLabel[k.wing]} pan is weighted (${n} of 2).`);
@@ -510,6 +529,7 @@ export function buildLevel(layout: LevelLayout, report: LevelReport, dim: Dimens
     decks,
     shortcutOpen: () => open,
     weighted,
+    pans,
   });
   return world as LevelWorld;
 }
@@ -643,6 +663,15 @@ function connectorGeo(c: Connector, solid: THREE.BufferGeometry[], far: THREE.Bu
     solid.push(place(facet(new THREE.CylinderGeometry(F, F, 1.0, 12).translate(0, -0.5, 0), S.mid, 0.05), b.x, y, b.z));
     solid.push(place(paint(new THREE.CircleGeometry(F - 0.05, 12).rotateX(-Math.PI / 2), S.light), b.x, y + 0.025, b.z));
     cylinder(b.x, y - 0.5, b.z, 0.5, F);
+    // Each run's deck carried in to the middle: the disc is round and the runs end square, which left a notch with
+    // no floor beside the parapet where they met (she caught in it, cutting the corner).
+    for (const g of [a, o]) {
+      const gy = Math.atan2(g.bx - g.ax, g.bz - g.az);
+      const mx = (g.ax + g.bx) / 2;
+      const mz = (g.az + g.bz) / 2;
+      solid.push(place(block(c.width, 1.0, g.len, S.mid, 0.05), mx, y - 1.0, mz, 0, gy, 0));
+      staticBox(mx, y - 0.5, mz, c.width / 2, 0.5, g.len / 2, yawQ(gy));
+    }
     far.push(place(block(R * 1.2, FOUNDATION, R * 1.2, S.dark, 0.06), b.x, y - 1 - FOUNDATION, b.z));
     // The openings: back along the run in, and along the run out (angles round the landing, in x/z).
     const opens = [Math.atan2(a.az - a.bz, a.ax - a.bx), Math.atan2(o.bz - o.az, o.bx - o.ax)];

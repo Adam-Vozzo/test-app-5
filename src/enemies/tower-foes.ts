@@ -329,7 +329,7 @@ export class TowerFoe extends Foe {
       const n = a.count ?? 2;
       for (let i = 0; i < n; i++) {
         const ang = this.yaw + Math.PI + (i - (n - 1) / 2) * 0.9;
-        w.summon(a.spawn ?? 'firebrand', _v.set(this.ground.x - Math.sin(ang) * 3, this.ground.y, this.ground.z - Math.cos(ang) * 3), this.yaw);
+        w.summon(a.spawn ?? 'firebrand', _v.set(this.ground.x - Math.sin(ang) * 3, this.ground.y, this.ground.z - Math.cos(ang) * 3), this.yaw, false, this);
       }
     }
     return null;

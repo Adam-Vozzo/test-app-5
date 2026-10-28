@@ -33,7 +33,7 @@ describe("the Moon's marsh (illusion, but fair)", () => {
   });
   it('false paths are only ever branches, each with a hidden way across, and the cache beyond is real', () => {
     for (const { layout: L } of levels) {
-      expect(L.dressing.falsePaths.length).toBe(Math.min(DIM.illusion!.falseBranches, L.space.connectors.filter((c) => c.kind === 'branch').length));
+      expect(L.dressing.falsePaths.length).toBe(Math.min(DIM.illusion!.falseBranches[L.level], L.space.connectors.filter((c) => c.kind === 'branch').length));
       for (const i of L.dressing.falsePaths) expect(L.space.connectors[i].kind).toBe('branch');
       // Stones only where there are false paths; reading their shadows earns a real cache.
       expect(L.dressing.stones.length > 0).toBe(L.dressing.falsePaths.length > 0);

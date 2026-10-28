@@ -204,8 +204,12 @@ export function segmentsOf(c: Connector): Seg[] {
     const uz = (bz - az) / len;
     const fromBend = i > 0;
     const toBend = i + 1 < pts.length - 1;
-    const a = fromBend ? Math.min(F, len / 2) : 0;
-    const b = toBend ? Math.max(a, len - Math.min(F, len / 2)) : len;
+    // A landing keeps its whole disc flat: between two landings they share a short run; from a door (kept STUB from a
+    // bend) the climb takes what's left. (Halving a door's run as well cut a landing short of its disc, and the disc's
+    // rim stood proud of the stairs' top: a lip she caught on.)
+    const flat = fromBend && toBend ? Math.min(F, len / 2) : Math.min(F, len);
+    const a = fromBend ? flat : 0;
+    const b = toBend ? Math.max(a, len - flat) : len;
     if (fromBend) pieces.push([ax, az, ax + ux * a, az + uz * a, true, 'start']);
     pieces.push([ax + ux * a, az + uz * a, ax + ux * b, az + uz * b, false, null]);
     if (toBend) pieces.push([ax + ux * b, az + uz * b, bx, bz, true, 'end']);
@@ -426,6 +430,8 @@ class Layout {
       const out = sidePoint(a, as).yaw;
       let turn = wrapAngle(want - out) + this.rng.range(-0.08, 0.08) * (attempt > 0 ? 1 : 0);
       turn = Math.max(-opts.maxBend, Math.min(opts.maxBend, turn));
+      // A gentle turn runs straight (the next room makes it up): every landing is ten metres of flat walking.
+      if (Math.abs(turn) < (this.dim.layout.straightUnder ?? 0)) turn = 0;
       const rise = Math.abs(b.y - a.y) / this.dim.connector.maxSlope;
       const bent = Math.abs(turn) >= STRAIGHT;
       // A landing's disc is level: a bent run climbs only off it.
@@ -676,7 +682,7 @@ function embedPath(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | null {
         const placedBefore = L.rooms.length;
         const connBefore = L.connectors.length;
         // How far out the last room's back door will be (laid straight back from the gate), and a margin past it.
-        const reach = gate.d / 2 + midLen + lastRoom.d + rng.range(5, 12) + attempt * 3;
+        const reach = gate.d / 2 + midLen + lastRoom.d + rng.range(3, 7) + attempt * 3;
         let prev = lantern;
         let prevSides: Side[] = [S];
         let good = true;
@@ -822,6 +828,10 @@ function embedWeighing(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nu
   const start = rooms.get(axis[0])!;
   standAt(start, 0, 0, 0);
   L.rooms.push(start);
+  // Past the gate nothing need mirror: the way swings off the axis, side to side, drawn back if it strays far.
+  const [s0, s1] = lay.swingPast ?? [0, 0];
+  let swing = rng.chance(0.5) ? 1 : -1;
+  let past = false;
   for (let i = 1; i < axis.length; i++) {
     const a = rooms.get(axis[i - 1])!;
     const b = rooms.get(axis[i])!;
@@ -832,22 +842,32 @@ function embedWeighing(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nu
       standAt(b, p.x + p.nx * len, p.z + p.nz * len, 0);
       if (!L.fits(b)) return fail("the gate wouldn't fit");
       L.rooms.push(b);
+      past = true;
       continue;
     }
     const f = L.framing(axis[i], dim.connector.length[1]);
-    if (L.step(a, ['front'], b, 0, { ...f, maxBend: 0 }) < 0) return fail("a room on the axis wouldn't fit");
+    let want = 0;
+    if (past && s1 > 0) {
+      // Left of the axis is -x (yaw 0 faces -z); a positive yaw turns left.
+      swing = a.x < -24 ? -1 : a.x > 24 ? 1 : rng.chance(0.7) ? -swing : swing;
+      want = swing * rng.range(s0, s1);
+    }
+    if (L.step(a, ['front'], b, want, { ...f, maxBend: past ? lay.bend : 0 }) < 0) return fail("a room on the axis wouldn't fit");
   }
   const hub = rooms.get(hubId)!;
-  // The left wing: out of the lantern's left side, bending forward toward the scales at each room.
+  // The left wing: out of the lantern's left side, swept like an arm of the scales: forward toward them, straight
+  // out, or back (one sweep per level, so the wings read as a pair of arms).
   let prev = hub;
   let side: Side = 'left';
   const wingStart = L.connectors.length;
+  const r = rng();
+  const sweep = r < 0.5 ? 1 : r < 0.75 ? 0 : -1;
   for (let i = 0; i < left.length; i++) {
     const b = rooms.get(left[i])!;
     const out = sidePoint(prev, side).yaw;
-    // Bend toward the axis heading (forward), a little more at each room.
+    // Turning right (toward the axis's far end) is a negative yaw.
     const [b0, b1] = lay.wingBend ?? [0.35, 0.65];
-    const want = out - rng.range(b0, b1);
+    const want = out - sweep * rng.range(b0, b1) + (sweep === 0 ? rng.range(-0.15, 0.15) : 0);
     const f = L.framing(left[i], dim.connector.length[1]);
     if (L.step(prev, [side], b, want, { ...f, maxBend: lay.bend }) < 0) return fail("a wing room wouldn't fit");
     prev = b;
@@ -899,7 +919,8 @@ function embedWeighing(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nu
     const twin = branches.find((o) => o.host === right[left.indexOf(nd.host)]);
     // Outward: the side whose doorway faces away from the axis's far end.
     const s: Side = sidePoint(host, 'left').nz > sidePoint(host, 'right').nz ? 'left' : 'right';
-    if (!L.branch(host, nd.id, [s])) return fail("a branch wouldn't fit");
+    // (Or off its far end, when the wing sweeps back and the outer side is crowded.)
+    if (!L.branch(host, nd.id, [s, 'front'])) return fail("a branch wouldn't fit");
     if (!twin) continue;
     const br = L.rooms[L.rooms.length - 1];
     const k = L.connectors.length - 1;
@@ -913,7 +934,7 @@ function embedWeighing(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nu
   const last = rooms.get(axis[axis.length - 1])!;
   lastExitDoor(last);
   const [sx, sz] = toWorld(start, 0, -start.d / 2);
-  return { rooms: L.rooms, connectors: L.connectors, shortcut: L.connectors.findIndex((c) => c.kind === 'shortcut'), landmark: beyond(dim, last, sx, sz) };
+  return { rooms: L.rooms, connectors: L.connectors, shortcut: L.connectors.findIndex((c) => c.kind === 'shortcut'), landmark: beyond(dim, last, sx, sz, 0) };
 }
 
 function shuffle<T>(ds: T[], rng: Rng) {

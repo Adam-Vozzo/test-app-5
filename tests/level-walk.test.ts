@@ -34,10 +34,13 @@ describe('walking the stairs of generated levels', () => {
             const segs = segmentsOf(k);
             const hug = k.width / 2 - tuning.player.capsuleRadius - 0.05;
             // Down the middle and hugging either parapet, through every landing, steering as a player would; on a
-            // straight one, also coming at the foot from the side.
-            const lanes: [number, number][] = [[0, 0], [hug, 0], [-hug, 0]];
-            if (!k.bends.length) lanes.push([hug, 1], [-hug, 1]);
-            for (const [o, side] of lanes)
+            // straight one, also coming at the foot from the side; on a turning one, also cutting each landing's
+            // corner (a short run left the landing's rim standing proud of the stairs, and a notch beside the
+            // parapet where the runs met the disc: both caught her there).
+            const lanes: [number, number, boolean][] = [[0, 0, false], [hug, 0, false], [-hug, 0, false]];
+            if (!k.bends.length) lanes.push([hug, 1, false], [-hug, 1, false]);
+            else lanes.push([hug, 0, true], [-hug, 0, true]);
+            for (const [o, side, cut] of lanes)
               for (const up of [true, false]) {
                 const runs = up ? segs : [...segs].reverse().map((g) => ({ ...g, ax: g.bx, az: g.bz, ay: g.by, bx: g.ax, bz: g.az, by: g.ay }));
                 // Lateral offset `o` metres right of each run.
@@ -48,6 +51,8 @@ describe('walking the stairs of generated levels', () => {
                   const uz = (g.bz - g.az) / g.len;
                   const into = g.landing === (up ? 'end' : 'start');
                   const outOf = g.landing === (up ? 'start' : 'end');
+                  // Cutting the corner: from the end of one run straight to the start of the next, in the lane.
+                  if (cut && g.landing) continue;
                   pts.push(outOf ? [g.ax, g.az] : [g.ax - uz * o, g.az + ux * o], into ? [g.bx, g.bz] : [g.bx - uz * o, g.bz + ux * o]);
                 }
                 const f = runs[0];
@@ -75,7 +80,7 @@ describe('walking the stairs of generated levels', () => {
                 walked++;
                 const left = Math.hypot(c.pos.x - goal[0], c.pos.z - goal[1]);
                 const yb = up ? k.y1 : k.y0;
-                if (left > 1.2 || Math.abs(c.pos.y - yb) > 0.6) stuck.push(`${dim} seed ${seed} L${level + 1} conn ${i} (${k.bends.length} landings) lane ${o.toFixed(1)} from ${side} ${up ? 'up' : 'down'}: ${left.toFixed(1)} m short at (${c.pos.x.toFixed(1)}, ${c.pos.y.toFixed(2)}, ${c.pos.z.toFixed(1)})`);
+                if (left > 1.2 || Math.abs(c.pos.y - yb) > 0.6) stuck.push(`${dim} seed ${seed} L${level + 1} conn ${i} (${k.bends.length} landings) lane ${o.toFixed(1)} from ${side}${cut ? ' cutting corners' : ''} ${up ? 'up' : 'down'}: ${left.toFixed(1)} m short at (${c.pos.x.toFixed(1)}, ${c.pos.y.toFixed(2)}, ${c.pos.z.toFixed(1)})`);
               }
           });
           // The ramps up to a nest's raised tier, in and out.

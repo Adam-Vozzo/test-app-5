@@ -4,7 +4,7 @@
 //     you; the tell is the draught: the true cup is full of moonlight and shines, the poisoned one is dark.
 //   Queen (control): lines of thrown blades, and two copies of herself; she trades places with one. Only she casts a
 //     shadow and makes footsteps.
-//   King (command): throned on the water, he sends tidal waves down the room, the full width but for one gap; his
+//   King (command): throned on the water, he sends tidal waves down the room, wall to wall: roll through them; his
 //     wolves come at each phase.
 //   The Shadow (the arcana): the Moon's light casts the Eight of Swords' own shadow, and it fights with her moves (the
 //     pistol's quick shots, the rifle's heavy bolt, the three-swing combo, the charged strike); it rolls out of your
@@ -281,7 +281,6 @@ const SOLID = groups(G.QUERY, G.WORLD);
 /** The Cups court: the rank verbs of CourtCard, plus the cup, the mirror and the wave. */
 export class CupsCard extends CourtCard {
   private waveKeys = Array.from({ length: 12 }, () => ({}));
-  private waveGap = 0;
   /** Its reflections still standing (the Queen's copies, the Shadow's split). */
   protected copies: Foe[] = [];
 
@@ -319,7 +318,7 @@ export class CupsCard extends CourtCard {
       _dir.set(-Math.sin(a), 0, -Math.cos(a));
       const hit = w.physics.raycast(_p.copy(this.center), _dir, 4.5, SOLID);
       const d = Math.max(1.2, (hit ? hit.distance : 4.5) - 0.8);
-      const c = w.summon(this.id, _v.copy(this.ground).addScaledVector(_dir, d), this.yaw, true);
+      const c = w.summon(this.id, _v.copy(this.ground).addScaledVector(_dir, d), this.yaw, true, this);
       if (c instanceof Foe) made.push(c);
     }
     this.copies.push(...made);
@@ -365,12 +364,8 @@ export class CupsCard extends CourtCard {
       const fz = -Math.cos(this.yaw);
       this.vel.multiplyScalar(Math.exp(-10 * dt));
       if (tl.phase === 'windup') {
-        if (!this.gapPicked) {
-          this.gapPicked = true;
-          this.waveGap = 1 + Math.floor(this.rng() * (lanes - 2));
-        }
-        // The wave's path, drawn on the water: every lane but the gap.
-        volleyOffsets(lanes, spacing, this.waveGap, tl.mirrored).forEach((o, i) => {
+        // The wave's path, drawn on the water: the full width, no gap. Roll through it.
+        volleyOffsets(lanes, spacing, -1, false).forEach((o, i) => {
           _p.set(this.ground.x - fz * o, this.ground.y, this.ground.z + fx * o);
           w.hazards.lane(this.waveKeys[i], _p, this.yaw, a.range * 0.9, spacing * 0.92, tl.k);
         });
@@ -378,10 +373,8 @@ export class CupsCard extends CourtCard {
       }
       if (tl.phase === 'active' && starting) {
         this.hideWaves();
-        const g = tl.mirrored ? lanes - 1 - this.waveGap : this.waveGap;
-        const gapAt = (g - (lanes - 1) / 2) * spacing;
         _p.set(this.ground.x + fx * 1.2, this.ground.y, this.ground.z + fz * 1.2);
-        w.hazards.wave(_p, this.yaw, lanes * spacing, gapAt, spacing, a.speed ?? 12, a.range, a.damage, a.knockback);
+        w.hazards.wave(_p, this.yaw, lanes * spacing, 0, 0, a.speed ?? 12, a.range, a.damage, a.knockback);
         w.sound('wave', this.center);
         w.shake(0.3, this.center);
       }

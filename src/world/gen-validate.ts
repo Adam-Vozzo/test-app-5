@@ -1,7 +1,7 @@
 // Level generation, layer 6 (LEVELS.md → Validation): a generated level must pass every check, or the caller
 // re-rolls it. Pure: no Three/DOM. Each check returns the reasons it failed (empty = pass).
 import type { DimensionDef } from './dimensions';
-import { doorCells, EDGE, inRoom, type Dressing, type Furnishing, type Socket } from './gen-dress';
+import { doorCells, EDGE, inRoom, PAN, type Dressing, type Furnishing, type Socket } from './gen-dress';
 import { landmarkPoints, occludersOf, seesFrom, spotsIn, type Occluder } from './gen-sight';
 import { connected } from './scaffold';
 import { isCombat, type LevelScript, type MissionGraph } from './gen-graph';
@@ -249,10 +249,10 @@ export function checkLandmark(p: LevelParts): string[] {
 
 /**
  * The card's shape (LEVELS.md → Space): the meaning, checked. Justice weighs two mirrored wings, a key at the end of
- * each, and the axis gate opens on both; the Devil only goes down and the Tower only up; the Moon's true ways pass
- * between two towers and its false paths never do.
+ * each, and the axis gate opens on both; the Devil only goes down and the Tower only up; the Moon's true ways (its
+ * true branches too) pass between two towers and its false paths never do.
  */
-export function checkShape({ dim, graph, space, dressing }: LevelParts): string[] {
+export function checkShape({ dim, graph, space, furn, dressing }: LevelParts): string[] {
   const out: string[] = [];
   const byNode = (id: number) => space.rooms.find((r) => r.node === id)!;
   if (dim.layout.kind === 'weighing') {
@@ -267,6 +267,22 @@ export function checkShape({ dim, graph, space, dressing }: LevelParts): string[
       if (Math.abs(2 * hub.x - a.x - b.x) > 1e-6 || Math.abs(a.z - b.z) > 1e-6 || Math.abs(wrapAngle(a.yaw + b.yaw)) > 1e-6 || a.w !== b.w || a.d !== b.d || a.kit !== b.kit) out.push(`shape: wing rooms ${id} and ${w[1][i]} don't mirror`);
     });
     if (dressing.keys.length !== 2 || dressing.keys[0].wing === dressing.keys[1].wing) out.push('shape: not one key in each pan');
+    // Each pan stands clear: nothing solid (cover, a tier, a column, the weight) within its reach.
+    for (const k of dressing.keys) {
+      const buried =
+        furn.boxes.some((b) => {
+          if (b.kind === 'edge' || b.kind === 'wall' || Math.abs(b.y - k.pan.y) > 3) return false;
+          const [u, v] = toLocal({ x: b.x, z: b.z, yaw: b.yaw }, k.pan.x, k.pan.z);
+          return Math.hypot(Math.max(0, Math.abs(u) - b.sx / 2), Math.max(0, Math.abs(v) - b.sz / 2)) < PAN.reach;
+        }) ||
+        furn.columns.some((c) => Math.abs(c.y - k.pan.y) < 3 && Math.hypot(c.x - k.pan.x, c.z - k.pan.z) < PAN.reach + 0.65) ||
+        furn.ramps.some((rp) => {
+          const len = Math.hypot(rp.x1 - rp.x0, rp.z1 - rp.z0);
+          const t = Math.max(0, Math.min(1, ((k.pan.x - rp.x0) * (rp.x1 - rp.x0) + (k.pan.z - rp.z0) * (rp.z1 - rp.z0)) / (len * len)));
+          return Math.hypot(rp.x0 + (rp.x1 - rp.x0) * t - k.pan.x, rp.z0 + (rp.z1 - rp.z0) * t - k.pan.z) < PAN.reach + rp.width / 2;
+        });
+      if (buried) out.push(`shape: the ${k.wing ? 'right' : 'left'} pan is buried in the room's furniture`);
+    }
     if (dressing.door.opens !== 'keys') out.push('shape: the axis gate must open on the keys');
   } else if (dressing.keys.length) out.push('shape: keys outside Justice');
   if (dim.layout.kind === 'spiral') {
@@ -282,10 +298,12 @@ export function checkShape({ dim, graph, space, dressing }: LevelParts): string[
     }
   }
   if (dim.gateway === 'towers') {
-    const ways = space.connectors.filter((c) => c.kind !== 'branch').length;
+    // Every true way (branches too) stands between towers; a false path never does.
+    const ways = space.connectors.length - dressing.falsePaths.length;
     if (dressing.towers.length !== ways) out.push(`shape: ${dressing.towers.length} of ${ways} true ways stand between towers`);
-    for (const c of space.connectors.filter((c) => c.kind === 'branch')) {
-      if (dressing.towers.some((t) => Math.hypot(t.x - c.bx, t.z - c.bz) < 0.5)) out.push('shape: towers at a branch (a false way must not have them)');
+    for (const i of dressing.falsePaths) {
+      const c = space.connectors[i];
+      if (dressing.towers.some((t) => Math.hypot(t.x - c.bx, t.z - c.bz) < 0.5)) out.push('shape: towers at a false path (it must not have them)');
     }
   } else if (dressing.towers.length) out.push('shape: towers outside the Moon');
   return out;

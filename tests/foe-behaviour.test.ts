@@ -7,6 +7,9 @@ import { makeArena } from './support/arena';
 import { tuning } from '../src/tuning';
 import { CourtCard, COURT_PLANS } from '../src/enemies/court';
 import { ShadowBoss } from '../src/enemies/court-cups';
+import { EnemyManager } from '../src/enemies/manager';
+import type { Hostile } from '../src/enemies/enemy';
+import './support/dom';
 
 describe('foes in a real fight', () => {
   it('a Blindfold that lost you and finds you again attacks (it does not stand there)', async () => {
@@ -18,6 +21,19 @@ describe('foes in a real fight', () => {
     foe.alert(a.player);
     // Six metres off: it should be cutting at her within a couple of seconds, not standing beside her searching.
     a.run(2.5);
+    expect(a.log.hurt).toBeGreaterThan(0);
+  });
+  it('a Blindfold that heard you comes to the spot and cuts there, even if you stand quiet a step away', async () => {
+    const a = await makeArena();
+    const foe = new Foe(PLANS.blindfold, a.scene, a.physics, new THREE.Vector3(0, 0, -12), 0, 'stand', makeRng(12));
+    a.enemies.push(foe);
+    a.player.set(0, 0, 0);
+    // A shot from where she stands; then she steps aside, silent, and waits.
+    a.noises.push({ x: 0, y: 1, z: 0, r: 42 });
+    a.run(0.1);
+    a.noises.length = 0;
+    a.player.set(3.4, 0, 0);
+    a.run(6);
     expect(a.log.hurt).toBeGreaterThan(0);
   });
   it('a Bailiff that lost sight of you for a while comes back to the fight when it sees you', async () => {
@@ -104,5 +120,24 @@ describe('foes in a real fight', () => {
     }
     expect(gaps.size).toBeGreaterThan(2);
     expect(gaps.has(0)).toBe(false);
+  });
+  it('what a court card calls up goes when it falls: its squad and its reflections, for nothing', async () => {
+    const a = await makeArena(30);
+    const m = new EnemyManager(a.scene, a.hazards);
+    const killed: Hostile[] = [];
+    m.onKilled = (e) => killed.push(e);
+    a.w.summon = (id, pos, yaw, illusion, maker) => m.summon(id, pos, yaw, a.player, a.physics, makeRng(9), illusion, maker);
+    const [king] = m.spawnFoes([{ id: 'king', pos: new THREE.Vector3(0, 0, -12), yaw: 0, idle: 'stand' }], a.physics, makeRng(8));
+    const stray = m.summon('bailiff', new THREE.Vector3(8, 0, -8), 0, a.player, a.physics, makeRng(11));
+    const squad = [0, 1].map((i) => a.w.summon('bailiff', new THREE.Vector3(i * 3 - 1.5, 0, -9), 0, false, king)!);
+    const copy = a.w.summon('bailiff', new THREE.Vector3(4, 0, -10), 0, true, king)!;
+    expect(squad.every((e) => e.alive) && copy.alive).toBe(true);
+    king.takeDamage({ amount: 1e6, stagger: 0, knockback: 0, dir: new THREE.Vector3(0, 0, -1), part: 'body' } as never);
+    expect(king.alive).toBe(false);
+    expect(squad.some((e) => e.alive) || copy.alive).toBe(false);
+    // Nothing for the ones that went with him; a summon with no maker (a hoard's ambush) stays.
+    expect(squad.every((e) => e.reward === 0)).toBe(true);
+    expect(stray.alive).toBe(true);
+    expect(killed.length).toBe(4);
   });
 });

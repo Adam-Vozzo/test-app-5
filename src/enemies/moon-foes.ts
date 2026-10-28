@@ -446,7 +446,7 @@ export class MoonFoe extends Foe {
       const n = Math.min(a.count ?? 2, 4 - this.fish.length);
       for (let i = 0; i < n; i++) {
         const ang = this.yaw + (i - (n - 1) / 2) * 0.8;
-        const f = w.summon(a.spawn ?? 'fish', _v.set(this.ground.x - Math.sin(ang) * 1.6, this.ground.y, this.ground.z - Math.cos(ang) * 1.6), this.yaw);
+        const f = w.summon(a.spawn ?? 'fish', _v.set(this.ground.x - Math.sin(ang) * 1.6, this.ground.y, this.ground.z - Math.cos(ang) * 1.6), this.yaw, false, this);
         if (f) this.fish.push(f);
       }
     }

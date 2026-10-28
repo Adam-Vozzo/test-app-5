@@ -65,23 +65,14 @@ describe('the Cups court', () => {
     expect(tuning.foes.kingCups.attacks.wave.kind).toBe('wave');
     expect(CUPS_PLANS.kingCups.squadId).toBe('wolf');
   });
-  it('a wave always leaves one gap, and its follow-up mirrors it', () => {
-    const w = tuning.foes.kingCups.attacks.flood;
-    const lanes = w.lanes ?? 9;
-    for (let gap = 1; gap < lanes - 1; gap++) {
-      const a = volleyOffsets(lanes, w.spacing ?? 2, gap, false);
-      const b = volleyOffsets(lanes, w.spacing ?? 2, gap, true);
-      expect(a.length).toBe(lanes - 1);
-      expect(b.length).toBe(lanes - 1);
-      // The missing lane of the mirror is the reflection of the first's.
-      const all = Array.from({ length: lanes }, (_, i) => (i - (lanes - 1) / 2) * (w.spacing ?? 2));
-      const gapA = all.find((o) => !a.includes(o))!;
-      const gapB = all.find((o) => !b.includes(o))!;
-      expect(gapB).toBeCloseTo(-gapA, 6);
+  it('a wave runs wall to wall (no gap: roll through it), slow enough to see coming down the room', () => {
+    for (const w of [tuning.foes.kingCups.attacks.wave, tuning.foes.kingCups.attacks.flood]) {
+      const lanes = w.lanes ?? 9;
+      // Every lane drawn on the water, mirrored or not: nothing to step into.
+      expect(volleyOffsets(lanes, w.spacing ?? 2, -1, false).length).toBe(lanes);
+      expect(volleyOffsets(lanes, w.spacing ?? 2, -1, true).length).toBe(lanes);
+      expect(w.range / (w.speed ?? 1)).toBeGreaterThan(1.5);
     }
-    // The gap is wide enough to stand in, and the wave slow enough to see coming down the room.
-    expect(w.spacing ?? 0).toBeGreaterThanOrEqual(2);
-    expect((w.range / (w.speed ?? 1))).toBeGreaterThan(1.5);
   });
   it("a single lane (the Shadow's rifle) has no gap", () => {
     expect(volleyOffsets(1, 1, -1, false)).toEqual([0]);
