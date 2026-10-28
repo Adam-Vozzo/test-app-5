@@ -560,6 +560,7 @@ before it was drawn, so the single-lane "rifle" bolt never fired.
       (`Arsenal.state`/`restore`).
   22. **The sword reaches low:** the lower half of the sweep is also cast down, so it cuts cats and fish at her feet.
   23. **The Shadow's dud:** that was the rifle lane of item 11; it now fires.
+  - Also: the Queen of Pentacles' seeds now fall evenly spaced round you; at random angles, one step could crush two.
   - Tests: `foe-behaviour`, `stairs`, `level-walk`, `arena-walk` and `beast` drive real enemies and the real
     controller on real Rapier (`tests/support`).
   - Smoke: the pact's pause, the false path's stones and the sword cutting a cat at her feet (`--moonfoes`), and the

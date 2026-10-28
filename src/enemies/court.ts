@@ -457,11 +457,13 @@ export class CourtCard extends Foe {
         const n = a.count ?? 1;
         // Shackles close where you stand (and, from phase 2, either side); seeds fall in a ring around you, so
         // trampling one means choosing where to go.
+        // Seeds are spread evenly from a random start, so no one step crushes two.
+        const base = a.kind === 'sow' ? this.rng() * Math.PI * 2 : 0;
         for (let i = 0; i < n; i++) {
           let x = p.x;
           let z = p.z;
           if (a.kind === 'sow' || i > 0) {
-            const ang = this.rng() * Math.PI * 2 * (a.kind === 'sow' ? 1 : 0) + (i / n) * Math.PI * 2;
+            const ang = base + (i / n) * Math.PI * 2;
             const r = a.kind === 'sow' ? 3.5 + this.rng() * 3 : 3.4;
             x += Math.cos(ang) * r;
             z += Math.sin(ang) * r;
