@@ -105,7 +105,19 @@ type Slot = { kind: NodeKind; setPiece?: boolean };
 
 /** Layer 2: the mission graph. Returns null if no order satisfies the constraints (the caller reseeds). */
 export function missionGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
-  return dim.layout.kind === 'weighing' ? weighingGraph(dim, script, rng) : loopGraph(dim, script, rng);
+  if (dim.layout.kind === 'weighing') return weighingGraph(dim, script, rng);
+  // Some scripts have no order at all under the rules (too few rooms to keep fights apart with one past the gate):
+  // give them a traverse more while the level has room for it.
+  for (let more = 0; 6 + loopSlots(script) + more <= dim.criticalNodes[1]; more++) {
+    const g = loopGraph(dim, { ...script, traverse: script.traverse + more }, rng);
+    if (g) return g;
+  }
+  return null;
+}
+
+/** The loop's free slots for a script: the set-piece, the vistas it doesn't give, the plain fights and the traverse. */
+function loopSlots(s: LevelScript) {
+  return 1 + (2 - (s.setPiece.vista ? 1 : 0)) + (s.combats - (s.setPiece.combat ? 1 : 0) - (s.gateGuarded ? 1 : 0)) + s.traverse;
 }
 
 function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGraph | null {
@@ -117,8 +129,8 @@ function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGra
   const m = middle.length;
   const side: 1 | -1 = rng.chance(0.5) ? 1 : -1;
 
-  for (let attempt = 0; attempt < 120; attempt++) {
-    const strict = attempt < 60;
+  for (let attempt = 0; attempt < 400; attempt++) {
+    const strict = attempt < 200;
     const order = shuffle(middle, rng);
     const loopN = rng.int(dim.loop.rooms[0], Math.min(dim.loop.rooms[1], m - 1));
     const pN = rng.int(1, m - loopN);
@@ -156,6 +168,9 @@ function loopGraph(dim: DimensionDef, script: LevelScript, rng: Rng): MissionGra
     if (spIdx < Math.floor(n / 3) || spIdx >= Math.ceil((2 * n) / 3)) continue;
     // The gate is a late node: in the second half.
     if (gateIdx < n / 2) continue;
+    // Past the gate, a fight before the next lantern: dying there sends you back to the mid lantern, and that's when
+    // the shortcut pays. (With the lantern right past the gate, nobody ever used it.)
+    if (!Q.some((s) => s.kind === 'combat' || (s.kind === 'setpiece' && sp.combat))) continue;
     // No two combats back to back, unless the beat is the twist.
     let adjacent = false;
     for (let i = 1; i < n; i++) if (combatAt(i) && combatAt(i - 1)) adjacent = true;
@@ -267,14 +282,17 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
     const wingCombats = wingKinds.filter((k) => k === 'combat').length * 2;
     const combats = rng.int(L.combats[0], L.combats[1]);
     // The keys are fights (2); the rest of the level's fights stand on the axis.
-    const plain = Math.max(0, combats - 2 - wingCombats - (sp.combat ? 1 : 0));
+    // (At least one, for past the gate, unless the set-piece there is a fight.)
+    const plain = Math.max(sp.combat ? 0 : 1, combats - 2 - wingCombats - (sp.combat ? 1 : 0));
     const vistas = Math.max(0, 2 - wingVistas - (sp.vista ? 1 : 0));
     const axisSlots: NodeKind[] = [];
     for (let i = 0; i < vistas; i++) axisSlots.push('vista');
     for (let i = 0; i < plain; i++) axisSlots.push('combat');
     const [nMin, nMax] = dim.criticalNodes;
-    // Fixed: start, lantern, 2 × (wing + key), gate, set-piece, lantern, miniboss, exit.
-    const fixed = 8 + wingKinds.length * 2;
+    // Fixed: start, lantern, 2 × (wing rooms + key), gate, set-piece, lantern, miniboss, exit; and P (before the
+    // fork) holds at least one room.
+    const fixed = 9 + wingKinds.length * 2;
+    if (!axisSlots.length) axisSlots.push('traverse');
     while (fixed + axisSlots.length < nMin) axisSlots.push('traverse');
     if (fixed + axisSlots.length > nMax) continue;
     const order = shuffle(axisSlots, rng);
@@ -283,6 +301,8 @@ function weighingGraph(dim: DimensionDef, script: LevelScript, rng: Rng): Missio
     const P = order.slice(0, pN);
     const Q = order.slice(pN);
     if (P.length === 0) P.push('traverse');
+    // Past the gate, a fight before the next lantern (as the loop dimensions have), when there's one to place.
+    if (plain > 0 && !Q.includes('combat') && !sp.combat) continue;
     const seq: { kind: NodeKind; setPiece?: boolean; wing?: 0 | 1 }[] = [{ kind: 'start' }, ...P.map((kind) => ({ kind })), { kind: 'lantern' }];
     for (const w of [0, 1] as const) {
       for (const kind of wingKinds) seq.push({ kind, wing: w });

@@ -123,13 +123,17 @@ from every vista, not only its unfogged glow (the Devil's throne vanished, its b
 landings** (a level stone disc with a parapet ring, open where the runs meet it). The layouts are composed by the card:
 - **Justice:** the beam and its two pans. The wings bend forward off the axis; each key room holds a **brass weight**
   (the scales' accent) on a stone plinth with a warm glow, and beside it a **pan**: a shallow brass dish slung by
-  three chains from a stone post. Weighted, the weight sits in the pan.
+  three chains from a stone post. Weighted, the weight sits in the pan. *Since V2-17* the dish and its chains ride
+  with her (swaying a little) and swing home after; the post stays. The axis gate's bars stand in a dark arch like
+  every other gate's.
 - **The Devil:** galleries round a pit, open on the side facing the pedestal, which stands at the pit's centre, its
   brazier a little below where the descent begins. **Five great chains** (dark iron links, far scenery) hang from the
   pedestal's crown out to the rim, sagging into the fog under the galleries.
 - **The Tower:** the same galleries round the Tower itself, climbing, the crown always overhead.
 - **The Moon:** every true way's far end stands between **two small towers** (slim square shafts in the island
-  stone, a dark band and a pointed cap, 9 m), the card's two towers in miniature; false paths have none.
+  stone, a dark band and a pointed cap, 9 m), the card's two towers in miniature; false paths have none. *Since
+  V2-17* true branches have them too (7 m), and a false boardwalk carries the hidden stones' shadows: a zig-zag of
+  dark squares across its planks, the only way over.
 
 *As built in V2-13 (`MOON`, Proposed until played):*
 - **Surfaces:** pale silt `#B9C2BD`, marsh teal `#4F7470`, indigo `#3E4466`, shadow `#1B1E2E` and reeds `#8D9A7A`.

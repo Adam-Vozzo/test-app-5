@@ -61,4 +61,13 @@ describe("each dimension's levels take its card's shape (60 levels each)", () =>
   it('later rooms show before they are reached', () => {
     for (const m of Object.values(means)) expect(m.seenEarly).toBeGreaterThan(1);
   });
+
+  it('the pace: a fight every ~120 m walked (V2-16 had stretched it to ~150), and one past every gate', () => {
+    for (const m of Object.values(means)) {
+      expect(m.fights).toBeGreaterThanOrEqual(4);
+      expect(m.perFight).toBeLessThan(125);
+      // Past the gate, a fight before the next lantern: the shortcut (or the opened axis) brings you back to it.
+      expect(m.pastGate).toBeGreaterThanOrEqual(1);
+    }
+  });
 });

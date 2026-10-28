@@ -138,6 +138,8 @@ export interface LayoutDef {
   wingBend?: [number, number];
   /** Justice: past the gate (where nothing need mirror), how far the way swings off the axis at each room. */
   swingPast?: [number, number];
+  /** A turn gentler than this (radians) runs straight instead of turning on a landing; the next room makes it up. */
+  straightUnder?: number;
 }
 
 export interface DimensionDef {
@@ -211,7 +213,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       beat: 'introduce',
       miniboss: 'knight',
       minibossName: 'Knight of Swords',
-      combats: [2, 2],
+      combats: [3, 3],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
@@ -222,7 +224,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       beat: 'develop',
       miniboss: 'queen',
       minibossName: 'Queen of Swords',
-      combats: [2, 3],
+      combats: [3, 4],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
@@ -233,7 +235,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
       beat: 'twist',
       miniboss: 'king',
       minibossName: 'King of Swords',
-      combats: [3, 3],
+      combats: [4, 4],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
@@ -271,7 +273,7 @@ export const JUSTICE_DIMENSION: DimensionDef = {
   },
   nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
-  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
+  connector: { length: [6, 11], width: 5, branchLength: [6, 10], maxSlope: 0.45 },
   // The fork adds rooms: start, the axis, two wings of a room and a key, the gate and the set-piece past it.
   criticalNodes: [10, 14],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
@@ -310,7 +312,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       miniboss: 'knight',
       minibossName: 'Knight of Pentacles',
       court: 'knightPentacles',
-      combats: [2, 2],
+      combats: [3, 3],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
@@ -322,7 +324,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       miniboss: 'queen',
       minibossName: 'Queen of Pentacles',
       court: 'queenPentacles',
-      combats: [2, 3],
+      combats: [3, 4],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
@@ -334,7 +336,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
       miniboss: 'king',
       minibossName: 'King of Pentacles',
       court: 'kingPentacles',
-      combats: [3, 3],
+      combats: [4, 4],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
@@ -350,7 +352,7 @@ export const DEVIL_DIMENSION: DimensionDef = {
   ],
   symmetric: false,
   // The descent: a spiral down the walls of the pit, tightening round the pedestal at its centre.
-  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [120, 70] },
+  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [120, 70], straightUnder: 0.4 },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
     court: { w: [22, 28], d: [24, 30], edge: 'wall', turns: true, floor: 0, ground: 'flag', cover: [4, 5] },
@@ -371,8 +373,8 @@ export const DEVIL_DIMENSION: DimensionDef = {
   },
   nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
-  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
-  criticalNodes: [9, 10],
+  connector: { length: [6, 11], width: 5, branchLength: [6, 10], maxSlope: 0.45 },
+  criticalNodes: [11, 12],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   branches: [1, 2],
   descent: 4,
@@ -415,7 +417,7 @@ export const TOWER_DIMENSION: DimensionDef = {
       miniboss: 'knight',
       minibossName: 'Knight of Wands',
       court: 'knightWands',
-      combats: [2, 2],
+      combats: [3, 3],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
@@ -427,7 +429,7 @@ export const TOWER_DIMENSION: DimensionDef = {
       miniboss: 'queen',
       minibossName: 'Queen of Wands',
       court: 'queenWands',
-      combats: [2, 3],
+      combats: [3, 4],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
@@ -439,7 +441,7 @@ export const TOWER_DIMENSION: DimensionDef = {
       miniboss: 'king',
       minibossName: 'King of Wands',
       court: 'kingWands',
-      combats: [3, 3],
+      combats: [4, 4],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
@@ -455,7 +457,7 @@ export const TOWER_DIMENSION: DimensionDef = {
   ],
   symmetric: false,
   // The climb: a spiral up round the tower itself, never over a floor already climbed.
-  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [110, 80] },
+  layout: { kind: 'spiral', bend: 0.9, loopBend: 1.6, radius: [110, 80], straightUnder: 0.4 },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'flag' },
     court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'flag', cover: [2, 3], scaffold: true },
@@ -477,8 +479,8 @@ export const TOWER_DIMENSION: DimensionDef = {
   },
   nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
-  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
-  criticalNodes: [9, 10],
+  connector: { length: [6, 11], width: 5, branchLength: [6, 10], maxSlope: 0.45 },
+  criticalNodes: [11, 12],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   branches: [1, 2],
   // Always going up.
@@ -517,7 +519,7 @@ export const MOON_DIMENSION: DimensionDef = {
       miniboss: 'knight',
       minibossName: 'Knight of Cups',
       court: 'knightCups',
-      combats: [2, 2],
+      combats: [3, 3],
       enemies: [2, 3],
       templates: ['arena', 'patrol', 'guarded', 'signature'],
       mustInclude: ['signature'],
@@ -529,7 +531,7 @@ export const MOON_DIMENSION: DimensionDef = {
       miniboss: 'queen',
       minibossName: 'Queen of Cups',
       court: 'queenCups',
-      combats: [2, 3],
+      combats: [3, 4],
       enemies: [3, 4],
       templates: ['ambush', 'nest', 'guarded', 'arena'],
       mustInclude: ['nest'],
@@ -541,7 +543,7 @@ export const MOON_DIMENSION: DimensionDef = {
       miniboss: 'king',
       minibossName: 'King of Cups',
       court: 'kingCups',
-      combats: [3, 3],
+      combats: [4, 4],
       enemies: [4, 5],
       templates: ['ambush', 'nest', 'arena', 'guarded'],
       mustInclude: ['ambush'],
@@ -557,7 +559,7 @@ export const MOON_DIMENSION: DimensionDef = {
   ],
   symmetric: false,
   // The meander: swinging from side to side toward the Moon, so it never sits dead ahead for long.
-  layout: { kind: 'meander', bend: 0.95, loopBend: 1.6, swing: [0.35, 0.8] },
+  layout: { kind: 'meander', bend: 0.95, loopBend: 1.6, swing: [0.35, 0.8], straightUnder: 0.3 },
   kits: {
     start: { w: [18, 22], d: [20, 24], edge: 'parapet', turns: false, floor: 0, ground: 'earth', grass: 50 },
     court: { w: [22, 28], d: [24, 30], edge: 'parapet', turns: true, floor: 0, ground: 'earth', cover: [2, 3], swords: 6, grass: 70 },
@@ -578,8 +580,8 @@ export const MOON_DIMENSION: DimensionDef = {
   },
   nodeKits: { start: 'start', traverse: ['pass', 'stair'], vista: 'terrace', lantern: 'shrine', gate: 'gatehouse', miniboss: 'throne', exit: 'threshold', branch: 'cache' },
   templateKits: { arena: 'arena', guarded: 'court', nest: 'nest', ambush: 'court', patrol: 'court', signature: 'court' },
-  connector: { length: [8, 14], width: 5, branchLength: [6, 10], maxSlope: 0.36 },
-  criticalNodes: [9, 10],
+  connector: { length: [6, 11], width: 5, branchLength: [6, 10], maxSlope: 0.45 },
+  criticalNodes: [11, 12],
   loop: { rooms: [2, 3], shortcut: [8, 70] },
   // Forks to read: a true branch stands between towers, a false one doesn't.
   branches: [2, 3],

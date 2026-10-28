@@ -602,6 +602,52 @@ and **no fall shortcuts** in the Tower yet.
   - Smoke: `--level` plays the weighing (the axis barred, the left weight set, the pan ride back, the right weight,
     the axis lifts, walk through).
 
+### V2-17: Fixes from the second playtest ✅ (waiting on your playtest)
+Sixteen notes after V2-16. Each is fixed below, in the order they were given. Two real bugs were behind more than one
+note: a short stair run cut its landing short of the landing's disc, so the disc's rim stood ~25 cm proud of the
+stairs' top (a lip), and the player could sink into the character controller's skin and freeze in open floor.
+- **Done as:**
+  1. **Justice's gate floated:** the axis gate stands in an arch of its own.
+  2. **The pan didn't move:** the pan's dish and chains (and the weight in it) ride with her, swaying, and swing home
+     after (`LevelWorld.pans`, `Game.placePan`/`returnPan`). The post stays.
+  3. **Pans buried in furniture:** the pan's spot (`panSpot`) is kept clear when the key room is furnished, in front of
+     any tier and inboard of its ramps; validation rejects a pan within reach of cover, a tier, a ramp or a column.
+  4. **The Blindfold walked up and stood there:** it cuts at the spot it heard you when it gets there (a new noise
+     sends it to cut again), and it feels you a little further off (`senseRange` 2.4 → 3.6 m).
+  5. **Stair platforms blocked walking (Justice L3):** the lip above. A landing keeps its whole disc flat
+     (`segmentsOf`), and each run's deck is carried in to the landing's middle (a notch with no floor sat beside the
+     parapet where the square runs met the round disc). A probe walking 10,798 lanes across 96 levels (cutting every
+     landing's corner) went from 253 hang-ups to 4 (each a 2 cm brush with a door's edge).
+  6. **Justice repeated itself:** wings of none, one or two rooms, swept forward, out or back by level; past the gate
+     (where nothing need mirror) the way swings off the axis (`layout.swingPast`). 23 distinct room sequences in 60
+     Justice levels (was 10); 32–36 in the others (was 8–11).
+  7. **The same step block in the Tower:** see 5.
+  8. **The Tower's arenas burned away:** fire spreads one step only (a deck lit by its neighbour doesn't pass it on;
+     before, each burning deck lit about three others, so any spark took the whole floor). The Crowned Tower's rings
+     come round every 22 s (was 14) and leave 18 m then 12 m of floor (was 9); its fire is smaller.
+  9. **Too much empty walking:** each level has one more fight (three or four, and the miniboss), the loop levels hold
+     11–12 rooms on the way, stairs may be steeper (`maxSlope` 0.36 → 0.45), connectors are shorter (6–11 m), and a
+     gentle turn runs straight (`layout.straightUnder`; the next room makes it up): a fight every 97–112 m walked (was
+     ~150 m after V2-16, ~108 m before it). Measured as `fights`, `perFight` and `pastGate` in `gen-metrics`.
+  10. **Falls onto air:** a fall never puts her back on timber that has gone, is going or is rotten; the nearest sound
+      deck with sound timber round it instead (`Decks.holds`, `nearestStanding`).
+  11. **Gates not worth opening:** the next lantern stood right past the gate. Now there's always a fight between the
+      gate and the next lantern (`pastGate` ≥ 1), so dying there brings you back to the mid lantern, and the shortcut
+      takes you straight to it.
+  12. **Breaking floors too loud:** one fall sound at a time (the nearest), placed where the deck fell, and quieter.
+  13. **No shadow puzzle on the Moon's false paths:** the hidden stones lay their shadows across the drawn boardwalk
+      itself (they were only on the water, under the boardwalk). The **invisible wall** was most likely the sink into
+      the controller's skin (she froze mid-bridge with nothing ahead); she's stood back up out of it now.
+  14. **No fake paths:** true branches now stand between towers too, so at a fork the way without towers is the lie;
+      two or three branches a level, one or two of them false (`illusion.falseBranches` by level).
+  15. **Illusions outlive their maker:** whatever a court card or a Page called up (its squad, its reflections, its
+      fish or firebrands) goes when it falls, for nothing (`Foe.maker`, `dismiss`).
+  16. **The King of Cups' wave:** wall to wall, no gap: roll through it.
+  - Tests: `level-walk` cuts every landing's corner; `foe-behaviour` (the Blindfold cuts where it heard you; a maker's
+    summons go with it); `tower` (fire one step; a strike leaves the floor standing); `moon-court` (the wave);
+    `gen-metrics` (the pace).
+  - Smoke: the pan carries her and swings home (`--level`); the false path's shadows (`--moon`, `107c`).
+
 ### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel
   mode stays).

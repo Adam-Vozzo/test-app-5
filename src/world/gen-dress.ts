@@ -155,8 +155,10 @@ export const PAN = { r: 1.7, reach: 2.8 };
  * (`toward`: +1 or -1 along the room's width), and in front of a tier if the kit has one (it stood inside the tier).
  */
 export function panSpot(r: Room, kit: RoomKitDef, toward: number): [number, number] {
+  // In front of a tier, and inboard of the ramps up to it (3 m wide, along the room's sides).
   const v = kit.tier ? r.d / 2 - EDGE.thick - kit.tier.depth - PAN.reach - 0.6 : r.d / 2 - 4;
-  return [toward * (r.w / 2 - EDGE.thick - PAN.reach - (kit.edge === 'colonnade' ? 1.4 : 0.4)), v];
+  const side = kit.tier ? 3.6 : kit.edge === 'colonnade' ? 2 : 0.4;
+  return [toward * (r.w / 2 - EDGE.thick - PAN.reach - side), v];
 }
 
 /** Justice: which way along a key room's width the mid lantern lies (+1 or -1). */
@@ -187,7 +189,8 @@ export function furnish(dim: DimensionDef, space: Space, rng: Rng, g?: MissionGr
       clear.block(u, v, 3, 3);
       const hub = space.rooms.find((h) => h.node === g.shortcut.lantern)!;
       const [pu, pv] = panSpot(r, kit, towardHub(r, hub));
-      clear.block(pu, pv, PAN.reach + 0.5, PAN.reach + 0.5);
+      // Wide: a cover cluster reaches up to 3 m past the spot it's placed by.
+      clear.block(pu, pv, PAN.reach + 2.6, PAN.reach + 2.6);
     }
 
     // Tier: two wings along the far edge with a gap on the axis for the way on, each reached by a ramp.

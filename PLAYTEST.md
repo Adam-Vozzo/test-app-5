@@ -4,6 +4,35 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-17: fixes from your second playtest
+All 16 notes are addressed (the list is in `PLAN.md → V2-17`). The step blocks came from a lip: when a stair run
+was short, the landing's disc stood about 25 cm proud of the stairs' top. The Moon's "invisible wall" was most likely
+the player sinking into the floor's skin and freezing mid-bridge.
+
+**Try:**
+- **Stairs and landings everywhere:** run up and down, hug the parapets, cut the corners of landings. Nothing should
+  catch you now.
+- **Justice:** the gate on the axis stands in an arch. Ride a pan: you should stand in its dish as it swings you over,
+  and see it swing home empty after. The levels vary more: short or long wings, swept forward, out or back, and past
+  the gate the way swings off the axis.
+- **The Blindfold:** make a noise, then stand still a few steps off. It should come and cut where it heard you.
+- **The Tower:** fire should flare in patches and burn out, not eat the floor. The Crowned Tower's floor gives way
+  more slowly and leaves more of itself. Fall off a burning deck: you should land on sound timber. Decks falling
+  should be quieter.
+- **The Moon:** at forks, the way without towers is the lie. On a false boardwalk, look for the dark squares of the
+  stones' shadows and step on them.
+- **Kill a Queen of Cups (or the Shadow) mid-split, or a King with his squad out:** what they called up should go
+  with them. The King of Cups' wave is wall to wall: roll through it.
+- **Pace:** every level has one more fight, shorter ways between rooms, and a fight past every gate before the next
+  lantern. Open the shortcut, die past it, and see if it earns its keep.
+
+**Unsure about:**
+- **The pace** is measured (a fight every 97–112 m walked), not felt. Tell me if it's swung too far the other way.
+- **Steeper stairs** (up to 24°, from 20°): they should still read as stairs.
+- **The Blindfold** may now feel too aggressive with a gun going: it cuts at every new noise it reaches.
+- **One fight past each gate** may make the second lantern feel far, especially in the Devil and the Tower.
+- **Generation** succeeds first time 69–90% of the time (was 93–99%); retries take milliseconds, so you shouldn't see it.
+
 ## V2-16: levels shaped by their cards
 Every dimension now lays out its own way, and rooms stand at any angle, turning on round landings.
 

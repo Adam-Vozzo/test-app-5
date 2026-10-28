@@ -430,6 +430,8 @@ class Layout {
       const out = sidePoint(a, as).yaw;
       let turn = wrapAngle(want - out) + this.rng.range(-0.08, 0.08) * (attempt > 0 ? 1 : 0);
       turn = Math.max(-opts.maxBend, Math.min(opts.maxBend, turn));
+      // A gentle turn runs straight (the next room makes it up): every landing is ten metres of flat walking.
+      if (Math.abs(turn) < (this.dim.layout.straightUnder ?? 0)) turn = 0;
       const rise = Math.abs(b.y - a.y) / this.dim.connector.maxSlope;
       const bent = Math.abs(turn) >= STRAIGHT;
       // A landing's disc is level: a bent run climbs only off it.
@@ -680,7 +682,7 @@ function embedPath(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | null {
         const placedBefore = L.rooms.length;
         const connBefore = L.connectors.length;
         // How far out the last room's back door will be (laid straight back from the gate), and a margin past it.
-        const reach = gate.d / 2 + midLen + lastRoom.d + rng.range(5, 12) + attempt * 3;
+        const reach = gate.d / 2 + midLen + lastRoom.d + rng.range(3, 7) + attempt * 3;
         let prev = lantern;
         let prevSides: Side[] = [S];
         let good = true;
@@ -917,7 +919,8 @@ function embedWeighing(dim: DimensionDef, g: MissionGraph, rng: Rng): Space | nu
     const twin = branches.find((o) => o.host === right[left.indexOf(nd.host)]);
     // Outward: the side whose doorway faces away from the axis's far end.
     const s: Side = sidePoint(host, 'left').nz > sidePoint(host, 'right').nz ? 'left' : 'right';
-    if (!L.branch(host, nd.id, [s])) return fail("a branch wouldn't fit");
+    // (Or off its far end, when the wing sweeps back and the outer side is crowded.)
+    if (!L.branch(host, nd.id, [s, 'front'])) return fail("a branch wouldn't fit");
     if (!twin) continue;
     const br = L.rooms[L.rooms.length - 1];
     const k = L.connectors.length - 1;

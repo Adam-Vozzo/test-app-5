@@ -4,7 +4,8 @@
 // before you reach it. `tests/gen-metrics.test.ts` holds each dimension to its card's shape with these.
 import { landmarkShare, occluders, type LevelParts } from './gen-validate';
 import { EYE, segmentHitsOccluder } from './gen-sight';
-import { wrapAngle } from './gen-space';
+import { isCombat } from './gen-graph';
+import { connLength, wrapAngle } from './gen-space';
 
 export interface LevelMetrics {
   /** Start to exit in a straight line, over the length of the way between them (1: dead straight). */
@@ -21,6 +22,12 @@ export interface LevelMetrics {
   landmarkShare: number;
   /** Rooms seen before they're reached: in plain sight from a room three or more steps earlier on the way. */
   seenEarly: number;
+  /** Fights on the way (the miniboss's among them). */
+  fights: number;
+  /** Metres walked on the way (each room's depth and every way between) for each fight: the pace. */
+  perFight: number;
+  /** Fights between the gate and the next lantern: the stretch the shortcut (or the opened axis) brings you back to. */
+  pastGate: number;
 }
 
 export function levelMetrics(p: LevelParts): LevelMetrics {
@@ -54,7 +61,18 @@ export function levelMetrics(p: LevelParts): LevelMetrics {
       }
     }
   }
+  // The pace: the way walked, against the fights on it.
+  const onWay = new Set(graph.critical);
+  const walked =
+    crit.reduce((t, r) => t + r.d, 0) + space.connectors.filter((c) => c.kind !== 'shortcut' && onWay.has(c.from) && onWay.has(c.to)).reduce((t, c) => t + connLength(c), 0);
+  const fights = graph.critical.filter((id) => isCombat(graph.nodes[id])).length;
+  const gateAt = graph.critical.indexOf(graph.shortcut.gate);
+  let pastGate = 0;
+  for (let i = gateAt + 1; i < graph.critical.length && !graph.nodes[graph.critical[i]].lantern; i++) if (isCombat(graph.nodes[graph.critical[i]])) pastGate++;
   return {
+    fights,
+    perFight: walked / Math.max(1, fights),
+    pastGate,
     straightness: Math.hypot(b.x - a.x, b.z - a.z) / Math.max(len, 1e-6),
     turns,
     headingSpread: Math.sqrt(-2 * Math.log(Math.max(rbar, 1e-9))),

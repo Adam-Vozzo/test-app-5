@@ -38,7 +38,10 @@ four thin ones.
 > and the Sun (`Menus.showSun`). **V2-15** fixes the first full playtest's notes, among them the animals' own body
 > (`src/enemies/beast.ts`). **V2-16** lays each dimension out by its card (`DimensionDef.layout`): rooms at any heading,
 > connectors that turn on landings, Justice's weighing (keys, the pan ride `Game.carry`), the Devil's and the Tower's
-> spirals, the Moon's meander and its gateway towers; sight lines in `gen-sight.ts`, measures in `gen-metrics.ts`. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> spirals, the Moon's meander and its gateway towers; sight lines in `gen-sight.ts`, measures in `gen-metrics.ts`.
+> **V2-17** fixes the second playtest's notes: landings without lips, the pan that rides (`LevelWorld.pans`), the
+> pace (a fight past every gate), fire that spreads one step, the Moon's forks, and summons that go with their maker
+> (`Foe.maker`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 

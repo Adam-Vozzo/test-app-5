@@ -274,7 +274,13 @@ export function checkShape({ dim, graph, space, furn, dressing }: LevelParts): s
           if (b.kind === 'edge' || b.kind === 'wall' || Math.abs(b.y - k.pan.y) > 3) return false;
           const [u, v] = toLocal({ x: b.x, z: b.z, yaw: b.yaw }, k.pan.x, k.pan.z);
           return Math.hypot(Math.max(0, Math.abs(u) - b.sx / 2), Math.max(0, Math.abs(v) - b.sz / 2)) < PAN.reach;
-        }) || furn.columns.some((c) => Math.abs(c.y - k.pan.y) < 3 && Math.hypot(c.x - k.pan.x, c.z - k.pan.z) < PAN.reach + 0.65);
+        }) ||
+        furn.columns.some((c) => Math.abs(c.y - k.pan.y) < 3 && Math.hypot(c.x - k.pan.x, c.z - k.pan.z) < PAN.reach + 0.65) ||
+        furn.ramps.some((rp) => {
+          const len = Math.hypot(rp.x1 - rp.x0, rp.z1 - rp.z0);
+          const t = Math.max(0, Math.min(1, ((k.pan.x - rp.x0) * (rp.x1 - rp.x0) + (k.pan.z - rp.z0) * (rp.z1 - rp.z0)) / (len * len)));
+          return Math.hypot(rp.x0 + (rp.x1 - rp.x0) * t - k.pan.x, rp.z0 + (rp.z1 - rp.z0) * t - k.pan.z) < PAN.reach + rp.width / 2;
+        });
       if (buried) out.push(`shape: the ${k.wing ? 'right' : 'left'} pan is buried in the room's furniture`);
     }
     if (dressing.door.opens !== 'keys') out.push('shape: the axis gate must open on the keys');

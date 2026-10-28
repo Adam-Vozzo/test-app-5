@@ -157,7 +157,10 @@ With an `illusion` table (`dimensions.ts`):
 - **False paths:** the dressing layer makes `falseBranches` branch connectors false paths. *After the first
   playtest* each also gets a **hidden way across**: stepping stones (`Dressing.stones`, `stonesAcross`) with
   colliders but no visible mesh, only their shadows on the water. They wind left, middle, right, middle along the
-  connector, so the drawn boardwalk's middle line still has 2 m holes; the cache beyond is real.
+  connector, so the drawn boardwalk's middle line still has 2 m holes; the cache beyond is real. *After the second
+  playtest (V2-17)* the stones also lay their shadows across the drawn boardwalk (their hidden casters stand a little
+  proud of it, front faces in the shadow map), and the count is by level (`falseBranches`: 1, 1, 2). The Moon has two
+  or three branches a level, and the true ones stand between towers: at a fork, the way without towers is the lie.
 - **Validation:** checks that false paths are only branches (never the way on), that each has its stones within a
   careful step of each other, and that no room is all reflections.
 
@@ -274,6 +277,28 @@ After V2-16:
 
 The sequences haven't moved: the mission graph is still one template per layout (the cycle library proposed in the
 discovery is the next step).
+
+After V2-17 (the second playtest: *too much walking with nothing in it*; *the gates aren't worth opening*). Three
+measures of pace join the table. A fight on the way counts its room's encounter or the miniboss; *walked* is each
+room's depth plus every way between them on the way:
+
+| Measure (mean) | Justice | Devil | Tower | Moon |
+|---|---|---|---|---|
+| Fights on the way | 4.6 | 4.5 | 4.5 | 4.5 |
+| Metres walked per fight | 97 | 112 | 111 | 103 |
+| Fights past the gate, before the next lantern | 1.1 | 1.0 | 1.0 | 1.0 |
+| Straightness | 0.59 | 0.44 | 0.45 | 0.66 |
+| Turns | 7.6 | 8.8 | 9.3 | 7.7 |
+| Height range (m) | 2.7 | 29.5 | 30.0 | 0.8 |
+| Landings | 6.6 | 7.3 | 7.1 | 6.2 |
+| Distinct room-kind sequences (of 60) | 23 | 36 | 36 | 32 |
+
+For the pace: before V2-16 a level walked about 108 m per fight; V2-16 stretched it to about 150 m (its turning
+connectors doubled the walking between rooms, with the same three fights). V2-17 adds a fight a level, holds the loop
+levels to 11–12 rooms, steepens the stairs (`maxSlope` 0.45), shortens connectors (6–11 m), and runs a turn gentler than `layout.straightUnder` straight (the next room makes it
+up). The rule *a fight past every gate* (`pastGate` ≥ 1) is what makes the shortcut worth opening: with the next
+lantern right past the gate, dying never brought you back to it. More rooms in a sequence, and Justice's swept wings,
+moved the distinct sequences off their floor.
 
 ## As built in V2-3 (Justice)
 *Superseded in part by V2-16:* Justice now weighs (two mirrored wings off the mid lantern, the axis gate on both
