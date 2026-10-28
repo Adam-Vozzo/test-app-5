@@ -8,6 +8,11 @@ import * as THREE from 'three';
 
 /** x: density (1/m), y: power (2 = classic exp², < 1 keeps distance readable), z: height falloff (1/m), w: height mix 0..1. */
 export const fogParams = { x: 0.018, y: 2, z: 0, w: 0 };
+/**
+ * Landmarks (FOG_MARK materials) take this fraction of the fog (x), so the shape you walk toward for three levels
+ * reads as a silhouette through it instead of only its unfogged glow.
+ */
+export const fogMark = { x: 0.35, y: 0, z: 0, w: 0 };
 
 const SHADERS_WITH_FOG = ['basic', 'lambert', 'phong', 'standard', 'physical', 'toon', 'matcap', 'points', 'dashed', 'sprite'];
 
@@ -17,7 +22,10 @@ function installFog() {
   installed = true;
   for (const id of SHADERS_WITH_FOG) {
     const lib = (THREE.ShaderLib as Record<string, { uniforms: Record<string, THREE.IUniform> }>)[id];
-    if (lib) lib.uniforms.fogParams = { value: fogParams };
+    if (lib) {
+      lib.uniforms.fogParams = { value: fogParams };
+      lib.uniforms.fogMark = { value: fogMark };
+    }
   }
   THREE.ShaderChunk.fog_pars_vertex = /* glsl */ `
 #ifdef USE_FOG
@@ -34,6 +42,9 @@ function installFog() {
 #ifdef USE_FOG
   uniform vec3 fogColor;
   uniform vec4 fogParams;
+  #ifdef FOG_MARK
+    uniform vec4 fogMark;
+  #endif
   varying vec3 vFogWorld;
 #endif
 `;
@@ -41,6 +52,9 @@ function installFog() {
 #ifdef USE_FOG
   {
     float fogDist = length( vFogWorld - cameraPosition );
+    #ifdef FOG_MARK
+      fogDist *= fogMark.x;
+    #endif
     // Mean height-density along the view ray, with density exp(-k·y) above the ground (y = 0).
     float k = max( fogParams.z, 1e-5 );
     float y0 = max( cameraPosition.y, 0.0 );

@@ -154,9 +154,12 @@ Rooms whose kit is `scaffold` get a grid of timber decks (`CollapseDef.tile`, 3 
 With an `illusion` table (`dimensions.ts`):
 - **Reflections:** the encounter layer marks a share of each room's sockets as reflections (20% / 30% / 40% by
   level), never all of a room's enemies and never the court card.
-- **False paths:** the dressing layer makes `falseBranches` branch connectors false paths and marks their caches as
-  reflections.
-- **Validation:** checks that false paths are only branches (never the way on) and that no room is all reflections.
+- **False paths:** the dressing layer makes `falseBranches` branch connectors false paths. *After the first
+  playtest* each also gets a **hidden way across**: stepping stones (`Dressing.stones`, `stonesAcross`) with
+  colliders but no visible mesh, only their shadows on the water. They wind left, middle, right, middle along the
+  connector, so the drawn boardwalk's middle line still has 2 m holes; the cache beyond is real.
+- **Validation:** checks that false paths are only branches (never the way on), that each has its stones within a
+  careful step of each other, and that no room is all reflections.
 
 ### 3. Space (embedding the graph)
 Each node becomes a **room kit** and each edge a **connector kit**. Kits are parametric generators that return
@@ -164,7 +167,11 @@ footprint, walkable area, colliders, exits, cover positions and spawn sockets:
 - **Room kits:**
   - shared shapes (courtyard, clearing, hall, terrace, chamber, ledge), restyled per dimension
   - dimension-specific rooms (Justice's mirrored court, the Devil's vault, the Tower floor, the Moon's pool)
-- **Connector kits:** path, stairs, bridge, tunnel, arch, ladder, lift. **Compression** connectors (tunnels, arches,
+- **Connector kits:** path, stairs, bridge, tunnel, arch, ladder, lift. *As built:* a room's doorway is exactly its
+  connector's width, so the connector's parapets run on flush (wider doorways left their end faces standing in the
+  opening, and she caught on them). Stairs and tier ramps collide as a solid wedge down to the floor, like the
+  stepped treads drawn over them (a thin tilted slab hung over a gap near its foot, and from the side her feet slid
+  under it). `tests/level-walk.test.ts` walks the real player controller over every connector of real levels. **Compression** connectors (tunnels, arches,
   narrow passes) go before `vista` and `combat` nodes to build the frame-then-reveal rhythm.
 - **Layout:**
   - Justice: rooms are placed along the main heading with a mirror axis.
@@ -303,7 +310,14 @@ his change is the pact, and the coin his rain leaves on the floor.
 octagon of timber decks (a 3 m grid laid over it, with holes outside the octagon) on a few stilts, under a storm
 ring with lightning in its eye. There are no columns: it's open sky. At each phase the decks beyond a radius (18 m,
 then 9 m) pulse magenta and fall, down to a last platform. When the boss falls the floor holds again, so the way on
-can be walked.
+can be walked. *After the first playtest:* fallen decks are built back after 6 s, each phase's ring gives way again
+every 14 s, and stone landings at both doors never fall (the deck grid stopped short of the octagon's faces, leaving a
+gap off the bridge you fell through).
+
+**All arenas, after the first playtest:** the distant scenery (pillars, great swords) keeps 30 m from the walkable
+strip: one stood up through the spawn platform, scenery with no collider, and you began inside it. Bosses never
+sleep-hide in the fog (they popped in as you walked up) and wake only as you step into the arena (they had started
+on you down the approach). `tests/arena-walk.test.ts` walks each arena and checks the scenery's clearance.
 
 ## Budgets
 | Budget | Target |

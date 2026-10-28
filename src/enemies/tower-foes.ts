@@ -15,6 +15,7 @@ import type { EnemyWorld } from './enemy';
 import { Foe, type FoeIdle } from './foe';
 import type { AttackTune, FoeTune, TimelinePoint } from './foe-ai';
 import { hunchedTorso, pose, type FoePlan } from './foes';
+import { quadHead, quadSpec, quadTorso } from './moon-foes';
 
 function torchGeo() {
   const haft = facet(new THREE.BoxGeometry(0.06, 0.06, 0.8).translate(0, 0, -0.34), T.wood, 0.04);
@@ -193,7 +194,7 @@ export const TOWER_PLANS: Record<'firebrand' | 'faller' | 'builder' | 'pageWands
   cat: {
     id: 'cat',
     name: 'Black Cat',
-    height: 0.9,
+    height: 0.55,
     radius: 0.24,
     tune: () => tuning.foes.cat as unknown as FoeTune,
     senses: 'sight',
@@ -201,20 +202,25 @@ export const TOWER_PLANS: Record<'firebrand' | 'faller' | 'builder' | 'pageWands
     elite: false,
     shield: false,
     hitAndRun: true,
-    dualWield: true,
     limb: T.cat,
     sleeve: T.cat,
-    torso: () => merge([facet(new THREE.BoxGeometry(0.3, 0.3, 0.6).translate(0, -0.15, 0.1), T.cat, 0.05), place(facet(new THREE.ConeGeometry(0.04, 0.6, 4).rotateX(-0.8), T.cat, 0.04), 0, -0.05, 0.5)]),
-    head: () => merge([facet(new THREE.BoxGeometry(0.22, 0.18, 0.2), T.cat, 0.05), ...[-1, 1].map((s) => place(facet(new THREE.ConeGeometry(0.05, 0.1, 4), T.cat, 0.03), s * 0.07, 0.12, 0))]),
-    weapon: clawGeo,
-    offhand: clawGeo,
-    hitboxes: [{ part: 'body', at: [0, 0.6, 0], r: 0.3 }],
+    // A cat: low, long-tailed, its tail up.
+    beast: { ...quadSpec(0.55, 0.18, 0.32, 0.028, T.cat, 0.6), tail: { base: [0, 0.08, 0.26], links: 5, length: 0.55, radius: 0.025, wag: 0.6, color: T.cat, lift: 1.1 } },
+    torso: () => quadTorso(0.55, 0.18, T.cat, T.cat),
+    head: () => quadHead(0.75, T.cat, T.cat, -0.2),
+    weapon: () => clawGeo().translate(0, -0.05, -0.12),
+    offhand: null,
+    hitboxes: [
+      { part: 'body', at: [0, 0.34, -0.05], r: 0.2 },
+      { part: 'body', at: [0, 0.32, 0.18], r: 0.17 },
+    ],
     weakGlow: null,
-    ready: pose([0.18, -0.2, -0.3], [-0.18, -0.2, -0.3], [0.2, 0.3, 0], [0.2, -0.3, 0], 0.7, 0.6),
+    ready: pose([0, 0.08, -0.1], [0, 0, 0], [0, 0, 0], [0, 0, 0], 0, 0),
     motions: {
+      // Crouched low, then the spring: two quick strikes at the face.
       swipe: {
-        windup: pose([0.3, 0.1, 0.0], [-0.18, -0.2, -0.3], [0.6, -1.0, 0.3], [0.2, -0.3, 0], 0.7, 0.3),
-        active: pose([-0.2, -0.2, -0.4], [-0.18, -0.2, -0.3], [-0.2, 0.9, -0.3], [0.2, -0.3, 0], 0.6, 0.6),
+        windup: pose([0, 0.0, 0.02], [0, 0, 0], [0.3, 0.3, 0], [0, 0, 0], 0.6, -0.1),
+        active: pose([0, 0.12, -0.32], [0, 0, 0], [-0.2, -0.3, 0], [0, 0, 0], 0, 0.45),
         sound: 'impChitter',
       },
     },
@@ -410,6 +416,7 @@ export class Faller extends Foe {
       if (k < 1) return;
       // Down: it lands hard, and the fight starts.
       w.hazards.hideRing(this);
+      w.hazards.burst(this.landing, r);
       this.perch = 'down';
       this.home.copy(this.landing);
       this.center.set(this.landing.x, this.landing.y + this.radius + this.halfH, this.landing.z);

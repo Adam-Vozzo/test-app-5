@@ -113,6 +113,12 @@ toward amber from the table's `#E07A3A`, which sat within 20° of kill red. Deck
 
 Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
 
+*Strikes landing (after the first playtest):* every ground ring, verdict zone and lobbed pot ends in a **burst**: the
+mark flashes and snaps outward as it fades, with a low wall of telegraph magenta (it resolved, even if it missed you).
+A single-lane volley (the Shadow's rifle) fires a **heavy bolt** with its line flashed down the lane.
+*Landmarks* take only `tuning.look.landmarkFog` (35%) of the fog, so the shape you walk toward reads as a silhouette
+from every vista, not only its unfogged glow (the Devil's throne vanished, its brazier didn't).
+
 *As built in V2-13 (`MOON`, Proposed until played):*
 - **Surfaces:** pale silt `#B9C2BD`, marsh teal `#4F7470`, indigo `#3E4466`, shadow `#1B1E2E` and reeds `#8D9A7A`.
 - **Fog and sky:** a pale moon-fog `#E2E6E0` (the table's `#C9CEC8` was too dark for telegraph contrast) over dark
@@ -125,8 +131,12 @@ Lightning's mark is a telegraph ring; the bolt is a pale violet-white flash.
 *The Moon's figures (V2-14, `MOON_FOES`, Proposed until played):* wet indigo, slate and bone, ≥ 4:1 against the pale
 moon-fog, never a signal colour or the moonlight (tested; the Phantom's and the Queen's veil were desaturated away
 from the charge violet).
-- **Dog and Wolf:** crouched on all fours, the dog's ears pricked, the wolf darker with its ears laid back.
-- **Crayfish:** a low, plated shell with pincers and a fanned tail.
+- **Dog and Wolf:** animal bodies (after the first playtest; `src/enemies/beast.ts`): four IK legs at a trot, a
+  barrel chest and ruff, the head on a neck, the dog's ears pricked and tail carried level, the wolf darker and
+  bigger with its ears laid back and its tail low. The Tower's cat is the same body small and black, tail high.
+- **Crayfish:** bigger after the first playtest, about 2.5 m nose to tail: a plated carapace on eight crab-kneed
+  legs, two heavy pincers on IK arms, long feelers, and a segmented tail (its soft weak spot).
+- **Fish:** a swimming body with no legs, waving head to tail at hip height, fins and a flicking tail.
 - **Phantom:** a slate-grey shroud with a pointed hood and reaching arms (the Seven of Cups' veiled figure).
 - **Page of Cups:** dark blue, holding out a pale cup with a fish looking out of it.
 - **Cups court:** wears the suit as a **pale cup crest**. The King carries a trident.

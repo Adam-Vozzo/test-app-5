@@ -1,7 +1,8 @@
 // The Tower's rule, collapse (DESIGN.md → The Tower × Wands: "ground is temporary"). Pure logic, no Three/DOM:
 // a scaffold room's floor is a grid of timber decks. A rotten deck cracks when you step on it (glowing magenta) and
 // falls after `crackTime`; a burning deck hurts while you stand on it, spreads fire to its neighbours, and falls
-// after `burnTime`. Lightning sets decks alight. Everything comes back when you rest.
+// after `burnTime`. Lightning sets decks alight. A fallen deck is built back after `regrowTime` (the stage keeps
+// changing under the fight instead of only emptying), and everything comes back when you rest.
 
 export type DeckState = 'sound' | 'cracking' | 'burning' | 'gone';
 
@@ -12,11 +13,13 @@ export interface CollapseTune {
   burnTime: number;
   /** Chance per second that fire spreads to each sound neighbour. */
   spreadPerSec: number;
+  /** A fallen deck stands again after this long (s); 0 = only a rest brings it back. */
+  regrowTime?: number;
 }
 
 export interface DeckEvent {
   i: number;
-  kind: 'crack' | 'ignite' | 'fall';
+  kind: 'crack' | 'ignite' | 'fall' | 'regrow';
 }
 
 export class ScaffoldGrid {
@@ -71,16 +74,31 @@ export class ScaffoldGrid {
     return { i, kind: 'ignite' };
   }
 
-  /** Advance: cracking decks fall, burning decks spread and then fall. `roll` gives seeded numbers in [0, 1). */
-  update(dt: number, tune: CollapseTune, roll: () => number): DeckEvent[] {
+  /**
+   * Advance: cracking decks fall, burning decks spread and then fall, fallen decks are built back. `roll` gives seeded
+   * numbers in [0, 1); `occupied(i)` says something stands where deck `i` would come back (it waits until clear).
+   */
+  update(dt: number, tune: CollapseTune, roll: () => number, occupied: (i: number) => boolean = () => false): DeckEvent[] {
     const out: DeckEvent[] = [];
     const spread: number[] = [];
+    const holes = new Set(this.holes);
     for (let i = 0; i < this.state.length; i++) {
       const s = this.state[i];
-      if (s === 'sound' || s === 'gone') continue;
+      if (s === 'sound') continue;
+      if (s === 'gone') {
+        if (holes.has(i) || !tune.regrowTime) continue;
+        this.t[i] += dt;
+        if (this.t[i] >= tune.regrowTime && !occupied(i)) {
+          this.state[i] = 'sound';
+          this.t[i] = 0;
+          out.push({ i, kind: 'regrow' });
+        }
+        continue;
+      }
       this.t[i] += dt;
       if (s === 'cracking' && this.t[i] >= tune.crackTime) {
         this.state[i] = 'gone';
+        this.t[i] = 0;
         out.push({ i, kind: 'fall' });
       } else if (s === 'burning') {
         const c = i % this.cols;
@@ -92,6 +110,7 @@ export class ScaffoldGrid {
         }
         if (this.t[i] >= tune.burnTime) {
           this.state[i] = 'gone';
+          this.t[i] = 0;
           out.push({ i, kind: 'fall' });
         }
       }

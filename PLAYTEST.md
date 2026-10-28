@@ -4,6 +4,41 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-15: fixes from your first full playthrough
+All 23 notes are addressed (the list is in `PLAN.md → V2-15`). Two bugs I found on the way were behind several of
+them. An enemy could sink through the floor and stand there unable to reach you. A court card's single-lane volley
+(the Shadow's "rifle" move) picked its gap before drawing it, so it never fired.
+
+**Try:**
+- **Kill things:** they should buckle and topple away from the blow, then sink into the floor, all in one piece.
+- **Shield-bearers:** when the swing comes, the shield arm swings wide. That's your window.
+- **Walk up to every melee enemy and stand there:** each should swing once in reach, and no swing should land from
+  further than its arm and weapon look.
+- **Stairs:** run onto them from the side and at angles.
+- **The Devil:** walk in. He should already be on his throne and wake as you get close, not before. When he offers
+  the pact, the game waits for you.
+- **The Tower's stages:** fallen decks grow back after 6 s. Fight the Knight and Queen of Wands on their stages, and
+  the Crowned Tower on its top floor. Knock a court card off and it should land back on safe ground, staggered.
+- **The animals:** Dogs, Wolves, the cat, the Crayfish (bigger now) and the fish have their own bodies. Watch them
+  walk and lunge.
+- **The Moon's false paths:** the boardwalk still isn't there, but a hidden way is. Look at the water for the shadows
+  of stones and hop across. The cache beyond is real now. If you fall, you're put back well inside the last room.
+- **Change scenes** with the SwordRifle out in sword mode. It should still be out, still a sword.
+- **Swing at a cat at your feet.**
+
+**Unsure about:**
+- **The parry (note 4):** I couldn't reproduce it. My best guess is a mode switch pressed during a swing's recovery
+  being swallowed, so the next input landed as a parry. Switches now buffer for 0.6 s. If it happens again, say what
+  you'd just done.
+- **Stairs (note 5):** I found and fixed a catch on the tier ramps' top edge. If you still catch somewhere, a seed
+  and room would help.
+- **The stepping stones** wind side to side so you can't walk the drawn boardwalk's line. Are they findable from the
+  shadows alone, and is the hop fair, or fiddly?
+- **The beasts' gait** has only been seen at headless frame rates. The tuning is in `BeastSpec` in `moon-foes.ts`.
+- **Regrowing decks:** 6 s (`tuning.tower.regrowTime`) may make the Tower too forgiving now. The ring re-cracks every
+  14 s in the boss fight (`tuning.tower.ringEvery`).
+- **Bosses wake at 30 m** (`wakeRadius`). In the Devil's long approach that may still feel sudden.
+
 ## V2-14: the Moon's own, the Cups court, the Shadow, and the Sun
 The last dimension is complete, and so is the game: the Moon's rooms hold its own enemies, its throne rooms the Cups
 court, and at its end **the Shadow** waits on an island under the Moon. Beat it and the blindfold comes off, and

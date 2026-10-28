@@ -10,8 +10,9 @@
 import * as THREE from 'three';
 import type { Rng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
-import { merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
+import { landmarkMat, merge, meshOf, paint, paintBy, place, prep, toonMat } from '../render/geo';
 import { AREAS, DEVIL_FOES, GEAR, JUSTICE } from '../render/palette';
+import { tuning } from '../tuning';
 import type { BuiltWorld, Interactable, RestPoint } from './arena';
 import { glowPool } from './courtyard';
 import { Decks } from './decks';
@@ -22,6 +23,11 @@ let S = JUSTICE.surfaces;
 const FOUNDATION = 34;
 /** Arena layout (m). The arena's axis runs north (-Z) through its centre; Justice faces the way in. */
 export const BOSS_ARENA = { centreZ: -96, radius: 28, approach: { from: -11, to: -68, width: 6 }, pans: { x: 10, r: 6, top: 0.35, high: 70, lowerTime: 3 } };
+
+/** Distant scenery keeps at least this far from the walkable strip (m). */
+const SCENERY_CLEAR = 30;
+/** The Tower's stone landings at its doors (m deep). */
+const TOWER_LANDING = 4.5;
 
 export type ArenaKind = 'justice' | 'devil' | 'tower' | 'moon';
 
@@ -47,6 +53,7 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
   const solid: THREE.BufferGeometry[] = [];
   const flat: THREE.BufferGeometry[] = [];
   const far: THREE.BufferGeometry[] = [];
+  const mark: THREE.BufferGeometry[] = [];
   const A = BOSS_ARENA;
   const cz = A.centreZ;
   const staticBox = (x: number, y: number, z: number, hx: number, hy: number, hz: number, q?: THREE.Quaternion) => {
@@ -116,6 +123,14 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
       far.push(place(block(0.8, FOUNDATION, 0.8, S.dark, 0.06), Math.sin(a) * R * 0.6, -1 - FOUNDATION, cz + Math.cos(a) * R * 0.6));
+    }
+    // Stone landings at the way in and the way on: the deck grid stops short of the octagon's faces (a gap you fell
+    // through off the bridge), and these never fall, so there's always somewhere to stand at the doors.
+    for (const sz of [1, -1]) {
+      const z = cz + sz * (apo - TOWER_LANDING / 2);
+      solid.push(place(block(9, 1, TOWER_LANDING, S.mid, 0.05), 0, -1, z));
+      flat.push(place(paint(new THREE.PlaneGeometry(9, TOWER_LANDING).rotateX(-Math.PI / 2), S.light), 0, 0.02, z));
+      staticBox(0, -0.5, z, 4.5, 0.5, TOWER_LANDING / 2);
     }
   } else {
   far.push(place(facet(oct.clone().scale(1.02, FOUNDATION, 1.02).translate(0, -FOUNDATION / 2, 0), S.dark, 0.06), 0, 0, cz));
@@ -193,7 +208,7 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
     // The marsh: dark water just under the island, and the two towers with the Moon low between them, close now.
     flat.push(place(paint(new THREE.CircleGeometry(900, 32).rotateX(-Math.PI / 2), shade(S.dark, 0.85)), 0, -1.2, cz));
     const h = 150;
-    far.push(place(moonTowersGeo(h, S.dark, S.shadow), 0, -40, lmZ - 40));
+    mark.push(place(moonTowersGeo(h, S.dark, S.shadow), 0, -40, lmZ - 40));
     moonDisc = new THREE.Mesh(new THREE.CircleGeometry(h * MOON_R, 40), new THREE.MeshBasicMaterial({ color: P0.accent, fog: false }));
     moonDisc.position.set(0, -40 + h, lmZ - 44);
     group.add(moonDisc);
@@ -206,11 +221,11 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
     eye.rotation.x = Math.PI;
     group.add(eye);
   } else if (devil) {
-    far.push(place(pedestalGeo(175, S.mid, S.dark, P0.accent, P0.accentShade), 0, -150, lmZ));
+    mark.push(place(pedestalGeo(175, S.mid, S.dark, P0.accent, P0.accentShade), 0, -150, lmZ));
     const flame = new THREE.Mesh(flameGeo(175 * 0.07, GEAR.lantern), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false }));
     flame.position.set(0, -150 + 175 * PEDESTAL_FLAME, lmZ + 175 * PEDESTAL_BRAZIER_Z);
     group.add(flame);
-  } else far.push(place(scalesGeo(175, S.dark, S.shadow, JUSTICE.accent, JUSTICE.accentShade), 0, -62, lmZ));
+  } else mark.push(place(scalesGeo(175, S.dark, S.shadow, JUSTICE.accent, JUSTICE.accentShade), 0, -62, lmZ));
 
   // ---- the two pans that come down in phase 2 (brass: the accent motif), hanging on chains into the fog
   const P = A.pans;
@@ -227,6 +242,14 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
     pans.push(g);
   }
   let panState: 'up' | 'lowering' | 'down' = 'up';
+  // The Crowned Tower's floor: from its first phase, the current ring gives way again every few seconds (and is
+  // built back, deck by deck, behind it), so the stage keeps changing under the fight instead of only emptying.
+  let towerPhase = 0;
+  let towerT = 0;
+  const towerRing = () => {
+    const keep = towerPhase === 1 ? 18 : 9;
+    decks?.crackWhere((x, z) => Math.hypot(x, z - cz) > keep, 1.6);
+  };
   let panT = 0;
   const panColliders: RAPIER.Collider[] = [];
   const setPans = (y: number) => {
@@ -246,9 +269,21 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
     const r = rng.range(180, 420);
     far.push(place(hillGeo(rng, rng.range(60, 120), rng.range(30, 90), i % 2 ? S.dark : S.mid), Math.sin(a) * r, -58, cz + Math.cos(a) * r));
   }
+  // Never through the walkable strip (start platform, approach, arena): a pillar once stood up through the spawn,
+  // scenery with no collider, and you began the fight inside it.
+  const clear = (x: number, z: number) => {
+    const zc = THREE.MathUtils.clamp(z, cz - R - 10, startW);
+    return Math.hypot(x, z - zc) > SCENERY_CLEAR;
+  };
   for (let i = 0; i < 6; i++) {
-    const a = rng.range(0, Math.PI * 2);
-    const r = rng.range(70, 160);
+    let a = 0;
+    let r = 0;
+    for (let tries = 0; tries < 30; tries++) {
+      a = rng.range(0, Math.PI * 2);
+      r = rng.range(70, 160);
+      if (clear(Math.sin(a) * r, cz + Math.cos(a) * r)) break;
+    }
+    if (!clear(Math.sin(a) * r, cz + Math.cos(a) * r)) continue;
     if (devil || tower || moon) far.push(place(pitPillarGeo(rng.range(50, 85), S.mid, S.dark, P0.accentShade), Math.sin(a) * r, -60, cz + Math.cos(a) * r, 0, rng.range(0, 6.28), 0));
     else far.push(place(swordGeo(rng.range(40, 70), S.mid, S.dark), Math.sin(a) * r, -36, cz + Math.cos(a) * r, rng.range(-0.3, 0.3), rng.range(0, 6.28), 0.05));
   }
@@ -258,6 +293,11 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
   const distant = meshOf(merge(far), mat, false);
   distant.receiveShadow = false;
   group.add(distant);
+  if (mark.length) {
+    const landmark = meshOf(merge(mark), landmarkMat(), false);
+    landmark.receiveShadow = false;
+    group.add(landmark);
+  }
 
   const restPoints: RestPoint[] = [{ pos: lantern.clone(), rest: new THREE.Vector3(lantern.x - 1.6, 0.05, lantern.z - 1.2), restYaw: 0 }];
   const world = {
@@ -299,11 +339,10 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
       // The Tower's top floor falls away ring by ring (with warning: the decks pulse before they go), down to a last
       // platform under open sky. A rest or a rise brings it back.
       if (tower) {
+        towerPhase = phase;
+        towerT = 0;
         if (phase === 0) decks?.reset();
-        else {
-          const keep = phase === 1 ? 18 : 9;
-          decks?.crackWhere((x, z) => Math.hypot(x, z - cz) > keep, 1.6);
-        }
+        else towerRing();
         return;
       }
       // Justice's arena changes with her phase; the Devil's changes come from him (the pact, the coin).
@@ -324,6 +363,13 @@ export function buildBossArena(physics: Physics, rng: Rng, kind: ArenaKind = 'ju
       (world as BossWorld).onBossPhase(0);
     },
     update(dt: number) {
+      if (tower && towerPhase > 0) {
+        towerT += dt;
+        if (towerT >= tuning.tower.ringEvery) {
+          towerT = 0;
+          towerRing();
+        }
+      }
       if (panState !== 'lowering') return;
       panT = Math.min(1, panT + dt / P.lowerTime);
       // Ease in: heavy things settle.

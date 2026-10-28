@@ -35,7 +35,8 @@ four thin ones.
 > reflections among the enemies (`Foe.illusion`: no shadow, no footsteps, harmless, one hit dispels) and false paths.
 > **V2-14** adds its own (`src/enemies/moon-foes.ts`: Dog and Wolf, the Crayfish, Phantoms, the Page of Cups), the
 > Cups court and the Shadow (`court-cups.ts`, its island arena via `boss.ts`), and the ending: the blindfold comes off
-> and the Sun (`Menus.showSun`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> and the Sun (`Menus.showSun`). **V2-15** fixes the first full playtest's notes, among them the animals' own body
+> (`src/enemies/beast.ts`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -134,7 +135,8 @@ src/
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
   ui/              HUD, crosshair, hit markers, menus, the Magician's shop, tuning panel (presets, Copy JSON)
-  enemies/         v2: humanoid rig (humanoid.ts), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
+  enemies/         v2: humanoid rig (humanoid.ts), beast rig for animals (beast.ts: four legs, eight, or swimming; both
+                   rigs share FoeRig), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
                    Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice
                    boss (justice.ts: JusticeBoss extends CourtCard); the Devil's archetypes and the Thrall pair
                    (devil.ts), the Pentacles court
@@ -148,7 +150,8 @@ src/
                    gen-validate; gen-level: pipeline + reseed), the level builder (level.ts), the boss arena
                    (boss.ts), the hub (hub.ts + hub-data.ts: shop items, lines), faceted prop kit,
                    Justice courtyard, training dummies. v1: arenas, props, pollen drop, zone generator.
-tests/             vitest unit tests
+tests/             vitest unit tests; tests/support has a headless fight (real Rapier, a stand-in EnemyWorld) and a
+                   DOM stub, for behaviour tests that drive real enemies and the real player controller
 scripts/           smoke test (Playwright)
 archive/v1/        frozen v1 planning docs
 ```

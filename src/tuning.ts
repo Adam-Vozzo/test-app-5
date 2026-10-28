@@ -18,6 +18,8 @@ export const tuning = {
     turnRate: 16,
     combatModeTime: 1.6,
     stepHeight: 0.67,
+    /** After a fall she comes up at least this far inside the room she fell from (m). */
+    fallMargin: 3,
     maxSlopeDeg: 48,
     snapToGround: 0.56,
     /** Humanoid capsule (not converted: the beetle was an egg). 2·(radius + halfHeight) = 1.6 m. */
@@ -63,6 +65,10 @@ export const tuning = {
     crackTime: 1.0,
     burnTime: 4.5,
     spreadPerSec: 0.32,
+    /** A fallen deck is built back after this long (s): the stage keeps changing instead of emptying. 0 = never. */
+    regrowTime: 6,
+    /** The Crowned Tower's top floor: once it's in a phase, that phase's ring gives way again this often (s). */
+    ringEvery: 14,
     burnDps: 14,
     lightning: [
       [10, 14],
@@ -128,6 +134,8 @@ export const tuning = {
     /** Height fog: density falls by e every 1/heightFalloff metres above the ground. */
     heightFalloff: 0.02,
     heightMix: 1,
+    /** The landmark takes this fraction of the fog: its silhouette reads from every vista (1 = fogged like the rest). */
+    landmarkFog: 0.35,
     skyBands: 24,
     cloudAmount: 0.35,
   },
@@ -433,9 +441,13 @@ export const tuning = {
       /** The chain between a pair (m): it can't stretch further. Shoot it (`chainHealth`) and both are freed. */
       chainLength: 6,
       chainHealth: 40,
-      /** Freed: the one that fights is this much faster; the one that flees runs for `fleeTime` and is gone. */
+      /**
+       * Freed: the one that fights is this much faster; the other runs into the fog and is gone once it's `fleeGone`
+       * metres off (or, cornered, sinks away after `fleeTime`).
+       */
       rage: 1.3,
-      fleeTime: 3,
+      fleeTime: 8,
+      fleeGone: 24,
       attacks: {
         flail: { range: 2.8, windup: 0.62, active: 0.18, recover: 0.8, cooldown: 1.2, damage: 18, knockback: 6, arcDeg: 150, lunge: 1.2, weight: 1 },
         /**
@@ -635,10 +647,11 @@ export const tuning = {
       /** Unstoppable: shots don't stagger it (a parry still does). */
       poise: 100000,
       poiseRegen: 0,
-      speed: 1.8,
-      runSpeed: 2.6,
-      accel: 12,
-      turnRate: 3.2,
+      // (playtest: too slow; it walked where it should stalk)
+      speed: 2.6,
+      runSpeed: 4.2,
+      accel: 18,
+      turnRate: 4,
       sightRange: 34,
       leash: 70,
       staggerTime: 1.2,
@@ -648,8 +661,8 @@ export const tuning = {
       retreatTime: 0.8,
       attacks: {
         /** A slow lane charge that pins you (bound, then struck) instead of knocking you down. */
-        charge: { kind: 'charge', binds: true, range: 15, windup: 1.2, active: 1.7, recover: 1.5, cooldown: 3, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.2, speed: 10, delay: 1.4 },
-        recharge: { kind: 'charge', binds: true, range: 15, windup: 1.05, active: 1.5, recover: 1.6, cooldown: 4, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.5, speed: 11, hits: 2, comboWindup: 0.8, delay: 1.3, minPhase: 1 },
+        charge: { kind: 'charge', binds: true, range: 15, windup: 1.1, active: 1.3, recover: 1.4, cooldown: 3, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.2, speed: 13, delay: 1.4 },
+        recharge: { kind: 'charge', binds: true, range: 15, windup: 1.05, active: 1.3, recover: 1.6, cooldown: 4, damage: 34, knockback: 6, arcDeg: 360, lunge: 0, weight: 1.5, speed: 14, hits: 2, comboWindup: 0.8, delay: 1.3, minPhase: 1 },
         maul: { range: 3.4, windup: 0.95, active: 0.14, recover: 1.1, cooldown: 1.2, damage: 32, knockback: 8, arcDeg: 360, lunge: 0.6, weight: 1, radius: 2.4, reach: 2.2 },
       },
     },
@@ -776,6 +789,8 @@ export const tuning = {
      * cracks and falls into the storm, ending on a last platform under open sky.
      */
     crownedTower: {
+      /** Wakes as you step into its arena (it stands ~32 m from the way in). */
+      wakeRadius: 30,
       health: 3200,
       poise: 480,
       poiseRegen: 40,
@@ -1000,6 +1015,8 @@ export const tuning = {
      * the real one casts a shadow).
      */
     shadow: {
+      /** Wakes as you step into its arena (it stands ~32 m from the way in). */
+      wakeRadius: 30,
       health: 2600,
       poise: 380,
       poiseRegen: 40,
@@ -1030,6 +1047,8 @@ export const tuning = {
      * and double what you take. Phase 2 adds coin rain and a second shackle.
      */
     devil: {
+      /** Wakes as you step into its arena (it stands ~32 m from the way in). */
+      wakeRadius: 30,
       health: 3000,
       poise: 460,
       poiseRegen: 40,
@@ -1059,6 +1078,8 @@ export const tuning = {
      * arena's axis).
      */
     justice: {
+      /** Wakes as you step into its arena (it stands ~32 m from the way in). */
+      wakeRadius: 30,
       health: 2600,
       poise: 420,
       poiseRegen: 40,
@@ -1101,6 +1122,10 @@ export const tuning = {
     noise: { pistol: 42, rifle: 55, blade: 16, sprint: 9, roll: 7, walk: 2.5 },
     hitFlashTime: 0.08,
     corpseTime: 5,
+    /** An enemy this far below where it stood has fallen off the stage (m). */
+    fallDepth: 10,
+    /** A melee blow lands within the attacker's arm-and-weapon reach plus this much (her body, a little grace) (m). */
+    reachMargin: 0.7,
     /** Idle enemies beyond this distance are hidden and skip their update (they're lost in the fog). */
     sleepDistance: 75,
   },

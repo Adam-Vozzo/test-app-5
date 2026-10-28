@@ -30,6 +30,9 @@ export class Menus {
   private pause: HTMLDivElement;
   private death: HTMLDivElement;
   private sun: HTMLDivElement;
+  private pact: HTMLDivElement;
+  /** The Devil's pact is answered: true accepts. */
+  onPact: (accept: boolean) => void = () => {};
   /** The ending is closed: back to the World. */
   onSunClose: () => void = () => {};
   private deathNote: HTMLElement;
@@ -68,7 +71,12 @@ export class Menus {
       <p class="line"></p>
       <button data-a="sun">Return to the World</button>`);
     this.sun.classList.add('sun', 'hidden');
-    for (const el of [this.start, this.pause, this.death, this.sun]) {
+    this.pact = this.make(`
+      <h1>The Devil's Pact</h1>
+      <p class="line"></p>
+      <div class="row"><button data-a="pact-yes">Accept (E)</button><button data-a="pact-no">Refuse (Esc)</button></div>`);
+    this.pact.classList.add('pact', 'hidden');
+    for (const el of [this.start, this.pause, this.death, this.sun, this.pact]) {
       el.addEventListener('click', (e) => {
         const a = (e.target as HTMLElement).dataset.a;
         if (a === 'justice' || a === 'level' || a === 'hub' || a === 'new') this.onPlay(a);
@@ -76,6 +84,7 @@ export class Menus {
         else if (a === 'quit') this.onQuit();
         else if (a === 'rise') this.onRise();
         else if (a === 'sun') this.onSunClose();
+        else if (a === 'pact-yes' || a === 'pact-no') this.onPact(a === 'pact-yes');
       });
     }
   }
@@ -100,6 +109,15 @@ export class Menus {
   showPause(v: boolean) {
     this.pause.classList.toggle('hidden', !v);
   }
+  /** The Devil holds out his pact: the game waits for an answer. */
+  showPact(v: boolean, terms = '') {
+    this.pact.classList.toggle('hidden', !v);
+    this.pact.querySelector('.line')!.textContent = terms;
+  }
+  get pactShown() {
+    return !this.pact.classList.contains('hidden');
+  }
+
   /** The ending: the card's image and one line. */
   showSun(v: boolean, line = '') {
     this.sun.classList.toggle('hidden', !v);

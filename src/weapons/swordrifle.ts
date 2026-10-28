@@ -39,6 +39,7 @@ export interface SwordPose {
 
 const DEG = Math.PI / 180;
 const SAMPLES = 6;
+const _down = new THREE.Vector3();
 const SPENT = new THREE.Color(0x2b2f38);
 const WHITE = new THREE.Color(1, 1, 1);
 const _c = new THREE.Color();
@@ -92,6 +93,8 @@ export class SwordRifle {
   private flare: number[] = [];
   private dryFlicker = 0;
   private emptyToasts = 0;
+  /** F pressed while a swing (or a rebound off a shield) was still recovering: the switch happens when it ends. */
+  private switchQueued = 0;
   private lastMag: number;
 
   constructor(readonly gun: Gun) {
@@ -132,6 +135,14 @@ export class SwordRifle {
     if (this.swing.busy && this.swing.canCancel) this.swing.cancel();
   }
 
+  /** Set the mode at once (carried between scenes). */
+  setMode(mode: SwordMode) {
+    this.cancelActions();
+    this.mode = mode;
+    this.blend = mode === 'sword' ? 1 : 0;
+    this.pose.blend = this.blend;
+  }
+
   /** Death, swap-away, rest: stop whatever was in progress. */
   cancelActions() {
     this.swing.cancel();
@@ -149,7 +160,12 @@ export class SwordRifle {
     const committed = ctx.player.controller.committed || !canAct;
 
     // ---- mode switch (F): committed transform; the stock folds, the off hand moves, the pose blends.
-    if (inp.switchPressed && !committed && !this.busy && !this.gun.reloading && this.gun.cycleT >= 1) {
+    // A press during a swing's recovery is held for a moment rather than lost.
+    if (inp.switchPressed) this.switchQueued = 0.6;
+    else this.switchQueued = Math.max(0, this.switchQueued - dt);
+    if (this.switchQueued > 0 && !this.switching && this.swing.busy && this.swing.canCancel && this.swing.phase === 'recover' && !committed) this.swing.cancel();
+    if (this.switchQueued > 0 && !committed && !this.busy && !this.gun.reloading && this.gun.cycleT >= 1) {
+      this.switchQueued = 0;
       this.switching = true;
       this.switchT = 0;
       this.switchFrom = this.blend;
@@ -313,8 +329,19 @@ export class SwordRifle {
       _to.copy(_a).applyQuaternion(_stepQ).multiplyScalar(THREE.MathUtils.lerp(la, lb, t));
       _to.add(_chestT.lerpVectors(this.prevChest, chest, t));
       this.cast(ctx, _from, _to, exclude);
+      // The outer half of the blade also cuts down to the ground beneath it: low things (fish, cats, imps) are
+      // under the arc, not out of reach.
+      if (i >= SAMPLES / 2) this.castDown(ctx, _to, exclude);
       _from.copy(_to);
     }
+  }
+
+  /** Strike whatever stands under a point of the swing, down to her feet. */
+  private castDown(ctx: GunContext, from: THREE.Vector3, exclude: unknown) {
+    const drop = from.y - ctx.player.controller.pos.y + 0.05;
+    if (drop <= 0.05) return;
+    _down.copy(from).setY(from.y - drop);
+    this.cast(ctx, from, _down, exclude);
   }
 
   private cast(ctx: GunContext, from: THREE.Vector3, to: THREE.Vector3, exclude: unknown) {

@@ -410,6 +410,11 @@ const SFX = {
     a: L({ kind: 'osc', wave: 'sawtooth', f0: 330, f1: 160, dur: 0.6, gain: 0.16 }),
     hiss: L({ kind: 'noise', filter: 'highpass', f0: 3000, f1: 1500, dur: 0.5, gain: 0.25 }),
   },
+  // The Shadow's rifle: her own heavy bolt, a crack and a deep report.
+  boltShot: {
+    crack: L({ kind: 'noise', filter: 'highpass', f0: 2600, f1: 1200, dur: 0.12, gain: 0.8 }),
+    boom: L({ kind: 'osc', wave: 'sine', f0: 110, f1: 45, dur: 0.35, gain: 0.5 }),
+  },
   sunrise: {
     a: L({ kind: 'osc', wave: 'sine', f0: 392, f1: 392, dur: 2.4, gain: 0.16, attack: 0.6 }),
     b: L({ kind: 'osc', wave: 'sine', f0: 587, f1: 587, dur: 2.2, gain: 0.12, attack: 0.6, delay: 0.4 }),

@@ -1,7 +1,7 @@
 // The Tower's timber decks at runtime (V2-11): one instanced draw per scaffold room, one collider per deck. The
 // rules live in scaffold.ts (pure); this file shows them. Sound decks are timber, rotten ones charred and sagging
 // (the tell), cracking ones pulse telegraph magenta, burning ones flicker in the Tower's fire orange, and fallen ones
-// are gone (the collider too) until you rest.
+// are gone (the collider too) until they're built back a few seconds later, or you rest.
 import * as THREE from 'three';
 import type { Rng } from '../core/rng';
 import { Physics, RAPIER } from '../physics/world';
@@ -146,19 +146,27 @@ export class Decks {
     return n;
   }
 
-  /** Advance fire and cracks; fallen decks lose their colliders. Returns what happened (for sounds). */
-  update(dt: number, rng: Rng): DeckEvent[] {
+  /**
+   * Advance fire and cracks; fallen decks lose their colliders, and are built back once nothing (in `occupants`, feet
+   * positions) stands in their space. Returns what happened (for sounds).
+   */
+  update(dt: number, rng: Rng, occupants: readonly THREE.Vector3[] = []): DeckEvent[] {
     this.time += dt;
     const out: DeckEvent[] = [];
     const tune = tuning.tower;
     for (const room of this.rooms) {
-      const ev = room.grid.update(dt, tune, rng);
+      const s = room.s;
+      const occupied = (i: number) => {
+        this.centre(s, i, _p);
+        return occupants.some((o) => Math.abs(o.x - _p.x) < s.tx / 2 + 0.6 && Math.abs(o.z - _p.z) < s.tz / 2 + 0.6 && o.y > s.y - 3 && o.y < s.y + 2.5);
+      };
+      const ev = room.grid.update(dt, tune, rng, occupied);
       for (const e of ev) {
         if (e.kind === 'fall') {
           const c = room.cols[e.i];
           if (c) this.physics.removeCollider(c);
           room.cols[e.i] = null;
-        }
+        } else if (e.kind === 'regrow' && !room.cols[e.i]) room.cols[e.i] = this.addCollider(s, e.i);
         out.push(e);
       }
       // Only rooms with something happening need repainting.

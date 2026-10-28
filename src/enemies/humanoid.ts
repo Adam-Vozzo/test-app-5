@@ -9,6 +9,7 @@ import type { Physics } from '../physics/world';
 import { meshOf, toonMat } from '../render/geo';
 import type { LimbRenderer } from '../render/limbs';
 import { SIGNAL } from '../render/palette';
+import type { FoeRig } from './beast';
 import type { ArmPose, FoePlan } from './foes';
 
 const _v = new THREE.Vector3();
@@ -34,7 +35,7 @@ interface Foot {
   side: number;
 }
 
-export class HumanoidRig {
+export class HumanoidRig implements FoeRig {
   readonly group = new THREE.Group();
   readonly s: number;
   readonly yawQuat = new THREE.Quaternion();
@@ -64,7 +65,13 @@ export class HumanoidRig {
   private placed = false;
   private bob = 0;
   private deadT = 0;
+  /** Which way a corpse falls (horizontal, world): away from the blow that killed it. */
+  private readonly fallDir = new THREE.Vector3();
   onFootstep: (p: THREE.Vector3) => void = () => {};
+  /** How far its blows can really reach from its chest: arm plus weapon (m). */
+  readonly reach: number;
+  /** Its movement capsule's half height (m). */
+  readonly capsuleHalf: number;
 
   constructor(
     scene: THREE.Scene,
@@ -72,6 +79,7 @@ export class HumanoidRig {
     readonly plan: FoePlan,
   ) {
     this.s = plan.height / 1.6;
+    this.capsuleHalf = 0.42 * this.s;
     this.bodyMat = toonMat({ emissive: 0x000000 });
     this.gearMat = toonMat({ emissive: 0x000000 });
     this.torso = meshOf(plan.torso(), this.bodyMat);
@@ -79,6 +87,12 @@ export class HumanoidRig {
     this.weapon = meshOf(plan.weapon(), this.gearMat);
     this.offhand = plan.offhand ? meshOf(plan.offhand(), this.gearMat) : null;
     for (const m of [this.torso, this.head, this.weapon, this.offhand]) if (m) m.scale.setScalar(this.s);
+    // Weapons point along -Z from the grip.
+    const len = (g: THREE.BufferGeometry) => {
+      g.computeBoundingBox();
+      return Math.max(0, -g.boundingBox!.min.z);
+    };
+    this.reach = (0.52 + Math.max(len(this.weapon.geometry), this.offhand ? len(this.offhand.geometry) : 0)) * this.s;
     this.group.add(this.torso, this.head, this.weapon);
     if (this.offhand) this.group.add(this.offhand);
     if (plan.weakGlow) {
@@ -98,10 +112,17 @@ export class HumanoidRig {
     }));
   }
 
+  /** Which way it falls when it dies (the killing blow's direction); zero falls backward. */
+  setFallDir(dir: THREE.Vector3) {
+    this.fallDir.set(dir.x, 0, dir.z);
+    if (this.fallDir.lengthSq() > 1e-6) this.fallDir.normalize();
+  }
+
   /** Teleport: replant the feet under `root`. */
   reset(root: THREE.Vector3, yaw: number) {
     this.placed = false;
     this.deadT = 0;
+    this.fallDir.set(0, 0, 0);
     this.group.visible = true;
     this.group.scale.setScalar(1);
     this.yawQuat.setFromAxisAngle(_up, yaw);
@@ -138,16 +159,28 @@ export class HumanoidRig {
     }
 
     if (dead) {
-      // Topple backward and lie still; the gear falls beside the body.
+      // The knees go first (the hips drop), then it topples away from the killing blow and lies still. Feet stay
+      // where they were planted; the whole body moves with the root, so a corpse sinking into the ground stays whole.
+      if (this.deadT === 0 && this.fallDir.lengthSq() < 1e-6) this.fallDir.copy(this.forward).negate();
       this.deadT += dt;
-      const fall = stepEase(Math.min(1, this.deadT / 0.5));
-      _e.set(-(Math.PI / 2) * fall, 0, 0.1 * fall, 'YXZ');
-      this.bodyQuat.copy(this.yawQuat).multiply(_q.setFromEuler(_e));
-      this.hips.copy(root).addScaledVector(_up, THREE.MathUtils.lerp(0.62 * s, 0.18 * s, fall));
+      const buckle = stepEase(Math.min(1, this.deadT / 0.25));
+      const fall = stepEase(clamp((this.deadT - 0.12) / 0.55, 0, 1));
+      // Tip over about the axis across the fall direction (up turns toward fallDir).
+      _v2.crossVectors(_up, this.fallDir).normalize();
+      _q.setFromAxisAngle(_v2, (Math.PI / 2) * 0.92 * fall);
+      this.bodyQuat.copy(_q).multiply(this.yawQuat);
+      this.hips
+        .copy(root)
+        .addScaledVector(_up, THREE.MathUtils.lerp(0.62 * s, 0.42 * s, buckle) - 0.26 * s * fall)
+        .addScaledVector(this.fallDir, 0.35 * s * fall);
       this.chest.copy(this.hips).addScaledVector(_v.set(0, 0.32 * s, 0).applyQuaternion(this.bodyQuat), 1);
       for (const f of this.feet) {
-        f.pos.copy(this.hips).addScaledVector(this.right, f.side * 0.16 * s).addScaledVector(this.forward, 0.62 * s * fall);
-        f.pos.y = Math.max(root.y + 0.06, this.hips.y - 0.6 * s * (1 - fall));
+        // The legs fold under, then trail behind the fall.
+        f.pos
+          .copy(root)
+          .addScaledVector(this.right, f.side * 0.15 * s)
+          .addScaledVector(this.fallDir, -0.25 * s * fall);
+        f.pos.y = root.y + 0.06;
         f.planted.copy(f.pos);
       }
     } else {

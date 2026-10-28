@@ -5,7 +5,7 @@ import type { Rng } from '../core/rng';
 import type { DimensionDef, EncounterTemplate, HoardCost, SocketRole } from './dimensions';
 import type { MissionGraph } from './gen-graph';
 import { connected } from './scaffold';
-import { connRect, DX, DZ, overlaps, roomRect, toLocal, toWorld, yawOf, type Dir, type Room, type Space } from './gen-space';
+import { connRect, DX, DZ, overlaps, roomRect, toLocal, toWorld, yawOf, type Connector, type Dir, type Room, type Space } from './gen-space';
 
 /** Edge heights (m). Parapets stay above the player's step height; walls hide what's beyond. */
 export const EDGE = { wall: 3.6, parapet: 1.1, thick: 0.6 };
@@ -414,6 +414,36 @@ function doorPointOut(r: Room): [number, number] {
 // ---------------------------------------------------------------------------------------------------------------
 // Dressing
 
+/** A hidden stepping stone (square, top at y). */
+export interface Stone {
+  x: number;
+  z: number;
+  y: number;
+  size: number;
+}
+
+/**
+ * Stones wind across a connector (left, middle, right, middle, ...): each step overlaps the last a little, but walking
+ * the drawn boardwalk's middle line meets a 2 m hole wherever the way swings out to a side (her body is 0.6 m wide,
+ * and a side stone's inner edge stands 0.5 m off the middle).
+ */
+export const STONE = { size: 1.6, pitch: 1.8, lane: 1.3 };
+
+export function stonesAcross(c: Connector): Stone[] {
+  const len = Math.hypot(c.bx - c.ax, c.bz - c.az);
+  const ux = (c.bx - c.ax) / len;
+  const uz = (c.bz - c.az) / len;
+  const n = Math.max(2, Math.round(len / STONE.pitch));
+  const out: Stone[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    const side = [-1, 0, 1, 0][i % 4];
+    // Right of the heading is (-uz, ux).
+    out.push({ x: c.ax + ux * len * t - uz * side * STONE.lane, z: c.az + uz * len * t + ux * side * STONE.lane, y: c.y0 + (c.y1 - c.y0) * t, size: STONE.size });
+  }
+  return out;
+}
+
 export interface Dressing {
   spawn: Pose;
   lanterns: Lantern[];
@@ -424,6 +454,11 @@ export interface Dressing {
   caches: { node: number; x: number; z: number; y: number; reflection?: boolean }[];
   /** The Moon: branch connectors that are false paths (no boardwalk is really there). */
   falsePaths: number[];
+  /**
+   * The Moon's secret way across a false path: stepping stones nobody can see, zig-zagging under the drawn
+   * boardwalk. Real things cast shadows, so their shadows on the water show the way (the rule turned around).
+   */
+  stones: Stone[];
   /** The Devil's temptation: hoards in plain sight, each with a cost and its tell. */
   hoards: Hoard[];
   /** The Tower's collapse: timber deck grids in scaffold rooms, some rotten. */
@@ -553,15 +588,16 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
     if (g.nodes[r.node].kind === 'branch') {
       const [x, z] = toWorld(r, 0, r.d / 6);
-      // (A false path's cache is a reflection too: the whole branch is a lie. Marked below.)
       // In a tempting dimension the branch's reward is a bigger hoard, with the harshest cost.
       if (dim.temptation) hoards.push({ node: r.node, x, z, y: r.y, cost: dim.temptation.branchCost, branch: true });
       else caches.push({ node: r.node, x, z, y: r.y });
     }
   }
 
-  // The Moon's false paths: some branches' boardwalks aren't there (and their caches are reflections).
+  // The Moon's false paths: some branches' boardwalks aren't there. The way across is the stones that cast shadows;
+  // the cache beyond is real (the reward for reading the water).
   const falsePaths: number[] = [];
+  const stones: Stone[] = [];
   if (dim.illusion) {
     const fr = rng.fork('false-paths');
     const branchConns = space.connectors.map((c, i) => [c, i] as const).filter(([c]) => c.kind === 'branch');
@@ -571,7 +607,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     }
     for (const [c, i] of branchConns.slice(0, dim.illusion.falseBranches)) {
       falsePaths.push(i);
-      for (const k of caches) if (k.node === c.to) k.reflection = true;
+      stones.push(...stonesAcross(c));
     }
   }
 
@@ -676,7 +712,7 @@ export function dress(dim: DimensionDef, g: MissionGraph, space: Space, furn: Fu
     heroSwords.push({ x, z, y: -34, len: rng.range(40, 64), yaw: rng.range(0, Math.PI * 2), tilt: rng.range(-0.22, 0.22) });
   }
 
-  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, scaffolds, falsePaths, vistas, landmark, door, exit };
+  return { spawn, lanterns, arches, swords, heroSwords, grass, caches, hoards, scaffolds, falsePaths, stones, vistas, landmark, door, exit };
 }
 
 export function inRoom(r: Room, x: number, z: number, inset = 0) {

@@ -47,12 +47,34 @@ const look = (dx, dy) => g(([x, y]) => window.__game.camera.look(x, y), [dx, dy]
 try {
   await page.goto(`http://localhost:${PORT}/?seed=42`);
   await page.waitForFunction(() => !!window.__game, null, { timeout: 30000 });
+  // She keeps her weapon from scene to scene; the scenarios were written for a fresh start, pistol in hand.
+  await g(() => {
+    const gm = window.__game;
+    const start = gm.start.bind(gm);
+    gm.carryStart = start;
+    gm.start = (...a) => {
+      gm.arsenal?.restore({ index: 0, mode: 'rifle' });
+      return start(...a);
+    };
+  });
   await wait(500);
   await shot('00-menu');
 
   // ---- Justice courtyard (v2): walk, look around, roll, IK debug. Pixel mode is on by default.
   await g(() => window.__game.start('justice'));
   await wait(1500);
+  // The weapon carries: the SwordRifle out in sword mode stays out (and in sword mode) through a scene change.
+  const carried = await g(() => {
+    const gm = window.__game;
+    gm.arsenal.restore({ index: 1, mode: 'sword' });
+    gm.carryStart('justice');
+    const st = gm.arsenal.state;
+    gm.arsenal.restore({ index: 0, mode: 'rifle' });
+    return st;
+  });
+  console.log(`  weapon carried through a scene change: ${JSON.stringify(carried)}`);
+  if (carried.index !== 1 || carried.mode !== 'sword') throw new Error('the weapon in hand should carry into the next scene');
+  await wait(500);
   await shot('01-justice-spawn');
   const body = await g(() => {
     const b = window.__game.player.biped;
