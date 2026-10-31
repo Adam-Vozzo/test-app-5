@@ -648,6 +648,33 @@ stairs' top (a lip), and the player could sink into the character controller's s
     `gen-metrics` (the pace).
   - Smoke: the pan carries her and swings home (`--level`); the false path's shadows (`--moon`, `107c`).
 
+### V2-18: Touch controls ✅ (waiting on your playtest)
+At the user's request: the game on phones and tablets, with responsive controls. Touch controls were on the
+out-of-scope list until now (`CLAUDE.md` and `DESIGN.md → Platforms and controls` record the change).
+- **Done as:**
+  - **When:** on a touch screen without a mouse (`(pointer: coarse)` and `(hover: none)`), the first time a screen is
+    touched, or with `?touch=1` (`?touch=0` keeps them off). The menus' legend lists the touch controls instead of the
+    keys. There's no pointer to lock: a soft lock stands in, quietly, and Play asks for the full screen, turned sideways
+    where the browser allows.
+  - **Move:** a floating stick lands under the left thumb anywhere in the left 42% of the screen. It's analog (walk
+    slowly or fast), has a dead zone, and pushed past 92% of its rim, forward, she runs (`src/core/stick.ts`, pure and
+    tested).
+  - **Look:** a drag anywhere else on the screen; the thumb holding Fire looks too, so you can walk the shots onto a
+    target. Multi-touch: move, look and fire at once.
+  - **Verbs:** thumb buttons round Fire: Aim (toggled; in sword mode it's Charge, held), Roll, Reload, Heal, Swap, the
+    SwordRifle's mode (only with it in hand), Parry and Dash (only once unbound), and Use, which appears only when
+    there's something to use and carries the prompt's words. Pause at the top right. They press the same codes the
+    keys and mouse do (`Input`), so no system changed how it reads input; the stick adds an analog move vector.
+  - **Responsive:** the buttons size from the screen's short side (smaller in portrait) and keep clear of notches
+    (safe-area insets). With touch on, ammo and weapons go to the top right, the boss bar to the top, the toast higher.
+    On any small screen the HUD scales down and the menus fit and scroll.
+  - **Feel numbers:** `tuning.touch` (look sensitivity, stick radius, dead zone, sprint point, the stick's zone).
+  - Tests: `stick` (the stick's maths).
+  - Smoke: `--touch` drives a 844×390 phone with real touches through the DevTools protocol: the stick runs her
+    forward while a second thumb looks; Fire fires, Aim toggles, Roll rolls, Swap takes up the SwordRifle (its mode
+    button appears), pause pauses (the controls hide) and Resume resumes; in portrait (390×844) every control and the
+    HUD stay on screen.
+
 ### Later
 - **Post-processing:** explore new techniques for the look (the v1 painterly pass was removed after V2-1; pixel
   mode stays).

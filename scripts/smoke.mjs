@@ -227,6 +227,10 @@ try {
     if (process.argv.includes('--moon')) await moonScenario({ page, g, hold, release, press, look, wait, shot });
     await moonFoesScenario({ page, g, hold, release, press, look, wait, shot });
   }
+  if (process.argv.includes('--touch')) {
+    const { touchScenario } = await import('./smoke-touch.mjs');
+    await touchScenario({ browser, port: PORT, errors });
+  }
   if (process.argv.includes('--pistol')) {
     const { pistolScenario } = await import('./smoke-v2.mjs');
     await pistolScenario({ page, g, hold, release, press, look, wait, shot });

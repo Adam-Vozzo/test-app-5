@@ -47,6 +47,14 @@ meaning of its arcana, so the theme is something you play, not something you rea
 3. Common enemies share 3–4 archetype verbs across all dimensions, re-skinned per dimension, plus **one signature
    enemy per dimension** that carries its rule.
 
+## Platforms and controls (Decided: mouse and keyboard, and touch since V2-18; touch layout Proposed)
+The game runs in the browser with a mouse and keyboard. *Since V2-18, at the user's request,* it also plays on phones
+and tablets: a floating stick under the left thumb (pushed to the rim, she runs), a drag anywhere else looks, and
+thumb buttons on the right for Fire, Aim (a toggle; held as the sword's charge), Roll, Reload, Heal, Swap, the
+SwordRifle's mode, and Parry and Dash once unbound. **Use** appears only when there's something to use, carrying the
+prompt's words. The pillars hold on touch: shooting is still instant, the committed verbs still commit. The HUD and
+the menus scale to the screen, landscape or portrait. (Touch controls were out of scope until then.)
+
 ## The four dimensions (Decided: pairings, order, and Justice as the first slice; details Proposed)
 
 The four pairings and their order are decided, and **Justice is the first playable slice**. The per-dimension

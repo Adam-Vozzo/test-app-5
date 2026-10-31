@@ -25,6 +25,19 @@ const KEYS: [string, string][] = [
   ['Esc', 'pause'],
 ];
 
+/** The touch legend (V2-18), shown instead of the keys on a touch screen. */
+const TOUCH: [string, string][] = [
+  ['Left thumb', 'move (it lands where you touch) · to the rim: run'],
+  ['Drag anywhere', 'look (and while holding Fire)'],
+  ['Fire · Aim', 'shoot · aim toggles (sword: Charge, held)'],
+  ['Roll · Reload · Heal', 'dodge-roll · reload · heal'],
+  ['Swap · Sword', 'next weapon · SwordRifle: rifle ⇄ sword'],
+  ['Use', 'appears by lanterns, doors and people'],
+  ['Parry · Dash', 'appear once unbound'],
+  ['Ⅱ', 'pause'],
+];
+const legend = (rows: [string, string][]) => rows.map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join('');
+
 export class Menus {
   private start: HTMLDivElement;
   private pause: HTMLDivElement;
@@ -44,7 +57,7 @@ export class Menus {
   onQuit: () => void = () => {};
 
   constructor(seed: number) {
-    const keys = KEYS.map(([k, v]) => `<b>${k}</b><span>${v}</span>`).join('');
+    const keys = legend(KEYS);
     this.start = this.make(`
       <h1>Eight</h1>
       <p>The Eight of Swords, bound only by herself. Everything here is generated in code.</p>
@@ -95,6 +108,13 @@ export class Menus {
     d.innerHTML = html;
     document.body.appendChild(d);
     return d;
+  }
+
+  /** Touch controls are on: the legends list them instead of the keys, and the pact's buttons drop their keys. */
+  setTouch(on: boolean) {
+    for (const el of document.querySelectorAll('.overlay .keys')) el.innerHTML = legend(on ? TOUCH : KEYS);
+    this.pact.querySelector('[data-a="pact-yes"]')!.textContent = on ? 'Accept' : 'Accept (E)';
+    this.pact.querySelector('[data-a="pact-no"]')!.textContent = on ? 'Refuse' : 'Refuse (Esc)';
   }
 
   /** With a save in progress, Play continues it. */

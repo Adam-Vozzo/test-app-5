@@ -1,4 +1,5 @@
-// Keyboard + mouse state with pointer lock. Also accepts scripted input (smoke tests drive window.__game.input).
+// Keyboard + mouse state with pointer lock, and the touch controls' stick and drags (src/ui/touch.ts presses the same
+// codes a keyboard would). Also accepts scripted input (smoke tests drive window.__game.input).
 
 export class Input {
   private down = new Set<string>();
@@ -16,6 +17,16 @@ export class Input {
   onSoftFallback: () => void = () => {};
   /** Scripted keys/buttons held regardless of real input (for automated tests). */
   readonly virtual = new Set<string>();
+  /**
+   * Touch controls are on (a touch screen, or `?touch=1`): there's no pointer to lock, so a soft lock stands in
+   * without the warning, and the stick below moves her.
+   */
+  touch = false;
+  /** The touch stick: right +x, forward +y, length 0..1 (zero when no thumb is on it). */
+  stickX = 0;
+  stickY = 0;
+  /** The stick pushed to its rim: sprint. */
+  stickSprint = false;
   onLockChange: (locked: boolean) => void = () => {};
   onKey: (code: string) => void = () => {};
 
@@ -62,7 +73,7 @@ export class Input {
   }
 
   requestLock() {
-    if (this.soft || !this.canvas.requestPointerLock) {
+    if (this.soft || this.touch || !this.canvas.requestPointerLock) {
       this.fallback();
       return;
     }
@@ -82,7 +93,22 @@ export class Input {
       this.canvas.style.cursor = 'none';
       this.onLockChange(true);
     }
-    if (first) this.onSoftFallback();
+    if (first && !this.touch) this.onSoftFallback();
+  }
+
+  /** A drag on the touch screen, in pixels: looks like the mouse does. */
+  look(dx: number, dy: number) {
+    if (!this.locked) return;
+    this.mouseDX += dx;
+    this.mouseDY += dy;
+  }
+
+  /** Let go of everything (the touch controls hid, or the page lost focus). */
+  releaseAll() {
+    for (const c of [...this.down]) this.release(c);
+    this.stickX = 0;
+    this.stickY = 0;
+    this.stickSprint = false;
   }
 
   exitLock() {

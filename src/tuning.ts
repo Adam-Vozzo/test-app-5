@@ -186,6 +186,20 @@ export const tuning = {
     collisionRecoverRate: 6,
     followRate: 30,
   },
+  /**
+   * Touch controls (V2-18): a floating stick under the left thumb (it lands where you touch), a drag anywhere else
+   * looks, and thumb buttons on the right. `lookSens` scales a drag (px) against the mouse's counts; `stickRadius` is
+   * the thumb's travel to the rim as a share of the screen's short side; `deadzone` and `sprintAt` are shares of
+   * that radius (held past `sprintAt` going forward, she runs). `stickZone` is how much of the screen's width, from
+   * the left, belongs to the stick.
+   */
+  touch: {
+    lookSens: 1.9,
+    stickRadius: 0.11,
+    deadzone: 0.12,
+    sprintAt: 0.92,
+    stickZone: 0.42,
+  },
   feel: {
     hitstopCrit: 0,
     hitstopKill: 0,

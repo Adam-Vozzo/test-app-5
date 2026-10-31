@@ -271,6 +271,15 @@ against them, and v2 palettes join that test as they're added.
 4. Nothing smaller than ~4 px on screen at play distance unless it's an effect. Pixel mode makes this rule stricter.
 5. **Telegraph poses are exaggerated**: wind-up, rear back, weapon raised high, magenta glow.
 
+### Touch controls (V2-18, Proposed until played)
+On a touch screen the controls sit over the game in the HUD's own language: translucent dark discs with a white rim
+and white bold labels (cream when held, a cream rim when toggled on), never a signal colour. **Fire** is the one large
+disc, a muted version of the Fallen screen's red, at the bottom right; the other verbs ring it within a thumb's reach.
+The **stick** is a faint ring with a cream knob that appears only where the left thumb lands; its rim turns cream
+while she runs. **Use** is the interaction prompt itself, the same white pill, made tappable. Everything sizes from
+the screen's short side and keeps clear of notches. With touch on, ammo and weapons move to the top right and the
+boss bar to the top, so no thumb covers them.
+
 ## Screenshot checklist (each v2 milestone)
 - [ ] Three value planes are visible: a dark frame, a mid play space, pale distance.
 - [ ] Fog runs toward the area's light sky colour, and the landmark reads as a silhouette.
@@ -280,3 +289,5 @@ against them, and v2 palettes join that test as they're added.
 - [ ] Signal colours appear only on signals and stand out against every surface and the fog.
 - [ ] Shapes are blocky and faceted; nothing reads as cute.
 - [ ] The draw-call budget holds (see `LEVELS.md → Budgets`).
+- [ ] On a phone (the `--touch` smoke, landscape and portrait), every control and the HUD stay on screen and clear of
+  each other, and the play space in the middle stays free.

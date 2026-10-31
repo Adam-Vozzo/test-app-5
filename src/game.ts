@@ -46,6 +46,7 @@ import { sweepCrosses } from './enemies/foe-ai';
 import { Dummy } from './world/dummy';
 import { buildZone, type ZoneWorld } from './world/zone';
 import { Minimap } from './ui/minimap';
+import { TouchControls, wantsTouch } from './ui/touch';
 import { Arsenal } from './weapons/arsenal';
 import type { Gun, GunContext, HitEvent } from './weapons/gun';
 import { Projectiles } from './weapons/projectiles';
@@ -71,6 +72,8 @@ export class Game {
   readonly input: Input;
   readonly clock = new Clock();
   readonly hud = new Hud();
+  /** The touch controls, once a touch screen is in use (or `?touch=1`). */
+  touch: TouchControls | null = null;
   readonly panel = new Panel();
   readonly menus: Menus;
   readonly limbs: LimbRenderer;
@@ -189,6 +192,9 @@ export class Game {
     this.input = new Input(this.renderer.renderer.domElement);
     this.menus = new Menus(seed);
     this.hud.show(false);
+    // Touch: on a touch screen from the start, or the first time one is touched (unless `?touch=0`).
+    if (wantsTouch(location.search)) this.enableTouch();
+    else if (new URLSearchParams(location.search).get('touch') !== '0') window.addEventListener('touchstart', () => this.enableTouch(), { once: true, passive: true });
 
     this.menus.onPlay = (m) => {
       if (m === 'new') {
@@ -226,8 +232,27 @@ export class Game {
     requestAnimationFrame((t) => this.frame(t));
   }
 
+  /** Turn the touch controls on: the stick and the thumb buttons, the touch legend, a soft lock instead of a pointer. */
+  enableTouch() {
+    if (this.touch) return;
+    this.input.touch = true;
+    document.body.classList.add('touch-on');
+    this.touch = new TouchControls(this.input);
+    // Pause drops the soft lock, which pauses (as losing the pointer lock does).
+    this.touch.onPause = () => this.input.exitLock();
+    this.menus.setTouch(true);
+  }
+
   start(layout: LayoutKind) {
     this.synth.resume();
+    // On a phone: the whole screen, turned sideways where the browser allows it (Play is the tap that may ask).
+    if (this.input.touch && !document.fullscreenElement) {
+      const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+      document.documentElement
+        .requestFullscreen?.({ navigationUI: 'hide' })
+        .then(() => o?.lock?.('landscape'))
+        .catch(() => {});
+    }
     this.layout = layout;
     // The hub and the dimension run on the save (its seed, its pentacles); the test scenes start from nothing.
     if (layout === 'hub' || layout === 'level') {
@@ -1147,6 +1172,17 @@ export class Game {
     }
 
     if (this.player && this.mode !== 'menu') this.step(realDt);
+    if (this.touch) {
+      const sw = this.player ? this.arsenal.sword : null;
+      this.touch.sync({
+        visible: this.mode === 'playing' && !!this.player && !this.vitals.dead && !this.panel.open,
+        swordRifle: !!sw,
+        swordMode: sw?.mode === 'sword',
+        parry: this.save.unbound.includes('parry'),
+        dash: this.save.unbound.includes('dash'),
+        prompt: this.hud.currentPrompt,
+      });
+    }
     this.renderer.render();
     this.input.endFrame();
   }
@@ -1243,8 +1279,10 @@ export class Game {
     }
 
     // 2. Move. Stamina gates sprint and roll.
-    const ax = control ? (inp.held('KeyD') ? 1 : 0) - (inp.held('KeyA') ? 1 : 0) : 0;
-    const ay = control ? (inp.held('KeyW') ? 1 : 0) - (inp.held('KeyS') ? 1 : 0) : 0;
+    // The touch stick, when a thumb is on it, or the keys.
+    const stick = inp.stickX !== 0 || inp.stickY !== 0;
+    const ax = control ? (stick ? inp.stickX : (inp.held('KeyD') ? 1 : 0) - (inp.held('KeyA') ? 1 : 0)) : 0;
+    const ay = control ? (stick ? inp.stickY : (inp.held('KeyW') ? 1 : 0) - (inp.held('KeyS') ? 1 : 0)) : 0;
     const wasState = c.state;
     if (control && inp.justPressed('Space')) {
       this.rollBuffer = tuning.feel.rollBuffer;
@@ -1265,7 +1303,7 @@ export class Game {
     player.move(simDt, {
       x: ax,
       y: ay,
-      sprint: control && (inp.held('ShiftLeft') || inp.held('ShiftRight')) && v.canSprint(),
+      sprint: control && (inp.held('ShiftLeft') || inp.held('ShiftRight') || inp.stickSprint) && v.canSprint(),
       rollPressed: (wantsRoll && v.canRoll()) || breaksFree,
       dashPressed: wantsDash,
       speedMul:
