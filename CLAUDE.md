@@ -41,7 +41,8 @@ four thin ones.
 > spirals, the Moon's meander and its gateway towers; sight lines in `gen-sight.ts`, measures in `gen-metrics.ts`.
 > **V2-17** fixes the second playtest's notes: landings without lips, the pan that rides (`LevelWorld.pans`), the
 > pace (a fight past every gate), fire that spreads one step, the Moon's forks, and summons that go with their maker
-> (`Foe.maker`). The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
+> (`Foe.maker`). **V2-18** adds responsive touch controls (`src/ui/touch.ts`, the stick's maths in `src/core/stick.ts`,
+> `tuning.touch`): on a touch screen or with `?touch=1`. The v1 bug enemies (`enemy.ts`, `types.ts`, `rig.ts`), v1 zones (`src/world/gen.ts`, `zone.ts`,
 > `themes.ts`), the test arena and the pollen economy are still v1 bug-scale content in beetle units, reachable only
 > through `?mode=arena|range|garden|kitchen`. Comments that mention bugs, pollen or beetles describe that v1 content.
 
@@ -62,7 +63,8 @@ four thin ones.
 ## Out of scope
 
 Loot, rarity, crafting, survival meters, skill trees and buildcraft systems; branching dialogue, voice and
-cutscenes; multiplayer and co-op; touch controls; more than 4 dimensions; menus beyond start / death / pause / hub shop.
+cutscenes; multiplayer and co-op; more than 4 dimensions; menus beyond start / death / pause / hub shop. (Touch controls
+were here until the user asked for them in V2-18; they're in scope now: `src/ui/touch.ts`.)
 
 **Allowed, but keep it minimal:**
 - a progress save in `localStorage` (gates, upgrades, repair stage, seed)
@@ -81,7 +83,7 @@ Three.js + Vite + TypeScript, Rapier (`@dimforge/rapier3d-compat`) and lil-gui. 
 - `npm test`: unit tests (pure logic: IK, gait, RNG, generation)
 - `npm run smoke`: builds, serves, and loads the page in headless Chromium. Any console error fails the run.
   Writes screenshots to `screenshots/`. The main run walks the Justice courtyard and shoots the look. Add scenarios
-  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol` and `--sword` are v2, and `--moonfoes` runs just the Moon's
+  with `npm run smoke -- --level --foes --court --boss --hub --devil --tower --moon --pistol --sword --touch --enemies --zones` (`--level`, `--foes`, `--court`, `--boss`, `--hub`, `--devil`, `--tower`, `--moon`, `--pistol`, `--sword` and `--touch` (a phone-sized screen, real touches) are v2, and `--moonfoes` runs just the Moon's
   enemies, court, Shadow and ending; `--enemies` and
   `--zones` drive the legacy v1 scenes). If the pinned Playwright's browser isn't installed, point `CHROMIUM_PATH` at a Chromium binary.
   Headless runs on SwiftShader at ~20fps and game time lags wall time, so scenarios wait on game state, not on timers.
@@ -128,7 +130,8 @@ src/
   main.ts          bootstrap, menus, game loop
   game.ts          modes + per-frame system order
   tuning.ts        all feel numbers (weapons reference src/weapons/defs.ts)
-  core/            rng, math/springs, input, time (slow-mo, hitstop), save (pure progress logic + localStorage)
+  core/            rng, math/springs, input (keys, mouse, the touch stick), time (slow-mo, hitstop), save (pure progress
+                   logic + localStorage), stick (the touch stick's pure maths)
   physics/         Rapier world wrapper, collision groups
   render/          renderer, palette, geometry helpers, toon materials, atmosphere (fog + sky), pixel mode
                    (low-res blocks + distance-faded depth outline)
@@ -139,7 +142,8 @@ src/
                    swordrifle.ts: modes, blade sweep, charge cells); the parry (parry.ts: pure timing)
   fx/              muzzle flash, tracers, impacts, decals, casings, screen shake
   audio/           WebAudio synth
-  ui/              HUD, crosshair, hit markers, menus, the Magician's shop, tuning panel (presets, Copy JSON)
+  ui/              HUD, crosshair, hit markers, menus, the Magician's shop, tuning panel (presets, Copy JSON), touch
+                   controls (touch.ts: the stick, look drags, thumb buttons pressing the same codes as the keys)
   enemies/         v2: humanoid rig (humanoid.ts), beast rig for animals (beast.ts: four legs, eight, or swimming; both
                    rigs share FoeRig), archetypes as data (foes.ts), pure AI decisions (foe-ai.ts), the
                    Foe state machine (foe.ts), court-card minibosses (court.ts: CourtCard extends Foe), the Justice

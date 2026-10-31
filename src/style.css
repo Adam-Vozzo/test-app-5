@@ -11,12 +11,16 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
+  /* No pinch, scroll or double-tap zoom under a thumb; no callout on a long press. */
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   background: #120d0c;
   font-family: ui-rounded, 'Nunito', 'Trebuchet MS', system-ui, sans-serif;
   color: var(--ui);
   user-select: none;
 }
-#app, canvas { display: block; width: 100vw; height: 100vh; }
+#app, canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; }
 
 .hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 
@@ -152,3 +156,95 @@ html, body {
 .overlay.shop .item b { display: block; color: var(--cream); }
 .overlay.shop .item span { font-size: 13px; opacity: 0.8; }
 .overlay.shop .item button:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+/* ---- Touch controls (V2-18): a floating stick under the left thumb, thumb buttons on the right. Sizes follow the
+   screen's short side (--u, one button), kept clear of notches and home bars by the safe-area insets. */
+.touch {
+  --u: clamp(44px, 12vmin, 78px);
+  --sr: env(safe-area-inset-right, 0px);
+  --sb: env(safe-area-inset-bottom, 0px);
+  position: fixed; inset: 0; z-index: 20; touch-action: none; pointer-events: none;
+}
+.touch .stick {
+  --r: 60px;
+  position: absolute; width: calc(var(--r) * 2); height: calc(var(--r) * 2); margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+  border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); background: rgba(30, 20, 20, 0.22);
+  opacity: 0; transition: opacity 0.12s; pointer-events: none;
+}
+.touch .stick.active { opacity: 1; }
+.touch .stick.sprint { border-color: rgba(254, 238, 197, 0.85); }
+.touch .stick i {
+  position: absolute; left: 50%; top: 50%; width: calc(var(--r) * 0.8); height: calc(var(--r) * 0.8);
+  margin: calc(var(--r) * -0.4) 0 0 calc(var(--r) * -0.4); border-radius: 50%;
+  background: rgba(254, 238, 197, 0.55); box-shadow: 0 2px 0 rgba(30, 20, 20, 0.5);
+}
+.touch .tb {
+  position: absolute; width: var(--u); height: var(--u); border-radius: 50%; padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.5); background: rgba(30, 20, 20, 0.42); color: #fff;
+  font: inherit; font-weight: 800; font-size: calc(var(--u) * 0.22); letter-spacing: 0.02em;
+  text-shadow: 0 1px 0 var(--ink); touch-action: none; user-select: none; -webkit-user-select: none; pointer-events: auto;
+}
+.touch .tb.held { background: rgba(254, 238, 197, 0.55); color: var(--ink); text-shadow: none; }
+.touch .tb.on { border-color: var(--cream); background: rgba(254, 238, 197, 0.32); }
+.touch .tb.off { display: none; }
+/* The cluster, round Fire at the bottom right. */
+.touch .fire { width: calc(var(--u) * 1.55); height: calc(var(--u) * 1.55); font-size: calc(var(--u) * 0.3);
+  right: calc(var(--sr) + var(--u) * 0.55); bottom: calc(var(--sb) + var(--u) * 0.55); background: rgba(192, 87, 74, 0.5); }
+.touch .aim { right: calc(var(--sr) + var(--u) * 2.35); bottom: calc(var(--sb) + var(--u) * 0.35); }
+.touch .roll { right: calc(var(--sr) + var(--u) * 0.35); bottom: calc(var(--sb) + var(--u) * 2.3); }
+.touch .reload { right: calc(var(--sr) + var(--u) * 1.85); bottom: calc(var(--sb) + var(--u) * 1.75); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+.touch .heal { right: calc(var(--sr) + var(--u) * 1.5); bottom: calc(var(--sb) + var(--u) * 3.05); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+.touch .swap { right: calc(var(--sr) + var(--u) * 3.55); bottom: calc(var(--sb) + var(--u) * 1.3); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+.touch .mode { right: calc(var(--sr) + var(--u) * 3.05); bottom: calc(var(--sb) + var(--u) * 2.45); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+.touch .parry { right: calc(var(--sr) + var(--u) * 3.6); bottom: calc(var(--sb) + var(--u) * 0.15); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+.touch .dash { right: calc(var(--sr) + var(--u) * 0.2); bottom: calc(var(--sb) + var(--u) * 3.5); width: calc(var(--u) * 0.85); height: calc(var(--u) * 0.85); }
+/* Use: the interaction prompt itself, a white pill a thumb can reach (it replaces the HUD's prompt). */
+.touch .use {
+  left: 50%; bottom: calc(var(--sb) + var(--u) * 1.6); transform: translateX(-50%); width: auto; height: auto;
+  max-width: 46vw; min-height: calc(var(--u) * 0.7); padding: 6px 16px; border-radius: 6px; background: #fff;
+  color: var(--ink); text-shadow: none; border: 0; box-shadow: 0 3px 0 var(--ink); font-size: max(13px, calc(var(--u) * 0.22));
+}
+.touch .use.held { background: var(--cream); }
+.touch .pause { right: calc(var(--sr) + 10px); top: calc(env(safe-area-inset-top, 0px) + 10px); width: calc(var(--u) * 0.7); height: calc(var(--u) * 0.7); }
+/* Portrait: a little smaller, so the cluster leaves the middle of the screen free. */
+@media (orientation: portrait) {
+  .touch { --u: clamp(40px, 13vmin, 64px); }
+}
+
+/* With touch on, the HUD steps out of the thumbs' way: ammo and weapons to the top right (under pause), the boss bar
+   to the top, the HUD's own prompt hidden (Use carries it). */
+body.touch-on .hud .prompt { display: none !important; }
+body.touch-on .ammo { top: calc(env(safe-area-inset-top, 0px) + 14px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 72px); }
+body.touch-on .slots { top: calc(env(safe-area-inset-top, 0px) + 74px); bottom: auto; right: calc(env(safe-area-inset-right, 0px) + 72px); }
+body.touch-on .boss { top: calc(env(safe-area-inset-top, 0px) + 12px); bottom: auto; width: min(420px, 40vw); }
+body.touch-on .toast { bottom: auto; top: 28%; }
+body.touch-on .stats { display: none; }
+
+/* ---- Small screens (phones, or a short window): the HUD and the menus scale down and stay on screen. */
+@media (max-height: 560px), (max-width: 700px) {
+  .vitals { left: calc(env(safe-area-inset-left, 0px) + 14px); top: calc(env(safe-area-inset-top, 0px) + 12px); gap: 4px; }
+  .vitals .hp { width: min(220px, 34vw); height: 10px; }
+  .vitals .st { width: min(160px, 26vw); height: 7px; }
+  .ammo .mag { font-size: 30px; }
+  .ammo .res { font-size: 14px; }
+  .ammo .wname, .ammo .reload { font-size: 12px; }
+  .slots { font-size: 11px; }
+  .boss .name { font-size: 14px; }
+  .toast, .prompt { font-size: 13px; max-width: 80vw; text-align: center; }
+  .stats, .range { font-size: 10px; }
+  .overlay { justify-content: flex-start; overflow-y: auto; padding: 16px 12px max(16px, env(safe-area-inset-bottom, 0px)); gap: 10px; touch-action: pan-y; }
+  .overlay > :first-child { margin-top: auto; }
+  .overlay > :last-child { margin-bottom: auto; }
+  .overlay h1, .overlay.death h1 { font-size: clamp(34px, 10vmin, 64px); }
+  .overlay p { font-size: 14px; max-width: 92vw; }
+  .overlay button { min-width: min(260px, 80vw); font-size: 17px; padding: 9px 20px; }
+  .overlay button.small { min-width: 0; }
+  .overlay .row { flex-wrap: wrap; justify-content: center; }
+  .keys { font-size: 12px; max-width: 92vw; }
+  .overlay.shop .items { min-width: 0; width: min(560px, 92vw); }
+  .overlay.sun .card { width: 120px; height: auto; }
+}
+@media (orientation: portrait) {
+  body.touch-on .ammo .wname { max-width: 46vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: auto; }
+  body.touch-on .vitals .hp { width: 34vw; }
+}

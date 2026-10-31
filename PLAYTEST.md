@@ -4,6 +4,28 @@ Newest milestone first. Each entry says what to try and what I'm unsure about.
 Feel and difficulty can only be judged by playing; nothing here claims they're good.
 v1 entries (M0–M6, tuning passes, render passes) are in `archive/v1/PLAYTEST.md`.
 
+## V2-18: touch controls
+The game now plays on a phone or tablet. Open it on one (the controls come up by themselves), or add `?touch=1` to the
+URL on a touch laptop.
+
+**Try:**
+- **Move:** put your left thumb down anywhere on the left side; the stick appears under it. Push gently to walk, to
+  the rim to run.
+- **Look:** drag anywhere on the right. Hold **Fire** and slide your thumb to walk the shots onto a target.
+- **Aim** toggles (tap again to stop aiming). With the SwordRifle in sword mode it becomes **Charge**: hold it.
+- **Roll, Reload, Heal, Swap** and **Sword/Rifle** are round Fire. **Parry** and **Dash** appear once you've freed
+  them. **Use** pops up by lanterns, doors, pans and people with the prompt's words on it.
+- **Portrait and landscape:** both work; landscape gives you more room. Play asks for the full screen.
+
+**Unsure about:**
+- **Look sensitivity** (`tuning.touch.lookSens`, 1.9): it's set by feel on a desktop's numbers, not on a phone. Tell
+  me if it's too fast or slow; it's in the tuning panel.
+- **Aim as a toggle:** holding Aim, Fire and a look drag at once needs three thumbs, so it toggles. It might feel
+  better held.
+- **Button placement** suits a right thumb of average reach. Small phones in portrait may feel cramped.
+- **Performance:** phones were never profiled; the level may run slowly on older ones.
+- **I tested on a simulated phone** (headless Chromium, real touch events), not on a real device.
+
 ## V2-17: fixes from your second playtest
 All 16 notes are addressed (the list is in `PLAN.md → V2-17`). The step blocks came from a lip: when a stair run
 was short, the landing's disc stood about 25 cm proud of the stairs' top. The Moon's "invisible wall" was most likely

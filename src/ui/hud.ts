@@ -189,6 +189,11 @@ export class Hud {
     this.bossFill.style.width = `${Math.max(0, frac) * 100}%`;
   }
 
+  /** The interaction prompt showing now, if any (the touch controls' Use button carries it). */
+  get currentPrompt() {
+    return this.promptText;
+  }
+
   /** Contextual interaction prompt (white box, like the reference's button prompts). */
   prompt(text: string | null) {
     if (text === this.promptText) return;
